@@ -6,7 +6,6 @@ env/
 
 # Config privée
 .env
-.env.*
 
 # Artifacts générés
 .runs/
