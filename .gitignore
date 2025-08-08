@@ -1,0 +1,33 @@
+# Environnements virtuels
+.venv/
+venv/
+ENV/
+env/
+
+# Config privée
+.env
+.env.*
+
+# Artifacts générés
+.runs/
+artifacts/
+*.md
+
+# Caches / temporaires Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Logs
+*.log
+logs/
+
+# Fichiers d’éditeur
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db

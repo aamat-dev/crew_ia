@@ -1,0 +1,8 @@
+{
+  "title": "Rapport 80p",
+  "plan": [
+    { "id": "n1", "title": "Collecte sources", "deps": [] },
+    { "id": "n2", "title": "Analyse & synthèse v2", "deps": ["n1"] },
+    { "id": "n3", "title": "Rédaction finale (80p)", "deps": ["n2"] }
+  ]
+}
