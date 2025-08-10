@@ -51,3 +51,12 @@ env-check:
 		print("OLLAMA_MODEL      =", get_var("OLLAMA_MODEL"))
 		print("DB_URL            =", get_var("DB_URL"))
 	PY
+
+test-agents:
+	pytest -k "runner or supervisor" -v
+
+run-ollama:
+	LLM_DEFAULT_PROVIDER=ollama LLM_DEFAULT_MODEL=llama3.1:8b make run
+
+run-openai:
+	LLM_DEFAULT_PROVIDER=openai LLM_DEFAULT_MODEL=gpt-4o-mini make run

@@ -1,142 +1,60 @@
-"""
-Superviseur — Version 'gratuit' via Ollama (LLM local).
-Objectif :
-- Générer un plan JSON STRICT pour le DAG : {decompose, plan[], risks, assumptions, notes}
-- Valider avec Pydantic.
-- Si invalide : re-prompt automatique (2 tentatives).
-- En dernier recours : fallback déterministe (plan simple).
-
-Tout est commenté en français pour la compréhension.
-"""
-
+# core/agents/supervisor.py
 import json
-from typing import Optional
-import os
-from pydantic import BaseModel, ValidationError
+from textwrap import dedent
+from core.config import resolve_llm
+from core.llm.providers.base import LLMRequest, ProviderTimeout, ProviderUnavailable
+from core.llm.runner import run_llm
 
-from core.llm.providers.ollama import ollama_chat  # <-- provider local
-# Si tu veux garder un mode "sans LLM", on testera USE_OLLAMA plus bas.
+_SUPERVISOR_SYSTEM = dedent("""\
+Tu es un planificateur d'IA. Tu analyses une tâche et produis un plan JSON STRICT :
+- Clés obligatoires : "decompose" (bool), "subtasks" (liste d'objets { "title", "description" }), "plan" (liste de chaînes).
+- Ne renvoie QUE du JSON, sans texte en dehors du JSON.
+- Langue : français pour title/description.
+- Si tu hésites, remonte des sous-tâches claires et atomiques.
+""")
 
+def _build_user_prompt(task: dict) -> str:
+    title = task.get("title") or "Tâche"
+    description = task.get("description") or ""
+    acceptance = task.get("acceptance") or ""
+    return dedent(f"""\
+    Contexte:
+    - Titre: {title}
+    - Description: {description}
+    - Acceptance (critères): {acceptance}
 
-# -------- Schémas Pydantic : garantissent la structure du plan --------
-class PlanNode(BaseModel):
-    id: str
-    title: str
-    description: str = ""
-    type: str = "task"  # "analysis", "research", "build", "write", "review", ...
-    deps: list[str] = []
-    acceptance: str = ""
-    suggested_agent_role: str = "generic_executor"
+    Exigences de sortie (JSON strict uniquement) :
+    {{
+      "decompose": <true|false>,
+      "subtasks": [{{"title": "…", "description": "…"}}],
+      "plan": ["…", "…"]
+    }}
+    """)
 
-class PlanOut(BaseModel):
-    decompose: bool = True
-    plan: list[PlanNode]
-    risks: list[str] = []
-    assumptions: list[str] = []
-    notes: list[str] = []
-
-
-# -------- Prompts (règles strictes pour forcer le JSON) --------
-SYSTEM_PROMPT = (
-    "Tu es un Superviseur IA expérimenté. "
-    "Ta seule sortie doit être un JSON STRICT au format exact suivant, sans aucun texte autour:\n"
-    "{\n"
-    '  "decompose": bool,\n'
-    '  "plan": [\n'
-    '    {"id":"n1","title":"...","description":"...","type":"analysis|research|build|write|review",'
-    '"deps":[],"acceptance":"...","suggested_agent_role":"generic_executor|writer|researcher|developer"}\n'
-    "  ],\n"
-    '  "risks": [], "assumptions": [], "notes": []\n'
-    "}\n"
-    "Si tu n'es pas sûr, produis le JSON le plus simple possible, mais toujours valide.\n"
-)
-
-# On construit le prompt utilisateur à partir de la tâche
-def build_user_prompt(task_input: dict) -> str:
-    title = task_input.get("title", "Tâche")
-    desc = task_input.get("description", "")
-    # On rappelle le sujet, et on insiste sur le JSON strict
-    return (
-        f"Tâche: {json.dumps(task_input, ensure_ascii=False)}\n\n"
-        "Exigences:\n"
-        "- Décomposer en sous-tâches si pertinent (parallélisables quand possible).\n"
-        "- Chaque nœud doit avoir un id unique, un titre, une description, un type, des deps, et un critère d'acceptation.\n"
-        "- Respecte le format exact demandé et ne renvoie *QUE* le JSON."
+async def run(task: dict) -> dict:
+    provider, model, params = resolve_llm("supervisor")
+    req = LLMRequest(
+        system=_SUPERVISOR_SYSTEM,
+        prompt=_build_user_prompt(task),
+        model=model,
+        temperature=0.1,
+        max_tokens=min(2000, params["max_tokens"]),
+        timeout_s=params["timeout_s"],
     )
-
-# -------- Génération + validation + re-prompt en cas d'échec --------
-async def _try_build_plan_once(task_input: dict) -> Optional[dict]:
-    """
-    Une tentative : on appelle le LLM local (Ollama) pour obtenir un JSON.
-    Si le JSON est mal formé, on renvoie None.
-    """
-    user_prompt = build_user_prompt(task_input)
-    raw = await ollama_chat(SYSTEM_PROMPT, user_prompt, temperature=0.2)
-    # Le modèle peut parfois rajouter du texte parasite.
-    # Stratégie simple : tenter un parse 'au plus large' en cherchant la première '{' et la dernière '}'
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
-    snippet = raw[start:end+1]
     try:
-        candidate = json.loads(snippet)
-        # Validation Pydantic : renvoie une dict propre si ok
-        return PlanOut.model_validate(candidate).model_dump()
-    except Exception:
-        return None
-
-async def supervisor_plan(task_input: dict) -> dict:
-    """
-    Stratégie :
-    1) Si USE_OLLAMA=1 → on tente 2 fois l'appel LLM + validation.
-    2) Si toujours invalide (ou USE_OLLAMA≠1) → fallback déterministe.
-    """
-    use_ollama = os.getenv("USE_OLLAMA", "0") == "1"
-
-    if use_ollama:
-        for attempt in range(2):
-            plan = await _try_build_plan_once(task_input)
-            if plan:
-                return plan
-        # si les 2 tentatives échouent, on bascule vers le fallback
-
-    # ===== Fallback déterministe (toujours valide) =====
-    title = task_input.get("title", "Tâche")
-    desc = task_input.get("description", "")
-    fallback = {
-        "decompose": True,
-        "plan": [
-            {
-                "id": "n1",
-                "title": f"Analyse A — {title}",
-                "description": desc,
-                "type": "analysis",
-                "deps": [],
-                "acceptance": "Texte A prêt",
-                "suggested_agent_role": "generic_executor"
-            },
-            {
-                "id": "n2",
-                "title": f"Analyse B — {title}",
-                "description": desc,
-                "type": "analysis",
-                "deps": [],
-                "acceptance": "Texte B prêt",
-                "suggested_agent_role": "generic_executor"
-            },
-            {
-                "id": "n3",
-                "title": "Synthèse finale",
-                "description": "Fusion des parties A et B",
-                "type": "write",
-                "deps": ["n1","n2"],
-                "acceptance": "Synthèse prête",
-                "suggested_agent_role": "generic_executor"
-            },
-        ],
-        "risks": [],
-        "assumptions": [],
-        "notes": ["fallback_plan"]
-    }
-    return PlanOut.model_validate(fallback).model_dump()
+        resp = await run_llm(req, provider, params["fallback_order"])
+        raw = resp.text.strip()
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Supervisor JSON invalide: {e}; sortie={raw[:200]}")
+        if not isinstance(data, dict):
+            raise ValueError("Supervisor JSON invalide: objet JSON attendu.")
+        for key in ("decompose", "subtasks", "plan"):
+            if key not in data:
+                raise ValueError(f"Supervisor JSON incomplet: clé manquante '{key}'.")
+        if not isinstance(data["subtasks"], list): data["subtasks"] = []
+        if not isinstance(data["plan"], list): data["plan"] = []
+        return data
+    except (ProviderTimeout, ProviderUnavailable) as e:
+        raise RuntimeError(f"Supervisor indisponible: {e}")

@@ -49,3 +49,82 @@ def get_var(key: str, default=None):
 if __name__ == "__main__":
     print("Modèle LLM :", get_var("LLM_MODEL"))
     print("Base URL Ollama :", get_var("OLLAMA_BASE_URL"))
+
+# ===============================
+# 5) Config LLM (providers + modèles + fallback) — compatible legacy
+# ===============================
+
+# Nouveau schéma (optionnel)
+LLM_DEFAULT_PROVIDER = get_var("LLM_DEFAULT_PROVIDER")  # "ollama" | "openai" | None
+LLM_DEFAULT_MODEL = get_var("LLM_DEFAULT_MODEL")
+LLM_FALLBACK_ORDER = [
+    p.strip() for p in get_var("LLM_FALLBACK_ORDER", "ollama,openai").split(",") if p.strip()
+]
+LLM_TIMEOUT_S = int(get_var("LLM_TIMEOUT_S", 60))
+LLM_TEMPERATURE = float(get_var("LLM_TEMPERATURE", 0.2))
+LLM_MAX_TOKENS = int(get_var("LLM_MAX_TOKENS", 1500))
+
+# Overrides par agent (optionnels, nouveau schéma)
+SUPERVISOR_PROVIDER = get_var("SUPERVISOR_PROVIDER")
+SUPERVISOR_MODEL = get_var("SUPERVISOR_MODEL")
+EXECUTOR_PROVIDER = get_var("EXECUTOR_PROVIDER")
+EXECUTOR_MODEL = get_var("EXECUTOR_MODEL")
+
+# ---- Compatibilité legacy (ton schéma actuel) ----
+# USE_OLLAMA=1 => provider=ollama, modèle=OLLAMA_MODEL ou LLM_MODEL
+# USE_OLLAMA=0 => provider=openai, modèle=LLM_MODEL
+def _legacy_provider_model():
+    use_ollama = get_var("USE_OLLAMA", "1").strip()
+    if use_ollama == "1":
+        provider = "ollama"
+        model = get_var("OLLAMA_MODEL") or get_var("LLM_MODEL") or "llama3.1:8b"
+    else:
+        provider = "openai"
+        model = get_var("LLM_MODEL") or "gpt-4o-mini"
+    return provider, model
+
+def _effective_defaults():
+    """
+    Règle de résolution :
+    1) Si LLM_DEFAULT_PROVIDER/MODEL renseignés -> on les utilise
+    2) Sinon on retombe sur l'ancien schéma (USE_OLLAMA + LLM_MODEL/OLLAMA_MODEL)
+    """
+    provider = LLM_DEFAULT_PROVIDER
+    model = LLM_DEFAULT_MODEL
+    if not provider or not model:
+        legacy_p, legacy_m = _legacy_provider_model()
+        provider = provider or legacy_p
+        model = model or legacy_m
+    return provider, model
+
+def resolve_llm(agent_role: str):
+    """
+    Retourne (provider, model, params) pour un agent donné.
+    - Priorité aux overrides par agent (nouveau schéma)
+    - Sinon défauts (nouveau schéma) ou legacy si non renseignés
+    """
+    role = (agent_role or "").strip().upper()
+
+    default_provider, default_model = _effective_defaults()
+
+    if role == "SUPERVISOR":
+        provider = SUPERVISOR_PROVIDER or default_provider
+        model = SUPERVISOR_MODEL or default_model
+    elif role == "EXECUTOR":
+        provider = EXECUTOR_PROVIDER or default_provider
+        model = EXECUTOR_MODEL or default_model
+    else:
+        provider, model = default_provider, default_model
+
+    params = {
+        "timeout_s": LLM_TIMEOUT_S,
+        "temperature": LLM_TEMPERATURE,
+        "max_tokens": LLM_MAX_TOKENS,
+        "fallback_order": LLM_FALLBACK_ORDER,
+    }
+    return provider, model, params
+
+if __name__ == "__main__":
+    print("LLM (defaults) ->", _effective_defaults())
+    print("LLM (executor) ->", resolve_llm("executor"))
+    print("LLM (supervisor) ->", resolve_llm("supervisor"))
