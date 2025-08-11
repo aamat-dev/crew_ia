@@ -16,6 +16,10 @@ class LLMRequest:
 class LLMResponse:
     text: str
     raw: Optional[Dict] = None
+    # Ajouts pour la traçabilité
+    provider: Optional[str] = None      # "ollama" | "openai" | ...
+    model_used: Optional[str] = None    # modèle effectivement utilisé (peut différer en fallback)
+
 
 class ProviderError(Exception): ...
 class ProviderUnavailable(ProviderError): ...

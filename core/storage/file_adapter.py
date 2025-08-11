@@ -23,14 +23,33 @@ class FileStorage:
         self.base_dir = base_dir
         os.makedirs(self.base_dir, exist_ok=True)  # crée le dossier s'il n'existe pas
 
-    async def save_artifact(self, node_id: str, content: str):
+    def _artifact_path(self, node_id: str, ext: str = ".md") -> str:
         """
-        Écrit l'artifact d'un nœud dans un fichier Markdown.
-        Nom de fichier = artifact_<node_id>.md
+        Construit le chemin de l'artifact pour un node_id donné avec l'extension souhaitée.
+        Par défaut, .md (comportement historique).
         """
-        path = os.path.join(self.base_dir, f"artifact_{node_id}.md")
+        if not ext.startswith("."):
+            ext = "." + ext
+        filename = f"artifact_{node_id}{ext}"
+        return os.path.join(self.base_dir, filename)
+
+    async def save_artifact(self, node_id: str, content: str, ext: str = ".md") -> str:
+        """
+        Écrit l'artifact d'un nœud dans un fichier.
+        Nom de fichier = artifact_<node_id><ext>
+        - ext par défaut = ".md" (rétro-compatibilité).
+        Retourne le chemin écrit.
+        """
+        path = self._artifact_path(node_id=node_id, ext=ext)
         async with aiofiles.open(path, "w", encoding="utf-8") as f:
             await f.write(content)
+        return path
+
+    async def save_sidecar(self, node_id: str, content: str, ext: str = ".llm.json") -> str:
+        """
+        Écrit un sidecar à côté de l'artifact principal (ex: .llm.json).
+        """
+        return await self.save_artifact(node_id=node_id, content=content, ext=ext)
 
 
 # ---------------------------

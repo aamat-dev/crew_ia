@@ -50,7 +50,11 @@ async def run_llm(req: LLMRequest, primary: str, fallback_order: List[str]) -> L
                 stop=req.stop,
                 timeout_s=req.timeout_s,
             )
-            return await provider.generate(req_for_provider)
+            resp = await provider.generate(req_for_provider)
+            # enrichir la réponse pour la traçabilité
+            resp.provider = name
+            resp.model_used = model
+            return resp
         except (ProviderTimeout, ProviderUnavailable) as e:
             last_err = e
             continue
