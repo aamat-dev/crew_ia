@@ -116,13 +116,76 @@ def resolve_llm(agent_role: str):
     else:
         provider, model = default_provider, default_model
 
+    # PARAMS PAR DÉFAUT (global)
+    default_timeout = _env_int("LLM_TIMEOUT_S", 60)
+    default_temp    = _env_float("LLM_TEMPERATURE", 0.2)
+    default_tokens  = _env_int("LLM_MAX_TOKENS", 1500)
+
+    # OVERRIDES PAR RÔLE (si présents)
+    timeout = _env_int(_role_key(role, "TIMEOUT_S"), default_timeout)
+    temperature = _env_float(_role_key(role, "TEMPERATURE"), default_temp)
+    max_tokens = _env_int(_role_key(role, "MAX_TOKENS"), default_tokens)
+
+    # fallback order (existant)
+    fallback_raw = os.getenv("LLM_FALLBACK_ORDER", "ollama,openai")
+    fallback_order = [x.strip() for x in fallback_raw.split(",") if x.strip()]
+
     params = {
-        "timeout_s": LLM_TIMEOUT_S,
-        "temperature": LLM_TEMPERATURE,
-        "max_tokens": LLM_MAX_TOKENS,
-        "fallback_order": LLM_FALLBACK_ORDER,
+        "timeout_s": timeout,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "fallback_order": fallback_order,
     }
     return provider, model, params
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, "").strip() or default)
+    except Exception:
+        return default
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, "").strip() or default)
+    except Exception:
+        return default
+
+def _role_key(role: str, suffix: str) -> str:
+    # e.g. role="executor", suffix="TIMEOUT_S" => "EXECUTOR_TIMEOUT_S"
+    return f"{role.upper()}_{suffix}"
+
+def resolve_llm_with_overrides(role: str, overrides: dict | None = None):
+    """
+    Étend resolve_llm(role) avec des overrides éventuels (provenant d'une tâche/DB).
+    Overrides possibles (clés exemples):
+      - provider, model
+      - temperature, max_tokens, timeout_s
+      - fallback_order (liste ou "a,b,c")
+    """
+    base_provider, base_model, base_params = resolve_llm(role)
+    overrides = overrides or {}
+
+    provider = overrides.get("provider", base_provider)
+    model = overrides.get("model", base_model)
+
+    def _coalesce_num(key, base):
+        return overrides.get(key, base)
+
+    params = {
+        "timeout_s": _coalesce_num("timeout_s", base_params["timeout_s"]),
+        "temperature": _coalesce_num("temperature", base_params["temperature"]),
+        "max_tokens": _coalesce_num("max_tokens", base_params["max_tokens"]),
+        "fallback_order": base_params["fallback_order"],
+    }
+
+    fo = overrides.get("fallback_order")
+    if isinstance(fo, str):
+        params["fallback_order"] = [x.strip() for x in fo.split(",") if x.strip()]
+    elif isinstance(fo, (list, tuple)) and fo:
+        params["fallback_order"] = list(fo)
+
+    return provider, model, params
+
 
 if __name__ == "__main__":
     print("LLM (defaults) ->", _effective_defaults())

@@ -8,7 +8,7 @@ task_graph.py — Transforme un plan JSON en DAG exploitable.
 import networkx as nx
 from dataclasses import dataclass, field
 from typing import List
-
+from typing import List, Dict, Any
 
 @dataclass
 class PlanNode:
@@ -20,10 +20,11 @@ class PlanNode:
     title: str = ""
     description: str = ""
     type: str = "task"
-    deps: List[str] = field(default_factory=list)      # IDs des nœuds dont dépend ce nœud
-    acceptance: str = ""                               # critère d'acceptation/livrable attendu
-    suggested_agent_role: str = ""                     # (optionnel) rôle d’agent suggéré
-    succ: list = field(default_factory=list)           # successeurs (remplis après construction du graphe)
+    deps: List[str] = field(default_factory=list)
+    acceptance: str = ""
+    suggested_agent_role: str = ""
+    succ: list = field(default_factory=list)
+    llm: Dict[str, Any] = field(default_factory=dict)   # <-- NEW          # successeurs (remplis après construction du graphe)
 
 
 class TaskGraph:
@@ -72,8 +73,9 @@ class TaskGraph:
                 description=p.get("description", ""),
                 type=p.get("type", "task"),
                 deps=p.get("deps", []),
-                acceptance=p.get("acceptance", ""),
+               acceptance=p.get("acceptance", ""),
                 suggested_agent_role=p.get("suggested_agent_role", ""),
+                llm=p.get("llm", {}) or {},                     # <-- NEW
             )
             for p in plan.get("plan", [])
         ]

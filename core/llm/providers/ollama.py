@@ -51,6 +51,9 @@ class OllamaProvider(LLMProvider):
             raise ProviderTimeout("Ollama timeout (connect)")
         except httpx.ReadTimeout:
             raise ProviderTimeout("Ollama timeout (read)")
+        except httpx.TimeoutException as e:
+            # couvre tout autre timeout agrégé
+            raise ProviderTimeout(f"Ollama timeout: {e}")
         except httpx.ConnectError as e:
             # Daemon non lancé, port fermé, etc.
             raise ProviderUnavailable(f"Ollama indisponible: {e}")

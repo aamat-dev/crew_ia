@@ -1,9 +1,12 @@
 # core/agents/supervisor.py
 import json
+import logging
+
 from textwrap import dedent
 from core.config import resolve_llm
 from core.llm.providers.base import LLMRequest, ProviderTimeout, ProviderUnavailable
 from core.llm.runner import run_llm
+from core.llm.utils import truncate
 
 _SUPERVISOR_SYSTEM = dedent("""\
 Tu es un planificateur d'IA. Tu analyses une tâche et produis un plan JSON STRICT :
@@ -12,6 +15,8 @@ Tu es un planificateur d'IA. Tu analyses une tâche et produis un plan JSON STRI
 - Langue : français pour title/description.
 - Si tu hésites, remonte des sous-tâches claires et atomiques.
 """)
+
+log = logging.getLogger("crew.supervisor")
 
 def _build_user_prompt(task: dict) -> str:
     title = task.get("title") or "Tâche"
@@ -33,6 +38,13 @@ def _build_user_prompt(task: dict) -> str:
 
 async def run(task: dict, storage) -> dict:
     provider, model, params = resolve_llm("supervisor")
+
+    # Log avant l'appel au LLM
+    log.info(
+        "supervisor call: provider=%s model=%s timeout=%ss",
+        provider, model, params["timeout_s"]
+    )
+
     req = LLMRequest(
         system=_SUPERVISOR_SYSTEM,
         prompt=_build_user_prompt(task),
@@ -44,6 +56,44 @@ async def run(task: dict, storage) -> dict:
     try:
         resp = await run_llm(req, provider, params["fallback_order"])
         raw = resp.text.strip()
+
+        # Log après l'appel au LLM
+        log.info(
+            "supervisor used: provider=%s model=%s",
+            getattr(resp, "provider", None),
+            getattr(resp, "model_used", None),
+        )
+
+        usage = None
+        cost = None
+        if getattr(resp, "provider", None) == "openai":
+            _raw = getattr(resp, "raw", {}) or {}
+            try:
+                u = _raw.get("usage", None)
+                if hasattr(u, "__dict__"):
+                    u = u.__dict__
+                if isinstance(u, dict):
+                    usage = {
+                        "prompt_tokens": int(u.get("prompt_tokens", 0)),
+                        "completion_tokens": int(u.get("completion_tokens", 0)),
+                        "total_tokens": int(u.get("total_tokens", 0)),
+                    }
+                    # Estimation du coût
+                    from core.agents.executor_llm import _estimate_cost
+                    cost = _estimate_cost(
+                        usage,
+                        getattr(resp, "provider", None),
+                        getattr(resp, "model_used", None)
+                    )
+            except Exception:
+                usage = None
+
+        # Log debug tokens + coût
+        log.debug(
+            "supervisor tokens=%s cost=%s",
+            usage,
+            cost
+        )
 
         # --- Traçabilité LLM (sidecar)
         trace = {
@@ -60,14 +110,20 @@ async def run(task: dict, storage) -> dict:
                 "provider": getattr(resp, "provider", None),
                 "model": getattr(resp, "model_used", None),
             },
+            "usage": usage,
+            "cost_estimate": cost,
             "prompts": {
-                "system": _SUPERVISOR_SYSTEM,
-                "user": _build_user_prompt(task),
+                "system": truncate(_SUPERVISOR_SYSTEM, 2000),
+                "user": truncate(_build_user_prompt(task), 4000),
             },
-            "raw_hint": getattr(resp, "raw", None),
+            "raw_hint": truncate(json.dumps(getattr(resp, "raw", None), ensure_ascii=False), MAX_RAW)
+                if getattr(resp, "raw", None) is not None else None,
         }
-        # on utilise un node_id symbolique pour ce sidecar
-        await storage.save_artifact(node_id="supervisor", content=json.dumps(trace, ensure_ascii=False, indent=2), ext=".llm.json")
+        await storage.save_artifact(
+            node_id="supervisor",
+            content=json.dumps(trace, ensure_ascii=False, indent=2),
+            ext=".llm.json"
+        )
 
         # --- JSON strict uniquement
         data = json.loads(raw)
@@ -76,8 +132,10 @@ async def run(task: dict, storage) -> dict:
         for key in ("decompose", "subtasks", "plan"):
             if key not in data:
                 raise ValueError(f"Supervisor JSON incomplet: clé manquante '{key}'.")
-        if not isinstance(data["subtasks"], list): data["subtasks"] = []
-        if not isinstance(data["plan"], list): data["plan"] = []
+        if not isinstance(data["subtasks"], list):
+            data["subtasks"] = []
+        if not isinstance(data["plan"], list):
+            data["plan"] = []
         return data
 
     except json.JSONDecodeError as e:

@@ -22,7 +22,7 @@ async def test_executor_writes_markdown_and_llm_json(monkeypatch):
         text = "OUT"
         provider = "openai"
         model_used = "gpt-4o-mini"
-        raw = {"id": "fake"}
+        raw = {"id": "fake", "usage": {"prompt_tokens": 100, "completion_tokens": 200, "total_tokens": 300}}
     async def fake_run_llm(req, primary, order):
         return R()
 

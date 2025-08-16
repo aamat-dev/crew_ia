@@ -53,10 +53,17 @@ env-check:
 	PY
 
 test-agents:
-	pytest -k "runner or supervisor" -v
+	pytest -k "runner or supervisor or executor_llm_artifact or normalize_super_plan" -v
 
 run-ollama:
 	LLM_DEFAULT_PROVIDER=ollama LLM_DEFAULT_MODEL=llama3.1:8b make run
 
 run-openai:
 	LLM_DEFAULT_PROVIDER=openai LLM_DEFAULT_MODEL=gpt-4o-mini make run
+
+.PHONY: tail
+tail:
+	@latest_run="$$(ls -dt .runs/* 2>/dev/null | head -1)"; \
+	if [ -z "$$latest_run" ]; then echo "No runs yet."; exit 0; fi; \
+	echo "Tailing $$latest_run/orchestrator.log ..."; \
+	tail -f "$$latest_run/orchestrator.log"

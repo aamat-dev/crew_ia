@@ -1,18 +1,39 @@
-"""
-file_adapter.py — Stockage simple basé sur le système de fichiers.
-- FileStorage : écrit les artifacts Markdown dans ./.runs/
-- FileStatusStore : checkpoints persistants par nœud dans ./.runs/{run_id}/{node_id}.status.json
-  avec écriture atomique (os.replace) pour tolérance aux crashs.
-"""
-
+# core/storage/file_adapter.py
 from __future__ import annotations
 import os
 import json
 import tempfile
-import aiofiles
+import asyncio        # <-- NEW
+# import aiofiles     # <-- plus nécessaire pour les artifacts atomiques (tu peux supprimer l'import)
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Optional
+
+# ---------------------------
+# Helpers atomiques génériques
+# ---------------------------
+
+def _ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
+
+def _sanitize_id(s: str) -> str:
+    # nom de fichier "safe"
+    return "".join(c if (c.isalnum() or c in "-_") else "_" for c in (s or "")) or "node"
+
+def _atomic_write_text(path: str, text: str, encoding: str = "utf-8") -> None:
+    """
+    Écriture atomique d'un fichier texte:
+      - écrit dans un fichier temporaire dans le même dossier
+      - flush + fsync
+      - os.replace(temp, path)
+    """
+    _ensure_dir(os.path.dirname(path))
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=os.path.dirname(path), encoding=encoding) as tmp:
+        tmp.write(text)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_path = tmp.name
+    os.replace(tmp_path, path)
 
 # ---------------------------
 # 1) Storage des ARTIFACTS
@@ -21,36 +42,27 @@ from typing import Optional
 class FileStorage:
     def __init__(self, base_dir: str = "./.runs"):
         self.base_dir = base_dir
-        os.makedirs(self.base_dir, exist_ok=True)  # crée le dossier s'il n'existe pas
+        _ensure_dir(self.base_dir)
 
     def _artifact_path(self, node_id: str, ext: str = ".md") -> str:
-        """
-        Construit le chemin de l'artifact pour un node_id donné avec l'extension souhaitée.
-        Par défaut, .md (comportement historique).
-        """
         if not ext.startswith("."):
             ext = "." + ext
-        filename = f"artifact_{node_id}{ext}"
+        safe_id = _sanitize_id(node_id)
+        filename = f"artifact_{safe_id}{ext}"
         return os.path.join(self.base_dir, filename)
 
     async def save_artifact(self, node_id: str, content: str, ext: str = ".md") -> str:
         """
-        Écrit l'artifact d'un nœud dans un fichier.
-        Nom de fichier = artifact_<node_id><ext>
-        - ext par défaut = ".md" (rétro-compatibilité).
-        Retourne le chemin écrit.
+        Écrit l'artifact d'un nœud de façon ATOMIQUE.
+        Nom = artifact_<node_id><ext>. Retourne le chemin écrit.
         """
         path = self._artifact_path(node_id=node_id, ext=ext)
-        async with aiofiles.open(path, "w", encoding="utf-8") as f:
-            await f.write(content)
+        # déporte l'I/O bloquante dans un thread pour ne pas bloquer l'event loop
+        await asyncio.to_thread(_atomic_write_text, path, content, "utf-8")
         return path
 
     async def save_sidecar(self, node_id: str, content: str, ext: str = ".llm.json") -> str:
-        """
-        Écrit un sidecar à côté de l'artifact principal (ex: .llm.json).
-        """
         return await self.save_artifact(node_id=node_id, content=content, ext=ext)
-
 
 # ---------------------------
 # 2) Storage des CHECKPOINTS
@@ -62,11 +74,7 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime(ISO)
 
 def _atomic_write_json(path: str, data: dict) -> None:
-    """
-    Écriture atomique : on écrit dans un fichier temporaire puis os.replace.
-    Évite les .json corrompus en cas de coupure.
-    """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _ensure_dir(os.path.dirname(path))
     with tempfile.NamedTemporaryFile("w", delete=False, dir=os.path.dirname(path), encoding="utf-8") as tmp:
         json.dump(data, tmp, ensure_ascii=False, indent=2)
         tmp.flush()
@@ -90,15 +98,6 @@ class NodeStatus:
         return cls(run_id=run_id, node_id=node_id, status="pending", attempts=0, input_checksum=input_checksum)
 
 class FileStatusStore:
-    """
-    Checkpoints par nœud :
-      .runs/{run_id}/{node_id}.status.json
-
-    Règles d'idempotence (implémentées côté exécuteur) :
-      - "completed" => SKIP (ne jamais relancer sauf override explicite)
-      - "in_progress" laissé par un crash => rejouable
-      - "failed" => rejouable si retries restants
-    """
     def __init__(self, runs_root: str = ".runs"):
         self.runs_root = runs_root
 
@@ -126,7 +125,7 @@ class FileStatusStore:
         st.started_at = _utcnow_iso()
         st.error = None
         if input_checksum is not None:
-            st.input_checksum = input_checksum  # ⬅️ on enregistre l'empreinte
+            st.input_checksum = input_checksum
         self.write(st)
         return st
 
