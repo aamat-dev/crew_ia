@@ -1,23 +1,11 @@
 # apps/orchestrator/main.py
 from __future__ import annotations
 
-"""
-Lance l'orchestrateur sur un plan JSON ou généré par le superviseur.
-Usage :
-  python -m apps.orchestrator.main --task-file examples/task_rapport_80p.json
-  python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"
-Reprise :
-  python -m apps.orchestrator.main --task-file plan.json --run-id 2025-08-08T16-40Z_demo --resume
-Override :
-  python -m apps.orchestrator.main --task-file plan.json --override n2 --override n5
-"""
-
 import argparse
 import json
-import logging
 import os
 from datetime import datetime, timezone
-from typing import Set
+from typing import Dict, Optional, Set
 
 from core.config import get_var
 from core.planning.task_graph import TaskGraph
@@ -25,13 +13,12 @@ from core.storage.file_adapter import FileStorage
 from apps.orchestrator.executor import run_graph
 from core.agents import supervisor
 from core.telemetry.logging_setup import setup_logging
+from core.storage.postgres_adapter import PostgresAdapter
+from core.storage.composite_adapter import CompositeAdapter
+from core.storage.db_models import Run, RunStatus, Node, NodeStatus
 
 
 def _normalize_supervisor_plan(super_plan: dict, title: str) -> dict:
-    """
-    Transforme la sortie du superviseur en plan JSON compatible TaskGraph:
-    - Crée des nœuds n1..nK linéaires (chaînés) à partir de super_plan["subtasks"] ou super_plan["plan"].
-    """
     items = []
     if isinstance(super_plan.get("subtasks"), list) and super_plan["subtasks"]:
         for i, st in enumerate(super_plan["subtasks"], start=1):
@@ -58,9 +45,85 @@ def _default_run_id(hint: str | None = None) -> str:
     return ts
 
 
+class DbTracker:
+    """Gère la persistance DB + la résolution logique→UUID."""
+
+    def __init__(self, pg: PostgresAdapter, logical_run_id: str, run_title: str):
+        self.pg = pg
+        self.logical_run_id = logical_run_id
+        self.run_title = run_title
+        self.run_uuid: Optional[str] = None
+        self.node_map: Dict[str, str] = {}  # "n1" -> "<uuid>"
+
+    async def init_run(self):
+        now = datetime.now(timezone.utc)
+        run = Run(title=self.run_title, status=RunStatus.running, started_at=now)
+        saved = await self.pg.save_run(run)
+        self.run_uuid = str(saved.id)
+
+    async def reserve_nodes(self, graph: TaskGraph):
+        """Crée tous les nœuds en base (status=pending) pour obtenir leurs UUID à l’avance."""
+        for node in graph.nodes.values():  # dict[str, TaskNode]
+            if node.id in self.node_map:
+                continue
+            db_node = Node(
+                run_id=self.run_uuid,
+                key=node.id,            # ident logique "n1"
+                title=node.title,
+                status=NodeStatus.pending,
+                deps=node.deps or [],
+                checksum=getattr(node, "checksum", None),
+            )
+            saved = await self.pg.save_node(db_node)
+            self.node_map[node.id] = str(saved.id)
+
+    # --- Résolveurs donnés au CompositeAdapter ---
+    def resolve_run_uuid(self, logical: str) -> Optional[str]:
+        return self.run_uuid if logical == self.logical_run_id else None
+
+    def resolve_node_uuid(self, key: str) -> Optional[str]:
+        return self.node_map.get(key)
+
+    # --- Callbacks pour run_graph ---
+    async def on_node_start(self, *, run_id: str, node, **_):
+        """Passe le nœud en running (ligne déjà réservée)."""
+        uuid = self.node_map.get(node.id)
+        if not uuid:
+            return
+        now = datetime.now(timezone.utc)
+        db_node = Node(
+            id=uuid,
+            run_id=self.run_uuid,
+            key=node.id,
+            title=node.title,
+            status=NodeStatus.running,
+            deps=node.deps or [],
+            started_at=now,
+            checksum=getattr(node, "checksum", None),
+        )
+        await self.pg.save_node(db_node)
+
+    async def on_node_end(self, *, run_id: str, node, status: str, **_):
+        """Met à jour le status + ended_at."""
+        uuid = self.node_map.get(node.id)
+        if not uuid:
+            return
+        now = datetime.now(timezone.utc)
+        db_node = Node(
+            id=uuid,
+            run_id=self.run_uuid,
+            key=node.id,
+            title=node.title,
+            status=NodeStatus(status),
+            deps=node.deps or [],
+            ended_at=now,
+            checksum=getattr(node, "checksum", None),
+        )
+        await self.pg.save_node(db_node)
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Orchestrateur CrewIA — exécution d'un plan avec reprise après crash")
-    # plan fichier
     p.add_argument("--task-file", required=False, help="Chemin vers un JSON contenant la clé 'plan'")
     p.add_argument("--run-id", default=None, help="Identifiant stable du run (requis pour --resume)")
     p.add_argument("--run-title-hint", default=None, help="Indice lisible pour générer un run_id par défaut (si plan fichier)")
@@ -69,13 +132,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--override", action="append", default=[], help="Node ID à relancer même s'il est 'completed'")
     p.add_argument("--dry-run", action="store_true", help="Affiche les décisions de skip/recalc sans exécuter")
 
-    # génération via superviseur
     p.add_argument("--use-supervisor", action="store_true", help="Génère le plan via le superviseur LLM")
     p.add_argument("--title", default="Rapport 80p", help="Titre racine pour le superviseur")
     p.add_argument("--description", default="Décomposer la production d'un rapport de 80 pages.", help="Description")
     p.add_argument("--acceptance", default="Un plan séquencé avec sous-tâches claires.", help="Critères d'acceptance")
 
-    # overrides LLM globaux (injection au niveau des nœuds)
     p.add_argument("--executor-provider", default=None)
     p.add_argument("--executor-model", default=None)
     return p.parse_args()
@@ -90,21 +151,17 @@ def main() -> None:
         run_id = args.run_id or _default_run_id(args.title)
         run_dir = os.path.join(runs_root, run_id)
         os.makedirs(run_dir, exist_ok=True)
-
-        # Init logging de RUN (accessible partout après)
         logger = setup_logging(run_dir, logger_name="crew")
 
-        storage = FileStorage(base_dir=run_dir)
+        file_storage = FileStorage(base_dir=run_dir)
+        pg_storage = PostgresAdapter(os.getenv("DATABASE_URL"))
+        storage = CompositeAdapter([file_storage, pg_storage])
 
-        # 1) appelle le superviseur
         import asyncio
         task = {"title": args.title, "description": args.description, "acceptance": args.acceptance}
         super_plan = asyncio.run(supervisor.run(task, storage))
-
-        # 2) normalise en plan TaskGraph
         plan_dict = _normalize_supervisor_plan(super_plan, title=args.title)
 
-        # 3) éventuels overrides injectés sur chaque nœud
         if args.executor_provider or args.executor_model:
             for p in plan_dict.get("plan", []):
                 llm = p.setdefault("llm", {})
@@ -113,7 +170,6 @@ def main() -> None:
                 if args.executor_model:
                     llm["model"] = args.executor_model
 
-        # 4) traçabilité du plan
         plan_out = os.path.join(run_dir, "plan.json")
         with open(plan_out, "w", encoding="utf-8") as f:
             json.dump(plan_dict, f, ensure_ascii=False, indent=2)
@@ -129,18 +185,17 @@ def main() -> None:
             raise SystemExit("❌ --resume nécessite de spécifier --run-id.")
         run_dir = os.path.join(runs_root, run_id)
         os.makedirs(run_dir, exist_ok=True)
-
-        # Init logging de RUN
         logger = setup_logging(run_dir, logger_name="crew")
 
-        # Sauvegarde copie du plan source dans le run
         plan_out = os.path.join(run_dir, "plan.json")
         with open(plan_out, "w", encoding="utf-8") as f:
             json.dump(plan_dict, f, ensure_ascii=False, indent=2)
 
-        storage = FileStorage(base_dir=run_dir)
+        file_storage = FileStorage(base_dir=run_dir)
+        pg_storage = PostgresAdapter(os.getenv("DATABASE_URL"))
+        storage = CompositeAdapter([file_storage, pg_storage])
 
-    # ---------- Suite commune : build DAG + exécution ----------
+    # ---------- Build DAG ----------
     graph = TaskGraph.from_plan(plan_dict)
     if not graph.nodes:
         raise SystemExit("❌ Le plan est vide ou mal formé (clé 'plan' absente ou liste vide).")
@@ -155,24 +210,30 @@ def main() -> None:
     if args.resume:
         print("🔁 Reprise activée (les nœuds déjà 'completed' seront SKIP, sauf override).")
 
-    # Logs run
     logger.info("Plan nodes: %d", len(graph.nodes))
-    if override_completed:
-        logger.info("Overrides: %s", sorted(override_completed))
-    logger.debug(
-        "Env LLM_DEFAULT_PROVIDER=%s LLM_DEFAULT_MODEL=%s",
-        get_var("LLM_DEFAULT_PROVIDER"), get_var("LLM_DEFAULT_MODEL")
+
+    # ---- DB tracker : init + pré-réservation des nœuds ----
+    import asyncio
+    tracker = DbTracker(pg_storage, logical_run_id=run_id, run_title=plan_dict.get("title") or run_id)
+    asyncio.run(tracker.init_run())
+    asyncio.run(tracker.reserve_nodes(graph))  # <-- clé : on crée les nodes (pending) et on récupère leurs UUIDs
+
+    # Donner les résolveurs au CompositeAdapter (pour save_artifact/save_event)
+    storage.set_resolvers(
+        run_resolver=tracker.resolve_run_uuid,
+        node_resolver=tracker.resolve_node_uuid,
     )
 
-    # Exécution
-    import asyncio
+    # ---------- Exécution ----------
     result = asyncio.run(
         run_graph(
             dag=graph,
             storage=storage,
-            run_id=run_id,
+            run_id=run_id,  # logique; sera résolu vers UUID côté Postgres via CompositeAdapter
             override_completed=override_completed,
             dry_run=args.dry_run,
+            on_node_start=tracker.on_node_start,
+            on_node_end=tracker.on_node_end,
         )
     )
 

@@ -48,8 +48,11 @@ async def run_graph(
     dag,
     storage,
     run_id: str,
-    override_completed: Optional[Set[str]] = None,
+    override_completed: set[str] | None = None,
     dry_run: bool = False,
+    *,
+    on_node_start=None,
+    on_node_end=None,
 ):
     # Config lue à l'exécution
     RETRIES = int(get_var("NODE_RETRIES", 2))

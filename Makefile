@@ -1,4 +1,4 @@
-.PHONY: init-env install venv fmt lint test test-recovery run env-check
+.PHONY: db-up db-down db-logs db-init db-migrate db-upgrade db-reset init-env install venv fmt lint test test-recovery run env-check
 
 # 1) Créer .env à partir de .env.example si absent (idempotent)
 init-env:
@@ -67,3 +67,29 @@ tail:
 	if [ -z "$$latest_run" ]; then echo "No runs yet."; exit 0; fi; \
 	echo "Tailing $$latest_run/orchestrator.log ..."; \
 	tail -f "$$latest_run/orchestrator.log"
+
+db-up:
+	 docker compose up -d postgres pgadmin
+	 @echo "PgAdmin: http://localhost:5050 (login: $$PGADMIN_DEFAULT_EMAIL)"
+
+db-down:
+	 docker compose down
+
+db-logs:
+	 docker compose logs -f postgres
+
+db-init:
+	 @if [ ! -d "alembic" ]; then alembic init alembic; fi
+	 @echo "Alembic initialisé (si nécessaire). Pense à configurer alembic.ini/env.py."
+
+db-migrate:
+	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic revision --autogenerate -m "$$m"
+
+db-upgrade:
+	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic upgrade head
+
+db-reset:
+	 docker compose down -v
+	 docker compose up -d postgres pgadmin
+	 sleep 3
+	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic upgrade head
