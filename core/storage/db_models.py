@@ -1,73 +1,112 @@
+# core/storage/db_models.py
 from __future__ import annotations
-from typing import Optional, List
+
+import uuid
+from enum import Enum
 from datetime import datetime
-from uuid import uuid4, UUID
-from enum import StrEnum
-from sqlmodel import SQLModel, Field, Column
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import Column, DateTime
+from typing import Optional, List, Dict
 
-class RunStatus(StrEnum):
+from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, DateTime, Enum as SAEnum, Text, String, func
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+
+
+# ---------------- Enums ----------------
+
+class RunStatus(str, Enum):
     pending = "pending"
     running = "running"
-    succeeded = "succeeded"
+    completed = "completed"
     failed = "failed"
-    cancelled = "cancelled"
 
-class NodeStatus(StrEnum):
+
+class NodeStatus(str, Enum):
     pending = "pending"
     running = "running"
-    succeeded = "succeeded"
+    completed = "completed"
     failed = "failed"
-    skipped = "skipped"
-    cancelled = "cancelled"
 
-def _uuid() -> UUID:
-    return uuid4()
+
+# ---------------- Tables ----------------
 
 class Run(SQLModel, table=True):
     __tablename__ = "runs"
-    id: UUID = Field(default_factory=_uuid, primary_key=True, index=True)
-    title: str = Field(index=True)
-    status: RunStatus = Field(default=RunStatus.pending)
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
-    ended_at:   Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
-    # ⬇️ attribut Python renommé en 'meta', colonne SQL gardée en 'metadata'
-    meta: Optional[dict] = Field(
-        default=None,
-        sa_column=Column("metadata", JSONB)   # nom de colonne explicite
-    )
-    
-class Node(SQLModel, table=True):
-    __tablename__ = "nodes" 
-    id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)
-    run_id: UUID = Field(foreign_key="runs.id", index=True)
-    # 👇 NOUVEAU : clé logique du plan (ex: "n1")
-    key: Optional[str] = Field(default=None, index=True)
 
-    title: str = Field(index=True)
-    status: NodeStatus = Field(default=NodeStatus.pending, index=True)
-    deps: list[str] = Field(default_factory=list, sa_column=Column(JSONB))
-    checksum: Optional[str] = Field(default=None, index=True)
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
-    ended_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    title: str = Field(sa_column=Column(String, nullable=False))
+    status: RunStatus = Field(sa_column=Column(SAEnum(RunStatus, name="runstatus"), nullable=False))
+    started_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    ended_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    # ⚠️ ne pas utiliser l'attribut Python "metadata" (réservé).
+    meta: Optional[Dict] = Field(
+        default=None,
+        sa_column=Column("metadata", JSONB, nullable=True),
+    )
+
+
+class Node(SQLModel, table=True):
+    __tablename__ = "nodes"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    run_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
+    # "key" = identifiant logique du DAG (ex: "n1", "n2"...)
+    key: Optional[str] = Field(default=None, sa_column=Column(String, index=True))
+    title: str = Field(sa_column=Column(String, nullable=False))
+    status: NodeStatus = Field(sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False))
+    deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSONB, nullable=True))
+    checksum: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.utcnow(),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+
 
 class Artifact(SQLModel, table=True):
     __tablename__ = "artifacts"
-    id: UUID = Field(default_factory=_uuid, primary_key=True, index=True)
-    node_id: UUID = Field(index=True, foreign_key="nodes.id")
-    type: str = Field(index=True)   # "markdown" | "sidecar" | "json" ...
-    path: Optional[str] = Field(default=None)
-    content: Optional[str] = Field(default=None)
-    summary: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime(timezone=True), index=True))
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    node_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
+    type: str = Field(sa_column=Column(String, nullable=False))
+    path: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
+    content: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    summary: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.utcnow(),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+    )
+
 
 class Event(SQLModel, table=True):
     __tablename__ = "events"
-    id: UUID = Field(default_factory=_uuid, primary_key=True, index=True)
-    run_id: Optional[UUID] = Field(default=None, index=True, foreign_key="runs.id")
-    node_id: Optional[UUID] = Field(default=None, index=True, foreign_key="nodes.id")
-    level: str = Field(index=True)  # INFO | WARN | ERROR | DEBUG
-    message: str
-    timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime(timezone=True), index=True))
-    extra: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    run_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True))
+    node_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True))
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.utcnow(),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+    )
+    level: str = Field(sa_column=Column(String, nullable=False))
+    message: str = Field(sa_column=Column(Text, nullable=False))

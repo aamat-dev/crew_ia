@@ -9,177 +9,144 @@ import asyncio
 import json
 import hashlib
 import traceback
-import argparse
-
-from typing import Optional, Set
-from datetime import datetime
+from typing import Optional, Set, Callable, Awaitable, Dict, Any
+from datetime import datetime, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from core.config import get_var
-from core.storage.file_adapter import FileStatusStore
+from core.planning.task_graph import TaskGraph, PlanNode, NodeStatus
+from core.storage.composite_adapter import CompositeAdapter
 from core.agents.executor_llm import run_executor_llm
 
-# --- ANSI couleurs pour la console ---
+
 RESET = "\033[0m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-CYAN = "\033[36m"
+CYAN = "\033[96m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
 
-def colorize(text, color):
-    if get_var("NO_COLOR", "").lower() in ("1", "true", "yes"):
-        return text
-    return f"{color}{text}{RESET}"
 
-def _node_input_checksum(node) -> str:
-    payload = {
-        "id": node.id,
-        "title": getattr(node, "title", ""),
-        "description": getattr(node, "description", ""),
-        "type": getattr(node, "type", ""),
-        "deps": list(getattr(node, "deps", [])),
-        "acceptance": getattr(node, "acceptance", ""),
-        "suggested_agent_role": getattr(node, "suggested_agent_role", ""),
-    }
-    s = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-    return "sha256:" + hashlib.sha256(s.encode("utf-8")).hexdigest()
+def colorize(msg: str, color: str) -> str:
+    return f"{color}{msg}{RESET}"
+
+
+def _node_input_checksum(node: PlanNode) -> str:
+    h = hashlib.sha256()
+    # On base la stabilité sur: titre + deps + llm provider/model si présents
+    h.update((node.title or "").encode("utf-8"))
+    if node.deps:
+        h.update("|".join(node.deps).encode("utf-8"))
+    llm = node.llm or {}
+    h.update((llm.get("provider") or "").encode("utf-8"))
+    h.update((llm.get("model") or "").encode("utf-8"))
+    return h.hexdigest()[:16]
+
+
+async def _execute_node(node: PlanNode, storage: CompositeAdapter) -> Dict[str, Any]:
+    # Pour l’instant, exécuteur LLM unique
+    return await run_executor_llm(node=node, storage=storage)
+
 
 async def run_graph(
-    dag,
-    storage,
+    dag: TaskGraph,
+    storage: CompositeAdapter,
     run_id: str,
-    override_completed: set[str] | None = None,
+    override_completed: Set[str] | None = None,
     dry_run: bool = False,
-    *,
-    on_node_start=None,
-    on_node_end=None,
+    on_node_start: Optional[Callable[[PlanNode], Awaitable[None]]] = None,
+    on_node_end: Optional[Callable[[PlanNode, str], Awaitable[None]]] = None,
 ):
-    # Config lue à l'exécution
-    RETRIES = int(get_var("NODE_RETRIES", 2))
-    BASE_DELAY = float(get_var("RETRY_BASE_DELAY", 1.0))
-    MAX_CONCURRENCY = int(get_var("MAX_CONCURRENCY", 3))
     RUNS_ROOT = get_var("RUNS_ROOT", ".runs")
+    Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
 
-    override_completed = override_completed or set()
-    status = FileStatusStore(runs_root=RUNS_ROOT)
-
+    completed_ids: Set[str] = set()
     skipped_count = 0
     replayed_count = 0
 
-    # 🔎 PRE-SCAN en mode dry-run (affiche la décision pour TOUS les nœuds) puis sort
-    if dry_run:
-        print("🔎 Pré-scan dry-run (comparaison checksum / cache) :")
-        for nid, node in dag.nodes.items():
-            st = status.read(run_id, nid)
-            checksum = _node_input_checksum(node)
-            if st and st.status == "completed" and st.input_checksum == checksum and nid not in override_completed:
-                print(f"{GREEN}[SKIP]{RESET}   {nid} — checksum identique")
-                skipped_count += 1
-            else:
-                raisons = []
-                if not st or st.status != "completed":
-                    raisons.append("pas encore terminé")
-                if st and st.input_checksum != checksum:
-                    raisons.append("checksum différent")
-                if nid in override_completed:
-                    raisons.append("forcé par override")
-                raison_txt = " / ".join(raisons) or "recalcul"
-                print(f"{YELLOW}[RECALC]{RESET} {nid} — {raison_txt}")
-                replayed_count += 1
-        print(f"{CYAN}📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).{RESET}")
-        return {"status": "success", "completed": list(dag.nodes.keys()), "run_id": run_id}
-    
-    # Pré-calculs pour l'exécution réelle
-    completed_ids: Set[str] = set()
-    for nid, node in dag.nodes.items():
-        st = status.read(run_id, nid)
-        if (
-            st and st.status == "completed"
-            and st.input_checksum == _node_input_checksum(node)
-            and nid not in override_completed
-        ):
-            completed_ids.add(nid)
+    # exécution topologique simple (le DAG produit déjà un ordre valable)
+    for node in dag.nodes:
+        node.checksum = _node_input_checksum(node)
+        node_dir = Path(RUNS_ROOT) / run_id / "nodes" / node.id
+        status_file = node_dir / "status.json"
+        node_dir.mkdir(parents=True, exist_ok=True)
 
-    pending_ids: Set[str] = set(dag.nodes.keys())  # enfile tout, l’éligibilité dépendra des deps
-    sem = asyncio.Semaphore(MAX_CONCURRENCY)
-
-    async def run_one(node):
-        nonlocal skipped_count, replayed_count
-        node_id = node.id
-        checksum = _node_input_checksum(node)
-        st = status.read(run_id, node_id)
-
-        must_skip = (
-            st and st.status == "completed"
-            and node_id not in override_completed
-            and st.input_checksum == checksum
-        )
-
-        if must_skip:
-            print(f"{GREEN}[SKIP]{RESET}   {node_id} — checksum identique")
-            skipped_count += 1
-            return True, "skipped"
-        
-        print(f"{YELLOW}[RUN]{RESET}    {node_id} — exécution (checksum différent ou pas encore terminé)")
-        replayed_count += 1
-
-        attempt = 0
-        
-        while attempt <= RETRIES:
-            status.mark_in_progress(run_id, node_id, input_checksum=checksum)
+        previous: Dict[str, Any] = {}
+        if status_file.exists():
             try:
-                async with sem:
-                    ok = await run_executor_llm(node, storage=storage)
-                if ok is True:
-                    status.mark_completed(run_id, node_id)
-                    return True, "executed"
-                else:
-                    raise RuntimeError("Worker returned False")
+                previous = json.loads(status_file.read_text(encoding="utf-8"))
+            except Exception:
+                previous = {}
+
+        prev_status = previous.get("status")
+        prev_checksum = previous.get("checksum")
+
+        # Dépendances: si une dep a échoué, on s'arrête
+        if any(dep not in completed_ids for dep in (node.deps or [])):
+            print(colorize(f"[BLOCK]  {node.id} — dépendances incomplètes", YELLOW))
+            continue
+
+        must_recompute = True
+        if prev_status == "completed" and prev_checksum == node.checksum and node.id not in (override_completed or set()):
+            must_recompute = False
+
+        label = "exécution" if must_recompute else "skip (cache)"
+        print(f"[RUN]    {node.id} — {label}")
+
+        if not must_recompute and dry_run:
+            skipped_count += 1
+            continue
+        if not must_recompute:
+            skipped_count += 1
+            completed_ids.add(node.id)
+            continue
+
+        # start hook
+        if on_node_start:
+            try:
+                await on_node_start(node)
             except Exception as e:
-                attempt += 1
-                tb = traceback.format_exc(limit=3)
-                status.mark_failed(run_id, node_id, f"{type(e).__name__}: {e}\n{tb}")
-                if attempt > RETRIES:
-                    return False, "failed"
-                await asyncio.sleep(BASE_DELAY * (2 ** (attempt - 1)))
+                print(colorize(f"[HOOK-ERR] on_node_start: {e}", RED))
 
-    # Boucle de scheduling
-    while pending_ids:
-        ready_ids = []
-        for nid in list(pending_ids):
-            deps_ok = True
-            for dep_id in dag.nodes[nid].deps:
-                if dep_id in completed_ids:
-                    continue
-                st_dep = status.read(run_id, dep_id)
-                same_checksum = False
-                if st_dep and st_dep.status == "completed":
-                    # la dépendance est "vraiment" complétée seulement si son checksum n'a pas changé et pas d'override
-                    same_checksum = (st_dep.input_checksum == _node_input_checksum(dag.nodes[dep_id])) and (dep_id not in override_completed)
-                if not same_checksum:
-                    deps_ok = False
-                    break
-            if deps_ok:
-                ready_ids.append(nid)
-        if not ready_ids:
-            return {"status": "failed", "reason": "deadlock_or_blocked", "run_id": run_id}
+        # Exécution du nœud
+        status = "failed"
+        try:
+            _ = await _execute_node(node, storage)
+            status = "completed"
+            replayed_count += 1
+            completed_ids.add(node.id)
+        except Exception as e:
+            traceback.print_exc()
+            print(colorize(f"[ERR]    {node.id} — {e}", RED))
+            status = "failed"
 
-        results = await asyncio.gather(*(run_one(dag.nodes[nid]) for nid in ready_ids))
-        for nid, (ok, _how) in zip(ready_ids, results):
-            pending_ids.remove(nid)
-            if ok:
-                completed_ids.add(nid)
-            else:
-                return {"status": "failed", "failed_nodes": [nid], "run_id": run_id}
+        # Persiste statut file-based (toujours)
+        out = {
+            "status": status,
+            "checksum": node.checksum,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+        }
+        status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    now_utc = datetime.now(tz=ZoneInfo("UTC"))
-    now_paris = now_utc.astimezone(ZoneInfo("Europe/Paris"))
+        # end hook
+        if on_node_end:
+            try:
+                await on_node_end(node, status)
+            except Exception as e:
+                print(colorize(f"[HOOK-ERR] on_node_end: {e}", RED))
+
+    # résumé
+    now_utc = datetime.now(timezone.utc)
+    try:
+        import pytz
+        tz = pytz.timezone("Europe/Paris")
+        now_paris = now_utc.astimezone(tz)
+    except Exception:
+        now_paris = now_utc
 
     print(colorize(f"📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).", CYAN))
-    print(colorize(f"🕒 Heure UTC   : {now_utc.strftime('%Y-%m-%d %H:%M:%S %Z')}", CYAN))
-    print(colorize(f"🕒 Heure Paris : {now_paris.strftime('%Y-%m-%d %H:%M:%S %Z')}", CYAN))
+    print(colorize(f"🕒 Heure UTC   : {now_utc:%Y-%m-%d %H:%M:%S %Z}", CYAN))
+    print(colorize(f"🕒 Heure Paris : {now_paris:%Y-%m-%d %H:%M:%S %Z}", CYAN))
 
-    # Sauvegarde JSON résumé
     summary = {
         "run_id": run_id,
         "completed": sorted(completed_ids),
@@ -189,9 +156,8 @@ async def run_graph(
         "paris_time": now_paris.isoformat()
     }
     summary_path = Path(RUNS_ROOT) / run_id / "summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(colorize(f"💾 Résumé sauvegardé : {summary_path}", CYAN))
-
 
     print(f"{CYAN}📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).{RESET}")
     return {"status": "success", "completed": sorted(completed_ids), "run_id": run_id}
