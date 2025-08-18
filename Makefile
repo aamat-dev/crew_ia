@@ -121,3 +121,7 @@ api-curl-examples:
 	@echo "\\nRuns (auth)"
 	@API_KEY=$$(grep ^API_KEY .env | cut -d= -f2); \\
 	curl -i -H "X-API-Key: $$API_KEY" "http://localhost:8000/runs?limit=5&order_by=-started_at"
+
+.PHONY: validate
+validate:
+	@bash scripts/validate_tasks_integration.sh
