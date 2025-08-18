@@ -107,6 +107,7 @@ async def client() -> AsyncClient:
     """
     # branche get_db
     app.dependency_overrides[api_deps.get_db] = _override_get_db
+    app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # neutralise l'auth
     _disable_auth_overrides()
 
@@ -123,6 +124,7 @@ async def client_noauth() -> AsyncClient:
     """
     # assure que get_db est override (sinon pas de DB)
     app.dependency_overrides[api_deps.get_db] = _override_get_db
+    app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # enlève les overrides d'auth pour forcer la vraie auth
     _clear_auth_overrides()
 
