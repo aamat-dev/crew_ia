@@ -93,3 +93,14 @@ db-reset:
 	 docker compose up -d postgres pgadmin
 	 sleep 3
 	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic upgrade head
+
+# === API FastAPI (lecture seule) ===
+API_MODULE=api.fastapi_app.app:app
+API_HOST?=0.0.0.0
+API_PORT?=8080
+
+api-run:
+	uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT)
+
+api-test:
+	PYTHONWARNINGS=ignore pytest -q tests_api
