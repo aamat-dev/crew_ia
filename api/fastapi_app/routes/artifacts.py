@@ -12,7 +12,8 @@ from ..deps import get_session, require_api_key, settings, api_key_auth
 from ..schemas import Page, ArtifactOut
 from core.storage.db_models import Artifact  # type: ignore
 
-router = APIRouter(prefix="/artifacts", tags=["artifacts"], dependencies=[Depends(api_key_auth)])
+router_nodes = APIRouter(prefix="/nodes", tags=["artifacts"], dependencies=[Depends(api_key_auth)])
+router_artifacts = APIRouter(prefix="/artifacts", tags=["artifacts"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {"created_at": Artifact.created_at, "type": Artifact.type}
 
@@ -24,7 +25,7 @@ def order(stmt, order_by: str | None):
     col = ORDERABLE.get(key, Artifact.created_at)
     return stmt.order_by(direction(col))
 
-@router.get("/nodes/{node_id}/artifacts", response_model=Page[ArtifactOut])
+@router_nodes.get("/{node_id}/artifacts", response_model=Page[ArtifactOut])
 async def list_artifacts(
     node_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -65,7 +66,7 @@ async def list_artifacts(
     return Page[ArtifactOut](items=items, total=total, limit=limit, offset=offset)
 
 # --- NEW: GET /artifacts/{artifact_id} ---
-@router.get("/artifacts/{artifact_id}", response_model=ArtifactOut)
+@router_artifacts.get("/{artifact_id}", response_model=ArtifactOut)
 async def get_artifact(
     artifact_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -89,7 +90,7 @@ async def get_artifact(
     )
 
 # --- NEW (optionnel): GET /artifacts/{artifact_id}/download ---
-@router.get("/artifacts/{artifact_id}/download")
+@router_artifacts.get("/{artifact_id}/download")
 async def download_artifact(
     artifact_id: UUID,
     session: AsyncSession = Depends(get_session),

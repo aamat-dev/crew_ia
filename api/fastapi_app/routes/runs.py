@@ -28,7 +28,7 @@ def apply_order(stmt, order_by: str | None):
     col = ORDERABLE_FIELDS.get(key, Run.started_at)
     return stmt.order_by(direction(col))
 
-@router.get("/runs", response_model=Page[RunListItemOut])
+@router.get("", response_model=Page[RunListItemOut])
 async def list_runs(
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
@@ -78,7 +78,7 @@ async def list_runs(
 
     return Page[RunListItemOut](items=items, total=total, limit=limit, offset=offset)
 
-@router.get("/runs/{run_id}", response_model=RunOut)
+@router.get("/{run_id}", response_model=RunOut)
 async def get_run(run_id: UUID, session: AsyncSession = Depends(get_session), tz=Depends(read_timezone)):
     run = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
     if not run:
@@ -131,7 +131,7 @@ async def get_run(run_id: UUID, session: AsyncSession = Depends(get_session), tz
         ),
     )
 
-@router.get("/runs/{run_id}/summary", response_model=RunSummaryOut)
+@router.get("/{run_id}/summary", response_model=RunSummaryOut)
 async def get_run_summary(run_id: UUID, session: AsyncSession = Depends(get_session)):
     # même logique que ci-dessus, exposée séparément
     nodes_total = (

@@ -10,7 +10,7 @@ from ..deps import get_session, require_api_key, read_timezone, to_tz, api_key_a
 from ..schemas import Page, NodeOut
 from core.storage.db_models import Node  # type: ignore
 
-router = APIRouter(prefix="/nodes", tags=["nodes"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="/runs", tags=["nodes"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {
     "created_at": Node.created_at,
@@ -28,7 +28,7 @@ def order(stmt, order_by: str | None):
     col = ORDERABLE.get(key, Node.created_at)
     return stmt.order_by(direction(col))
 
-@router.get("/runs/{run_id}/nodes", response_model=Page[NodeOut])
+@router.get("/{run_id}/nodes", response_model=Page[NodeOut])
 async def list_nodes(
     run_id: UUID,
     session: AsyncSession = Depends(get_session),

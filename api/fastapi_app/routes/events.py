@@ -13,7 +13,7 @@ from core.storage.db_models import Event  # type: ignore
 
 from ..deps import api_key_auth
 
-router = APIRouter(prefix="/events", tags=["events"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="/runs", tags=["events"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {"timestamp": Event.timestamp, "level": Event.level}
 
@@ -25,7 +25,7 @@ def order(stmt, order_by: str | None):
     col = ORDERABLE.get(key, Event.timestamp)
     return stmt.order_by(direction(col))
 
-@router.get("/runs/{run_id}/events", response_model=Page[EventOut])
+@router.get("/{run_id}/events", response_model=Page[EventOut])
 async def list_events(
     run_id: UUID,
     session: AsyncSession = Depends(get_session),
