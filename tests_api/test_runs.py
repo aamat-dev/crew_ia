@@ -18,6 +18,17 @@ async def test_get_run_detail(client, seed_sample):
     assert body["summary"]["artifacts_total"] == 2
     assert body["summary"]["events_total"] == 2
 
+
+@pytest.mark.asyncio
+async def test_title_filter(client, seed_sample):
+    r = await client.get("/runs?title_contains=sample")
+    assert r.status_code == 200
+    assert r.json()["total"] == 1
+
+    r = await client.get("/runs?title_contains=nomatch")
+    assert r.status_code == 200
+    assert r.json()["total"] == 0
+
 @pytest.mark.asyncio
 async def test_auth_required(client_noauth):
     r = await client_noauth.get("/runs")

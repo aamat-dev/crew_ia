@@ -11,6 +11,7 @@ env/
 .runs/
 artifacts/
 *.md
+!README.md
 
 # Caches / temporaires Python
 __pycache__/

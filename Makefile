@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-logs db-init db-migrate db-upgrade db-reset init-env install venv fmt lint test test-recovery run env-check
+.PHONY: db-up db-down db-logs db-init db-revision db-upgrade db-reset init-env install venv fmt lint test test-recovery run env-check
 
 # 1) Créer .env à partir de .env.example si absent (idempotent)
 init-env:
@@ -82,8 +82,8 @@ db-init:
 	 @if [ ! -d "alembic" ]; then alembic init alembic; fi
 	 @echo "Alembic initialisé (si nécessaire). Pense à configurer alembic.ini/env.py."
 
-db-migrate:
-	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic revision --autogenerate -m "$$m"
+db-revision:
+        ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic revision --autogenerate -m "$$msg"
 
 db-upgrade:
 	 ALEMBIC_DATABASE_URL=$$ALEMBIC_DATABASE_URL alembic upgrade head
@@ -102,7 +102,7 @@ API_PORT?=8080
 .PHONY: api-run api-run-prod api-test api-lint api-curl-examples
 
 api-run:
-	uvicorn api.fastapi_app.app:app --reload
+        uvicorn api.fastapi_app.app:app --reload --env-file .env
 
 api-run-prod:
 	uvicorn api.fastapi_app.app:app --host 0.0.0.0 --port 8000 --workers 2
