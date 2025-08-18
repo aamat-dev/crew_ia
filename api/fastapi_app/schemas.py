@@ -147,10 +147,20 @@ class EventOut(BaseModel):
         }]
     })
 
-class TaskCreateIn(BaseModel):
-    title: Optional[str] = Field(None, description="Titre du run")
-    params: Dict[str, Any] = Field(default_factory=dict, description="Paramètres métier")
+class TaskOptions(BaseModel):
+    resume: bool = False
+    override: list[str] = Field(default_factory=list)
+    dry_run: bool = False
 
-class TaskCreatedOut(BaseModel):
+
+class TaskRequest(BaseModel):
+    title: str
+    task_spec: Dict[str, Any]
+    options: TaskOptions = Field(default_factory=TaskOptions)
+    request_id: Optional[str] = None
+
+
+class TaskAcceptedResponse(BaseModel):
     run_id: UUID
     status: str = "accepted"
+    location: str
