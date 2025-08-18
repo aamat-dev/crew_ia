@@ -3,14 +3,16 @@ import os
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status, Security
+from fastapi.security.api_key import APIKeyHeader
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from zoneinfo import ZoneInfo
-from datetime import timezone
-from pydantic import Field
+from datetime import timezone, datetime
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -75,11 +77,36 @@ async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-T
         return None
 
 # Helpers temps
-from datetime import datetime
-
 def to_tz(dt: datetime | None, tz: ZoneInfo | None) -> datetime | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(tz) if tz else dt.astimezone(timezone.utc)
+
+async def api_key_auth(x_api_key: str | None = Security(api_key_header)) -> None:
+    from .deps import settings  # ou importe settings en haut si déjà dispo
+    if settings.api_key and x_api_key == settings.api_key:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or missing API key",
+        headers={"WWW-Authenticate": "ApiKey"},
+    )
+
+# --- alias pour compatibilité (les tests/plugins attendent api_key_auth) ---
+api_key_auth = require_api_key  # noqa
+
+# --- fabrique de session pour le background (hors Depends) ---
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+_bg_sessionmaker: async_sessionmaker | None = None
+
+def make_session_factory() -> async_sessionmaker:
+    """Fabrique une session async réutilisable par les tâches de fond."""
+    global _bg_sessionmaker
+    if _bg_sessionmaker is None:
+        from sqlalchemy.ext.asyncio import create_async_engine
+        engine = create_async_engine(settings.database_url, pool_pre_ping=True, future=True)
+        _bg_sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    return _bg_sessionmaker

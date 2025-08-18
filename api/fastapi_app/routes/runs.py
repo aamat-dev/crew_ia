@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, read_timezone, to_tz
+from ..deps import get_session, require_api_key, read_timezone, to_tz, api_key_auth
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
 
 # Import des modèles ORM existants
 from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
 
-router = APIRouter(prefix="", tags=["runs"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(api_key_auth)])
 
 # Helpers
 ORDERABLE_FIELDS = {"started_at": Run.started_at, "ended_at": Run.ended_at, "title": Run.title, "status": Run.status}

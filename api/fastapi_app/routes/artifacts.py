@@ -8,11 +8,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, settings
+from ..deps import get_session, require_api_key, settings, api_key_auth
 from ..schemas import Page, ArtifactOut
 from core.storage.db_models import Artifact  # type: ignore
 
-router = APIRouter(prefix="", tags=["artifacts"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/artifacts", tags=["artifacts"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {"created_at": Artifact.created_at, "type": Artifact.type}
 

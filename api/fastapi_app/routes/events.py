@@ -11,7 +11,9 @@ from ..deps import get_session, require_api_key, read_timezone, to_tz
 from ..schemas import Page, EventOut
 from core.storage.db_models import Event  # type: ignore
 
-router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(require_api_key)])
+from ..deps import api_key_auth
+
+router = APIRouter(prefix="/events", tags=["events"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {"timestamp": Event.timestamp, "level": Event.level}
 

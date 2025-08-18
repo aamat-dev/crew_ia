@@ -8,6 +8,8 @@ from sqlmodel import SQLModel
 
 # --- Importe tes modèles pour que SQLModel.metadata soit peuplé ---
 from core.storage.db_models import Run, Node, Artifact, Event  # noqa: F401
+from dotenv import load_dotenv
+load_dotenv()  # charge le .env tôt
 
 # Alembic Config object
 config = context.config
@@ -18,10 +20,10 @@ target_metadata = SQLModel.metadata
 def _sync_url() -> str:
     """
     Récupère l'URL de BDD pour Alembic (driver *synchrone*).
+
     Priorité :
       1) DATABASE_URL_SYNC (si défini)
-      2) DATABASE_URL converti (remplace 'postgresql+asyncpg' -> 'postgresql+psycopg2')
-      3) valeur dans alembic.ini (sqlalchemy.url), si présente
+      2) DATABASE_URL converti (remplace 'postgresql+asyncpg' -> 'postgresql+psycopg')
     """
     env_sync = os.getenv("DATABASE_URL_SYNC")
     if env_sync:
@@ -29,25 +31,18 @@ def _sync_url() -> str:
 
     env = os.getenv("DATABASE_URL")
     if env:
+        # SQLAlchemy 2.x : driver sync moderne = 'postgresql+psycopg'
         if env.startswith("postgresql+asyncpg"):
-            return env.replace("postgresql+asyncpg", "postgresql+psycopg2", 1)
+            return env.replace("postgresql+asyncpg", "postgresql+psycopg", 1)
         return env
 
-    # fallback: alembic.ini
-    ini_url = config.get_main_option("sqlalchemy.url")
-    if ini_url:
-        # si quelqu'un a mis l'async dans alembic.ini, convertissons aussi
-        if ini_url.startswith("postgresql+asyncpg"):
-            return ini_url.replace("postgresql+asyncpg", "postgresql+psycopg2", 1)
-        return ini_url
-
     raise RuntimeError(
-        "Aucune URL de BDD trouvée. Définis DATABASE_URL ou DATABASE_URL_SYNC, "
-        "ou mets sqlalchemy.url dans alembic.ini."
+        "Aucune URL de BDD trouvée. Définis DATABASE_URL ou DATABASE_URL_SYNC (dans .env)."
     )
 
 def run_migrations_offline() -> None:
     url = _sync_url()
+    config.set_main_option("sqlalchemy.url", url)  # <—
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -61,6 +56,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     url = _sync_url()
+    config.set_main_option("sqlalchemy.url", url)  # <—
     connectable = create_engine(url, poolclass=pool.NullPool, future=True)
     with connectable.connect() as connection:
         context.configure(

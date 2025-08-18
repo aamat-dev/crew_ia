@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, read_timezone, to_tz
+from ..deps import get_session, require_api_key, read_timezone, to_tz, api_key_auth
 from ..schemas import Page, NodeOut
 from core.storage.db_models import Node  # type: ignore
 
-router = APIRouter(prefix="", tags=["nodes"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/nodes", tags=["nodes"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {
     "created_at": Node.created_at,

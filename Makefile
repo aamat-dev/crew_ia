@@ -99,8 +99,25 @@ API_MODULE=api.fastapi_app.app:app
 API_HOST?=0.0.0.0
 API_PORT?=8080
 
+.PHONY: api-run api-run-prod api-test api-lint api-curl-examples
+
 api-run:
-	uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT)
+	uvicorn api.fastapi_app.app:app --reload
+
+api-run-prod:
+	uvicorn api.fastapi_app.app:app --host 0.0.0.0 --port 8000 --workers 2
 
 api-test:
 	PYTHONWARNINGS=ignore pytest -q tests_api
+
+api-lint:
+	ruff check .
+	black --check .
+	# pyright (si présent) : pyright
+
+api-curl-examples:
+	@echo "Health (public)"
+	@curl -i http://localhost:8000/health
+	@echo "\\nRuns (auth)"
+	@API_KEY=$$(grep ^API_KEY .env | cut -d= -f2); \\
+	curl -i -H "X-API-Key: $$API_KEY" "http://localhost:8000/runs?limit=5&order_by=-started_at"
