@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import Optional, List, Dict
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, DateTime, Enum as SAEnum, Text, String, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import Column, DateTime, Enum as SAEnum, Text, String, func, JSON
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 
 # ---------------- Enums ----------------
@@ -49,7 +49,7 @@ class Run(SQLModel, table=True):
     # ⚠️ ne pas utiliser l'attribut Python "metadata" (réservé).
     meta: Optional[Dict] = Field(
         default=None,
-        sa_column=Column("metadata", JSONB, nullable=True),
+        sa_column=Column("metadata", JSON, nullable=True),
     )
 
 
@@ -65,7 +65,7 @@ class Node(SQLModel, table=True):
     key: Optional[str] = Field(default=None, sa_column=Column(String, index=True))
     title: str = Field(sa_column=Column(String, nullable=False))
     status: NodeStatus = Field(sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False))
-    deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSONB, nullable=True))
+    deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSON, nullable=True))
     checksum: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.utcnow(),

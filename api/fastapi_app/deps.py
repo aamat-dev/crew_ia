@@ -17,8 +17,14 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    database_url: str = Field(alias="DATABASE_URL")
-    api_key: str = Field(alias="API_KEY")
+    # Provide sensible defaults so the API can start without mandatory
+    # environment variables. Tests override the database connection so a
+    # lightweight SQLite URL is sufficient here and a fixed API key keeps
+    # the authentication logic enabled.
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./app.db", alias="DATABASE_URL"
+    )
+    api_key: str = Field(default="test-key", alias="API_KEY")
     cors_origins_raw: str = Field(default="", alias="CORS_ORIGINS")
     artifacts_dir: str = Field(default=".runs", alias="ARTIFACTS_DIR")  # ← ajouté
 
@@ -41,6 +47,10 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
+# Backwards compatibility: the tests expect a ``get_db`` dependency
+# providing a database session.
+get_db = get_session
+
 # Auth par clé API
 async def require_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
     if not x_api_key or x_api_key != settings.api_key:
@@ -49,6 +59,10 @@ async def require_api_key(x_api_key: str | None = Header(default=None, alias="X-
             detail="Invalid or missing API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
+
+# Some test utilities look for a ``require_auth`` dependency. Provide an
+# alias so it can be overridden easily during testing.
+require_auth = require_api_key
 
 # Timezone optionnelle pour formatage
 async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-Timezone")) -> ZoneInfo | None:

@@ -1,3 +1,15 @@
 python-dotenv
 aiohttp
 openai
+
+# API and testing dependencies
+fastapi
+pydantic
+pydantic-settings
+sqlmodel
+SQLAlchemy
+aiosqlite
+httpx
+asgi-lifespan
+pytest
+pytest-asyncio
