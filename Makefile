@@ -108,7 +108,7 @@ api-run-prod:
 	uvicorn api.fastapi_app.app:app --host 0.0.0.0 --port 8000 --workers 2
 
 api-test:
-	PYTHONWARNINGS=ignore pytest -q tests_api
+	PYTHONWARNINGS=ignore pytest -q api/tests -k test_tasks_e2e
 
 api-lint:
 	ruff check .

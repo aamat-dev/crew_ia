@@ -1,0 +1,9 @@
+from enum import Enum
+
+class EventType(str, Enum):
+    RUN_STARTED = "RUN_STARTED"
+    NODE_STARTED = "NODE_STARTED"
+    NODE_COMPLETED = "NODE_COMPLETED"
+    NODE_FAILED = "NODE_FAILED"
+    RUN_COMPLETED = "RUN_COMPLETED"
+    RUN_FAILED = "RUN_FAILED"
