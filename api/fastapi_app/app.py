@@ -1,17 +1,10 @@
 # api/fastapi_app/app.py
 from __future__ import annotations
-import os
-import time
-import uuid
-import logging
-import json
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 # Charger .env le plus tôt possible
 from dotenv import load_dotenv
@@ -19,6 +12,7 @@ load_dotenv()
 
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
+from .middleware import RequestIDMiddleware
 
 TAGS_METADATA = [
     {"name": "health", "description": "Healthcheck et disponibilité DB."},
@@ -36,24 +30,6 @@ app = FastAPI(
 )
 
 # -------- Middlewares --------
-logger = logging.getLogger("api.requests") 
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        start = time.perf_counter()
-        response = await call_next(request)
-        dur_ms = int((time.perf_counter() - start) * 1000)
-        response.headers["X-Request-ID"] = rid
-        logger.info(json.dumps({
-            "request_id": rid,
-            "method": request.method,
-            "path": request.url.path,
-            "status_code": response.status_code,
-            "duration_ms": dur_ms,
-        }))
-        return response
-
 # Garde l’ID de requête le plus tôt possible
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1024)

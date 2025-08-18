@@ -6,25 +6,38 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from pydantic import BaseModel, Field, ConfigDict
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, api_key_auth, make_session_factory
-from core.storage.db_models import Run
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from ..deps import get_session, require_auth
+from core.storage.db_models import Run, Node, Event, Artifact
 
-router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(require_auth)])
 
 
 # --------- Schemas ---------
 class TaskCreateIn(BaseModel):
-    title: str = Field(..., min_length=1)
-    params: dict[str, Any] = Field(default_factory=dict)
+    title: str = Field(..., min_length=1, examples=["Adhoc run"])
+    params: dict[str, Any] = Field(default_factory=dict, examples=[{"foo": "bar"}])
+
+    model_config = ConfigDict(json_schema_extra={
+        "examples": [
+            {"title": "Adhoc run", "params": {"foo": "bar"}}
+        ]
+    })
 
 
 class TaskAcceptedOut(BaseModel):
     run_id: uuid.UUID
     status: str = "accepted"
+
+    model_config = ConfigDict(json_schema_extra={
+        "examples": [
+            {"run_id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3", "status": "accepted"}
+        ]
+    })
 
 
 class TaskStatusOut(BaseModel):
@@ -34,22 +47,81 @@ class TaskStatusOut(BaseModel):
     started_at: dt.datetime | None = None
     ended_at: dt.datetime | None = None
 
+    model_config = ConfigDict(json_schema_extra={
+        "examples": [
+            {
+                "run_id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3",
+                "title": "Adhoc run",
+                "status": "completed",
+                "started_at": "2025-08-17T12:18:41.591278Z",
+                "ended_at": "2025-08-17T12:20:41.591278Z",
+            }
+        ]
+    })
+
 
 # --------- Orchestration (wrapper minimal) ---------
-async def _run_orchestration(run_id: uuid.UUID, params: dict[str, Any]) -> None:
-    """
-    Tâche de fond : passe le run en 'running', exécute, puis 'completed' ou 'failed'.
-    Ici on met un squelette : branche ton orchestrateur réel à l'endroit indiqué.
-    """
-    Session = make_session_factory()
-    async with Session() as s:  # type: AsyncSession
-        try:
-            # <<< BRANCHEMENT ORCHESTRATEUR >>>
-            # Exemple : await orchestrator.run(run_id=run_id, params=params)
-            # Pour l’instant, on simule un petit temps de traitement :
-            await asyncio.sleep(0.2)
+async def _run_orchestration(run_id: uuid.UUID, params: dict[str, Any], db_url: str) -> None:
+    """Simple background orchestration used for tests."""
+    engine = create_async_engine(db_url, future=True)
+    from sqlalchemy.orm import sessionmaker
 
-            # -> completed
+    SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    async with SessionLocal() as s:  # type: AsyncSession
+        try:
+            start = dt.datetime.now(dt.timezone.utc)
+            # passe à running
+            await s.execute(
+                update(Run)
+                .where(Run.id == run_id)
+                .values(status="running", started_at=start)
+            )
+            await s.commit()
+
+            # Simule un node + event + artifact
+            node_id = uuid.uuid4()
+            await s.execute(
+                insert(Node).values(
+                    {
+                        "id": node_id,
+                        "run_id": run_id,
+                        "key": "n1",
+                        "title": "auto",
+                        "status": "completed",
+                        "created_at": start,
+                        "updated_at": start,
+                        "checksum": None,
+                    }
+                )
+            )
+            await s.execute(
+                insert(Event).values(
+                    {
+                        "id": uuid.uuid4(),
+                        "run_id": run_id,
+                        "node_id": node_id,
+                        "level": "INFO",
+                        "message": "run",
+                        "timestamp": start,
+                    }
+                )
+            )
+            await s.execute(
+                insert(Artifact).values(
+                    {
+                        "id": uuid.uuid4(),
+                        "node_id": node_id,
+                        "type": "result",
+                        "path": None,
+                        "content": "ok",
+                        "summary": "ok",
+                        "created_at": start,
+                    }
+                )
+            )
+            await s.commit()
+
+            # completed
             await s.execute(
                 update(Run)
                 .where(Run.id == run_id)
@@ -57,7 +129,6 @@ async def _run_orchestration(run_id: uuid.UUID, params: dict[str, Any]) -> None:
             )
             await s.commit()
         except Exception:
-            # -> failed
             await s.execute(
                 update(Run)
                 .where(Run.id == run_id)
@@ -67,23 +138,32 @@ async def _run_orchestration(run_id: uuid.UUID, params: dict[str, Any]) -> None:
 
 
 # --------- Routes ---------
-@router.post("", response_model=TaskAcceptedOut, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(api_key_auth)])
+@router.post("", response_model=TaskAcceptedOut, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_auth)])
 async def create_task(payload: TaskCreateIn, session: AsyncSession = Depends(get_session)) -> TaskAcceptedOut:
     """
-    Crée un Run en DB (status=queued) puis lance l'orchestration en tâche de fond.
+    Crée un Run en DB (status=pending) puis lance l'orchestration en tâche de fond.
     """
     run_id = uuid.uuid4()
-    now = dt.datetime.now(dt.timezone.utc)
-    session.add(Run(id=run_id, title=payload.title, status="running", started_at=now, ended_at=None))
+    session.add(
+        Run(
+            id=run_id,
+            title=payload.title,
+            status="pending",
+            started_at=None,
+            ended_at=None,
+        )
+    )
     await session.commit()
 
     # Lancer la tâche de fond (hors cycle requête)
-    asyncio.create_task(_run_orchestration(run_id, payload.params))
+    bind = session.get_bind()
+    db_url = str(bind.url)
+    asyncio.create_task(_run_orchestration(run_id, payload.params, db_url))
 
     return TaskAcceptedOut(run_id=run_id)
 
 
-@router.get("/{run_id}", response_model=TaskStatusOut, dependencies=[Depends(api_key_auth)])
+@router.get("/{run_id}", response_model=TaskStatusOut, dependencies=[Depends(require_auth)])
 async def get_task(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> TaskStatusOut:
     """
     Retourne l'état courant du Run.
