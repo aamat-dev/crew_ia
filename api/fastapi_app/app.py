@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from contextlib import asynccontextmanager
+from anyio import create_task_group
 
 # Charger .env le plus tôt possible
 from dotenv import load_dotenv
@@ -13,6 +15,9 @@ load_dotenv()
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
+from core.storage.postgres_adapter import PostgresAdapter
+from core.storage.composite_adapter import CompositeAdapter
+from core.events.publisher import EventPublisher
 
 TAGS_METADATA = [
     {"name": "health", "description": "Healthcheck et disponibilité DB."},
@@ -23,10 +28,23 @@ TAGS_METADATA = [
     {"name": "tasks", "description": "Déclenchement d’un run ad-hoc et suivi de statut."},
 ]
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with create_task_group() as tg:
+        pg = PostgresAdapter(settings.database_url)
+        storage = CompositeAdapter([pg])
+        app.state.task_group = tg
+        app.state.storage = storage
+        app.state.event_publisher = EventPublisher(storage)
+        yield
+        # task group exits cancelling background tasks
+
+
 app = FastAPI(
     title="Crew Orchestrator – Read-only API",
     version="0.1.0",
     openapi_tags=TAGS_METADATA,
+    lifespan=lifespan,
 )
 
 # -------- Middlewares --------
