@@ -110,6 +110,8 @@ def _node_id_str(node, checksum: str) -> str:
     - Si le nœud a un .id (UUID/str), on l'utilise.
     - Sinon on dérive un id déterministe à partir du checksum (stable).
     """
+    if isinstance(node, str) and node:
+        return node
     nid = _get_attr(node, "id", None)
     if isinstance(nid, str) and nid:
         return nid
@@ -156,9 +158,11 @@ async def run_graph(
     completed_ids: Set[str] = set()
     skipped_count = 0
     replayed_count = 0
+    any_failed = False
 
     # exécution topologique simple (le DAG produit déjà un ordre valable)
-    for node in dag.nodes:
+    nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
+    for node in nodes_iter:
         # Préparation (tolérante aux str/dict)
         log.debug(
             "Preparing node: key=%s title=%s deps=%s",
@@ -227,11 +231,14 @@ async def run_graph(
             traceback.print_exc()
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))
             status = "failed"
+            any_failed = True
 
         # Persiste statut file-based (toujours)
         out = {
+            "run_id": run_id,
+            "node_id": node_id_txt,
             "status": status,
-            "checksum": _cs,
+            "input_checksum": _cs,
             "ended_at": datetime.now(timezone.utc).isoformat(),
         }
         status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -272,4 +279,5 @@ async def run_graph(
     print(colorize(f"💾 Résumé sauvegardé : {summary_path}", CYAN))
 
     print(f"{CYAN}📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).{RESET}")
-    return {"status": "success", "completed": sorted(completed_ids), "run_id": run_id}
+    final_status = "failed" if any_failed else "success"
+    return {"status": final_status, "completed": sorted(completed_ids), "run_id": run_id}

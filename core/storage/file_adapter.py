@@ -105,7 +105,7 @@ class FileStatusStore:
         return os.path.join(self.runs_root, run_id)
 
     def status_path(self, run_id: str, node_id: str) -> str:
-        return os.path.join(self.run_dir(run_id), f"{node_id}.status.json")
+        return os.path.join(self.run_dir(run_id), "nodes", node_id, "status.json")
 
     def read(self, run_id: str, node_id: str) -> Optional[NodeStatus]:
         path = self.status_path(run_id, node_id)
@@ -113,7 +113,8 @@ class FileStatusStore:
             return None
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return NodeStatus(**data)
+        allowed = {k: v for k, v in data.items() if k in NodeStatus.__annotations__}
+        return NodeStatus(**allowed)
 
     def write(self, st: NodeStatus) -> None:
         _atomic_write_json(self.status_path(st.run_id, st.node_id), asdict(st))
