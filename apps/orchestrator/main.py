@@ -82,7 +82,7 @@ def _default_run_id(hint: str | None = None) -> str:
     return ts
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Orchestrateur CrewIA — exécution d'un plan avec reprise après crash")
     p.add_argument("--task-file", required=False, help="Chemin vers un JSON contenant la clé 'plan'")
     p.add_argument("--run-id", default=None, help="Identifiant stable du run (requis pour --resume)")
@@ -96,12 +96,20 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--use-supervisor", action="store_true", help="Génère le plan via le superviseur LLM")
     p.add_argument("--title", default="Rapport 80p", help="Titre racine pour le superviseur")
     p.add_argument("--description", default="Décomposer la production d'un rapport de 80 pages.", help="Description")
-    p.add_argument("--acceptance", default="Un plan séquencé avec sous-tâches claires.", help="Critères d'acceptance")
+    p.add_argument(
+        "--acceptance",
+        action="append",
+        help="Critères d'acceptance (répéter l’option pour plusieurs valeurs)",
+    )
 
     # overrides LLM globaux (injection au niveau des nœuds)
     p.add_argument("--executor-provider", default=None)
     p.add_argument("--executor-model", default=None)
-    return p.parse_args()
+
+    args = p.parse_args(argv)
+    if args.acceptance is None:
+        args.acceptance = ["Un plan séquencé avec sous-tâches claires."]
+    return args
 
 
 def main() -> None:
