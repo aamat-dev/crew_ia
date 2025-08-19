@@ -18,14 +18,14 @@ init-env:
 install: init-env
 	@python3 -m venv .venv
 	@. .venv/bin/activate && pip install -U pip
-	@. .venv/bin/activate && pip install -e .
+	@. .venv/bin/activate && pip install -r requirements.txt
 	@echo "✅ Installation terminée"
 
 # (optionnel) forcer juste la (ré)création du venv et l'install
 venv:
 	@python3 -m venv .venv
 	@. .venv/bin/activate && pip install -U pip
-	@. .venv/bin/activate && pip install -e .
+	@. .venv/bin/activate && pip install -r requirements.txt
 
 fmt:
 	@echo "Skip (formatter non configuré)"
@@ -34,13 +34,22 @@ lint:
 	@echo "Skip (linter non configuré)"
 
 test:
+	@if [ ! -d .venv ]; then \
+	$(MAKE) install; \
+	fi
 	@. .venv/bin/activate && pytest -q
 
 test-recovery:
+	@if [ ! -d .venv ]; then \
+	$(MAKE) install; \
+	fi
 	@. .venv/bin/activate && pytest -q -k "recovery or status_store"
 
 run:
-	@. .venv/bin/activate && python -m apps.orchestrator.main --task-file examples/task_rapport_80p.json
+	@if [ ! -d .venv ]; then \
+	$(MAKE) install; \
+	fi
+	@. .venv/bin/activate && python -m apps.orchestrator.main --task-file examples/task_rapport_80p.json $(RUN_ARGS)
 
 # 3) Vérifier rapidement que les variables d'env sont chargées
 env-check:

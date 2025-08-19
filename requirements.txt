@@ -6,9 +6,11 @@ openai
 fastapi
 pydantic
 pydantic-settings
+networkx
 sqlmodel
 SQLAlchemy
 aiosqlite
+asyncpg
 httpx
 asgi-lifespan
 pytest

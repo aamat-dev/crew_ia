@@ -217,21 +217,22 @@ async def run_executor_llm(node, storage) -> bool:
         # Log debug tokens & coût
         log.debug("node=%s tokens=%s cost=%s", node_id_txt, usage, cost)
 
+        acceptance_sanitized = (acceptance or "").replace('"', '\\"')
         content = dedent(
             f"""\
         ---
         node_id: {node_id_txt}
         title: {title}
         type: {node_type}
-        acceptance: "{(acceptance or "").replace('"','\\\"')}"
+        acceptance: "{acceptance_sanitized}"
         model: {model}
         provider_primary: {provider}
-        provider_fallbacks: {", ".join(params["fallback_order"])}
+        provider_fallbacks: {', '.join(params['fallback_order'])}
         ---
 
         # {title}
 
-        > Type: {node_type} | Acceptation: {acceptance or "—"}
+        > Type: {node_type} | Acceptation: {acceptance or '—'}
 
         ## Livrable
         {body}

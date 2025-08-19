@@ -143,3 +143,11 @@ class FileStatusStore:
         st.error = error_msg
         self.write(st)
         return st
+
+
+# ------------------------------------------------------------------
+# Backward compatibility
+# ------------------------------------------------------------------
+class FileAdapter(FileStorage):
+    """Legacy name kept for backward compatibility."""
+    pass
