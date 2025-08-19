@@ -8,11 +8,11 @@ class PlanNodeModel(BaseModel):
     title: str
     type: NodeType
     suggested_agent_role: str
-    acceptance: List[str] = []
-    deps: List[str] = []
-    risks: List[str] = []
-    assumptions: List[str] = []
-    notes: List[str] = []
+    acceptance: List[str] = Field(default_factory=list)
+    deps: List[str] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+    assumptions: List[str] = Field(default_factory=list)
+    notes: List[str] = Field(default_factory=list)
 
 class SupervisorPlan(BaseModel):
     decompose: bool
@@ -44,7 +44,7 @@ class SupervisorPlan(BaseModel):
 class ManagerAssignment(BaseModel):
     node_id: str
     agent: str
-    tooling: List[str] = []
+    tooling: List[str] = Field(default_factory=list)
 
 class ManagerOutput(BaseModel):
     assignments: List[ManagerAssignment]

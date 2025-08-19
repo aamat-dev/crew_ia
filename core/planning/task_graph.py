@@ -9,6 +9,14 @@ import networkx as nx
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
+
+def _as_str_list(val) -> List[str]:
+    if not val:
+        return []
+    if isinstance(val, list):
+        return [str(x) for x in val]
+    return [str(val)]
+
 @dataclass
 class PlanNode:
     """
@@ -74,12 +82,12 @@ class TaskGraph:
                 title=p.get("title", ""),
                 description=p.get("description", ""),
                 type=p.get("type", "task"),
-                deps=p.get("deps", []),
-                acceptance=p.get("acceptance", []),
+                deps=_as_str_list(p.get("deps", [])),
+                acceptance=_as_str_list(p.get("acceptance", [])),
                 suggested_agent_role=p.get("suggested_agent_role", ""),
-                risks=p.get("risks", []),
-                assumptions=p.get("assumptions", []),
-                notes=p.get("notes", []),
+                risks=_as_str_list(p.get("risks", [])),
+                assumptions=_as_str_list(p.get("assumptions", [])),
+                notes=_as_str_list(p.get("notes", [])),
                 llm=p.get("llm", {}) or {},                     # <-- NEW
             )
             for p in plan.get("plan", [])
