@@ -14,10 +14,16 @@ async def test_create_and_follow_task(client):
     assert body["status"] == "accepted"
     run_id = body["run_id"]
 
-    await asyncio.sleep(0.3)
+    # Polling sur le statut de la tâche
+    for _ in range(50):
+        r_status = await client.get(f"/tasks/{run_id}", headers={"X-API-Key": "test-key"})
+        assert r_status.status_code == 200
+        if r_status.json()["status"] not in {"running", "pending"}:
+            break
+        await asyncio.sleep(0.1)
+    else:
+        pytest.fail("Timeout en attendant la complétion de la tâche")
 
-    r_status = await client.get(f"/tasks/{run_id}", headers={"X-API-Key": "test-key"})
-    assert r_status.status_code == 200
     assert r_status.json()["status"] == "completed"
 
     r_run = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})

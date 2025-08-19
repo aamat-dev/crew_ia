@@ -11,8 +11,27 @@ class CompositeAdapter:
       les adaptateurs qui en ont besoin (expects_uuid_ids=True).
     """
 
-    def __init__(self, adapters: Sequence[object]):
-        self.adapters = list(adapters)
+    def __init__(self, adapters: Sequence[object], order: Optional[Sequence[str]] = None):
+        """Initialise l'adaptateur composite.
+
+        Parameters
+        ----------
+        adapters: liste d'instances (FileAdapter, PostgresAdapter, ...)
+        order: séquence optionnelle de noms de classes pour forcer l'ordre
+               d'appel. Les adaptateurs non mentionnés sont ajoutés à la fin
+               dans l'ordre fourni.
+        """
+
+        adapters_list = list(adapters)
+        if order:
+            mapping = {a.__class__.__name__: a for a in adapters_list}
+            self.adapters = [mapping[name] for name in order if name in mapping]
+            for a in adapters_list:
+                if a not in self.adapters:
+                    self.adapters.append(a)
+        else:
+            self.adapters = adapters_list
+
         self._resolve_run_uuid: Optional[Callable[[str], Any]] = None
         self._resolve_node_uuid: Optional[Callable[[str], Any]] = None
 
@@ -25,26 +44,10 @@ class CompositeAdapter:
         self._resolve_run_uuid = run_resolver
         self._resolve_node_uuid = node_resolver
 
-    def _normalize_ids(self, kwargs: Dict) -> Dict:
-        out = dict(kwargs)
-        if "run_id" in out and isinstance(out["run_id"], str) and self._resolve_run_uuid:
-            maybe = self._resolve_run_uuid(out["run_id"])
-            if inspect.iscoroutinefunction(self._resolve_run_uuid):
-                # support async resolver
-                pass  # handled in _call
-            elif maybe:
-                out["run_id"] = maybe
-
-        if "node_id" in out and isinstance(out["node_id"], str) and self._resolve_node_uuid:
-            maybe = self._resolve_node_uuid(out["node_id"])
-            if inspect.iscoroutinefunction(self._resolve_node_uuid):
-                # support async resolver
-                pass
-            elif maybe:
-                out["node_id"] = maybe
-        return out
-
     async def _normalize_ids_async(self, kwargs: Dict) -> Dict:
+        """Normalise run_id/node_id en résolvant éventuellement des UUID.
+
+        Les fonctions de résolution peuvent être sync ou async."""
         out = dict(kwargs)
         if "run_id" in out and isinstance(out["run_id"], str) and self._resolve_run_uuid:
             if inspect.iscoroutinefunction(self._resolve_run_uuid):
@@ -79,10 +82,14 @@ class CompositeAdapter:
             else:
                 call_kwargs = kwargs
 
-            if inspect.iscoroutinefunction(fn):
-                result = await fn(*args, **call_kwargs)
-            else:
-                result = fn(*args, **call_kwargs)
+            try:
+                if inspect.iscoroutinefunction(fn):
+                    result = await fn(*args, **call_kwargs)
+                else:
+                    result = fn(*args, **call_kwargs)
+            except TypeError:
+                # Signatures incompatibles : on ignore et passe au backend suivant
+                continue
         return result
 
     # façade

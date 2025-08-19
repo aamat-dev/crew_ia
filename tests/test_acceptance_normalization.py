@@ -37,3 +37,27 @@ def test_task_graph_string_fields_to_lists():
     assert node.risks == ["r1"]
     assert node.assumptions == ["a1"]
     assert node.notes == ["n1"]
+
+
+def test_task_graph_none_fields_to_empty_list():
+    plan = {
+        "plan": [
+            {"id": "n0", "title": "root"},
+            {
+                "id": "n1",
+                "title": "T1",
+                "deps": None,
+                "acceptance": None,
+                "risks": None,
+                "assumptions": None,
+                "notes": None,
+            },
+        ]
+    }
+    dag = TaskGraph.from_plan(plan)
+    node = dag.nodes["n1"]
+    assert node.deps == []
+    assert node.acceptance == []
+    assert node.risks == []
+    assert node.assumptions == []
+    assert node.notes == []
