@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional, List, Dict
 
 from sqlmodel import SQLModel, Field
@@ -68,7 +68,7 @@ class Node(SQLModel, table=True):
     deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSON, nullable=True))
     checksum: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     created_at: datetime = Field(
-        default_factory=lambda: datetime.utcnow(),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
     )
     updated_at: Optional[datetime] = Field(
@@ -90,7 +90,7 @@ class Artifact(SQLModel, table=True):
     content: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     summary: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     created_at: datetime = Field(
-        default_factory=lambda: datetime.utcnow(),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
     )
 
@@ -105,7 +105,7 @@ class Event(SQLModel, table=True):
     run_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True))
     node_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True))
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.utcnow(),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
     )
     level: str = Field(sa_column=Column(String, nullable=False))
