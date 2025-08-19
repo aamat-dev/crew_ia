@@ -185,6 +185,8 @@ async def run_graph(
 ):
     RUNS_ROOT = get_var("RUNS_ROOT", ".runs")
     Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
+    run_dir = Path(RUNS_ROOT) / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     completed_ids: Set[str] = set()
     skipped_count = 0
@@ -206,7 +208,7 @@ async def run_graph(
             node.checksum = _cs
 
         node_id_txt = _node_id_str(node, _cs)
-        node_dir = Path(RUNS_ROOT) / run_id / "nodes" / node_id_txt
+        node_dir = run_dir / "nodes" / node_id_txt
         node_dir.mkdir(parents=True, exist_ok=True)
         status_file = node_dir / "status.json"
 
@@ -304,7 +306,7 @@ async def run_graph(
         "utc_time": now_utc.isoformat(),
         "paris_time": now_paris.isoformat(),
     }
-    summary_path = Path(RUNS_ROOT) / run_id / "summary.json"
+    summary_path = run_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(colorize(f"💾 Résumé sauvegardé : {summary_path}", CYAN))
 

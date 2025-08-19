@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, status, HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 import os
 
-from core.storage.db_models import RunStatus
-from ..deps import api_key_auth
+from core.storage.db_models import RunStatus, Run
+from ..deps import api_key_auth, get_session
 from ..schemas import TaskRequest, TaskAcceptedResponse
 from core.services.orchestrator_service import schedule_run
 
@@ -38,3 +40,10 @@ async def create_task(req: TaskRequest, request: Request):
     )
 
     return TaskAcceptedResponse(run_id=run_id, location=f"/runs/{run_id}")
+
+@router.get("/{run_id}")
+async def get_task_status(run_id: UUID, session: AsyncSession = Depends(get_session)):
+    row = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {"run_id": row.id, "status": row.status}

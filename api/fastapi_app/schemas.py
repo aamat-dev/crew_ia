@@ -63,6 +63,14 @@ class TaskAcceptedResponse(BaseModel):
     location: str
 
 # --------- Exemples d’autres schémas existants (inchangés) ---------
+class RunSummaryOut(BaseModel):
+    nodes_total: int
+    nodes_completed: int
+    nodes_failed: int
+    artifacts_total: int
+    events_total: int
+    duration_ms: Optional[int] = None
+
 class RunListItemOut(BaseModel):
     id: UUID
     title: str
@@ -77,10 +85,33 @@ class RunOut(BaseModel):
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     meta: Optional[Dict[str, Any]] = None
+    summary: Optional[RunSummaryOut] = None
 
-class RunSummaryOut(BaseModel):
+class NodeOut(BaseModel):
     id: UUID
+    run_id: UUID
+    key: Optional[str] = None
     title: str
     status: str
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
+    checksum: Optional[str] = None
+    deps: Optional[List[str]] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+class ArtifactOut(BaseModel):
+    id: UUID
+    node_id: UUID
+    type: str
+    path: Optional[str] = None
+    content: Optional[str] = None
+    summary: Optional[str] = None
+    created_at: datetime
+    preview: Optional[str] = None
+
+class EventOut(BaseModel):
+    id: UUID
+    run_id: UUID
+    node_id: Optional[UUID] = None
+    level: str
+    message: str
+    timestamp: datetime

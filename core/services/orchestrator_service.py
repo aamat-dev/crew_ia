@@ -46,6 +46,10 @@ async def schedule_run(
     if task_spec is None:
         raise ValueError("Missing task_spec or task_file")
 
+    # Demo fallback
+    if task_spec.get("type") == "demo" and "plan" not in task_spec:
+        task_spec = {"title": task_spec.get("title") or "Demo", "plan": [{"id": "n1", "title": "Demo Node"}]}
+
     # Titre
     title = title or task_spec.get("title") or "Adhoc run"
 
