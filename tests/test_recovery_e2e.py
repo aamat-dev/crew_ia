@@ -1,16 +1,24 @@
 import asyncio
 import os
+import sys
 import pytest
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from apps.orchestrator.executor import run_graph
 from core.storage.file_adapter import FileStatusStore
 
 # --------- DAG factice A -> B -> C -----------
 class Node:
-    def __init__(self, nid):
+    def __init__(self, nid, role="Worker"):
         self.id = nid
         self.deps = []
         self.succ = []
+        self.type = "execute"
+        self.suggested_agent_role = role
+        self.acceptance = []
+        self.risks = []
+        self.assumptions = []
+        self.notes = []
 
 class DummyDag:
     def __init__(self):
@@ -43,25 +51,25 @@ async def test_recovery_resume(tmp_path, monkeypatch):
     flag_file.write_text("first")
 
     # Monkeypatch du worker LLM
-    async def fake_run_executor_llm(node, storage):
+    async def fake_agent_runner(node, storage):
         await asyncio.sleep(0.01)
         if node.id == "B":
             if flag_file.read_text().strip() == "first":
                 flag_file.write_text("second")
                 raise RuntimeError("Simulated crash on first pass")
-        return True
+        return "ok"
 
-    # On monkeypatch la fonction importée dans l'exécuteur
     import apps.orchestrator.executor as ex_mod
-    monkeypatch.setattr(ex_mod, "run_executor_llm", fake_run_executor_llm)
+    monkeypatch.setattr(ex_mod, "agent_runner", fake_agent_runner)
 
     class DummyStorage:
-        pass
+        async def save_artifact(self, *args, **kwargs):
+            return True
     storage = DummyStorage()
 
-    # 1) Premier run: A completed, B failed, C non exécuté
-    res1 = await run_graph(dag, storage, run_id=run_id)
-    assert res1["status"] == "failed"
+    # 1) Premier run: A completed, B failed, C déclenche une erreur de dépendance
+    with pytest.raises(RuntimeError):
+        await run_graph(dag, storage, run_id=run_id)
     st = FileStatusStore(runs_root=str(runs_root))
     assert st.read(run_id, "A").status == "completed"
     assert st.read(run_id, "B").status == "failed"
