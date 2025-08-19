@@ -6,7 +6,7 @@ import pytest
 async def test_create_and_follow_task(client):
     r = await client.post(
         "/tasks",
-        json={"title": "Adhoc run", "params": {"foo": "bar"}},
+        json={"title": "Adhoc run", "task_spec": {"type": "demo"}},
         headers={"X-API-Key": "test-key"},
     )
     assert r.status_code == 202
@@ -35,5 +35,7 @@ async def test_create_and_follow_task(client):
 
 @pytest.mark.asyncio
 async def test_create_task_requires_auth(client_noauth):
-    r = await client_noauth.post("/tasks", json={"title": "x"})
+    r = await client_noauth.post(
+        "/tasks", json={"title": "x", "task_spec": {"type": "demo"}}
+    )
     assert r.status_code == 401
