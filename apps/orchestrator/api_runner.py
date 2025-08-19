@@ -63,7 +63,7 @@ async def run_task(
         node.status = NodeStatus.completed
         node.updated_at = ended
         await writer.save_node(node=node)
-        
+
         await writer.save_run(
             run=Run(id=run_uuid, title=title, status=RunStatus.completed, started_at=started, ended_at=ended)
         )

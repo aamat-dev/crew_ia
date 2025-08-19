@@ -1,7 +1,7 @@
 """init tables: runs, nodes, artifacts, events
 
 Revision ID: af56cdba7b4a
-Revises: 
+Revises:
 Create Date: 2025-08-16 20:02:19.353692
 
 """
