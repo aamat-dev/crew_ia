@@ -1,4 +1,7 @@
 from pathlib import Path
+import json
+from typing import Any, Dict
+
 from pydantic import ValidationError
 
 from .registry import load_default_registry
@@ -22,3 +25,24 @@ async def run_supervisor(task_input: str) -> SupervisorPlan:
                 req.prompt = task_input + "\nRAPPEL: répondez UNIQUEMENT en JSON strict valide."
             else:
                 raise
+
+
+async def run(task: Dict[str, Any], storage: Any | None = None) -> Dict[str, Any]:
+    """Maintient la compatibilité avec l'ancienne interface.
+
+    Parameters
+    ----------
+    task: dict
+        Description structurée de la tâche (titre, description, acceptance).
+    storage: Any, optional
+        Paramètre conservé pour compatibilité, non utilisé ici.
+
+    Returns
+    -------
+    dict
+        Plan du superviseur sous forme de dictionnaire.
+    """
+
+    task_input = json.dumps(task, ensure_ascii=False)
+    sup = await run_supervisor(task_input)
+    return sup.model_dump()
