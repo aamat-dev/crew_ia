@@ -55,7 +55,18 @@ class SafeTracker:
         return None
 
 
-def _normalize_supervisor_plan(super_plan: dict, title: str) -> dict:
+def _normalize_supervisor_plan(super_plan: Any, title: str) -> dict:
+    """Convertit le plan du superviseur en dictionnaire simple.
+
+    ``super_plan`` peut être soit un ``dict`` brut, soit un ``pydantic``
+    ``BaseModel`` (par exemple : ``SupervisorPlan``). Dans ce dernier cas, on
+    utilise ``model_dump`` pour récupérer un ``dict`` classique.
+    """
+
+    if hasattr(super_plan, "model_dump"):
+        super_plan = super_plan.model_dump()
+    elif not isinstance(super_plan, dict):
+        raise TypeError("super_plan doit être un dict ou un BaseModel pydantic")
     items = []
     if isinstance(super_plan.get("subtasks"), list) and super_plan["subtasks"]:
         for i, st in enumerate(super_plan["subtasks"], start=1):
