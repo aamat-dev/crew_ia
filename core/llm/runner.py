@@ -96,7 +96,8 @@ def _model_for_provider(current_provider: str, primary_provider: str, current_mo
 
 
 # ---------- Runner principal ----------
-async def run_llm(req: LLMRequest, primary: str, fallback_order: Optional[List[str]] = None) -> LLMResponse:
+async def run_llm(req: LLMRequest, primary: Optional[str] = None, fallback_order: Optional[List[str]] = None) -> LLMResponse:
+    primary = primary or req.provider or os.getenv("LLM_DEFAULT_PROVIDER", "ollama")
     order = list(_unique([primary, *(fallback_order or [])]))
     log.debug("llm.order resolved: primary=%s order=%s req.model=%s", primary, order, req.model)
 

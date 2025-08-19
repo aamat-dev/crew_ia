@@ -16,7 +16,11 @@ from core.config import get_var
 from core.planning.task_graph import TaskGraph, PlanNode
 from core.storage.db_models import NodeStatus  # peut rester importé si réutilisé ailleurs
 from core.storage.composite_adapter import CompositeAdapter
-from core.agents.executor_llm import run_executor_llm
+from core.agents.executor_llm import agent_runner
+from core.agents.manager import run_manager
+from core.agents.registry import load_default_registry
+from core.agents.recruiter import recruit
+from core.agents.schemas import PlanNodeModel
 
 log = logging.getLogger("crew.executor")
 
@@ -138,9 +142,36 @@ def _norm_dep_ids(node) -> list[str]:
     return out
 
 
-async def _execute_node(node: PlanNode, storage: CompositeAdapter) -> Dict[str, Any]:
-    # Pour l’instant, exécuteur LLM unique
-    return await run_executor_llm(node=node, storage=storage)
+async def _execute_node(node: PlanNode, storage: CompositeAdapter, dag: TaskGraph) -> Dict[str, Any]:
+    role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
+    registry = load_default_registry()
+    spec = registry.get(role) or recruit(role)
+    log.info("node=%s role=%s provider=%s model=%s", node.id, role, spec.provider, spec.model)
+    if node.type == "manage":
+        subplan = [
+            PlanNodeModel(
+                id=node.id,
+                title=node.title,
+                type=node.type,
+                suggested_agent_role=node.suggested_agent_role,
+                acceptance=node.acceptance,
+                deps=node.deps,
+                risks=node.risks,
+                assumptions=node.assumptions,
+                notes=node.notes,
+            )
+        ]
+        output = await run_manager(subplan)
+        Path(f"manager_{node.id}.json").write_text(
+            json.dumps(output.model_dump(), indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        for a in output.assignments:
+            if a.node_id in dag.nodes:
+                dag.nodes[a.node_id].suggested_agent_role = a.agent
+        return output.model_dump()
+    else:
+        artifact = await agent_runner(node, storage)
+        return {"artifact": artifact}
 
 
 async def run_graph(
@@ -187,13 +218,12 @@ async def run_graph(
                 previous = {}
 
         prev_status = previous.get("status")
-        prev_checksum = previous.get("checksum")
+        prev_checksum = previous.get("input_checksum")
 
         # Dépendances: si une dep a échoué, on s'arrête
         dep_ids = _norm_dep_ids(node)
         if any(dep not in completed_ids for dep in dep_ids):
-            print(colorize(f"[BLOCK]  {node_id_txt} — dépendances incomplètes", YELLOW))
-            continue
+            raise RuntimeError(f"Dependencies incomplete for node {node_id_txt}")
 
         must_recompute = True
         if prev_status == "completed" and prev_checksum == _cs and node_id_txt not in (override_completed or set()):
@@ -223,7 +253,7 @@ async def run_graph(
         # Exécution du nœud
         status = "failed"
         try:
-            _ = await _execute_node(node, storage)
+            _ = await _execute_node(node, storage, dag)
             status = "completed"
             replayed_count += 1
             completed_ids.add(node_id_txt)

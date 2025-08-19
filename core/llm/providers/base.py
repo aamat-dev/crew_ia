@@ -7,6 +7,7 @@ class LLMRequest:
     system: Optional[str]
     prompt: str
     model: str
+    provider: Optional[str] = None
     temperature: float = 0.2
     max_tokens: int = 1500
     stop: Optional[List[str]] = None
