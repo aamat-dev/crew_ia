@@ -1,6 +1,6 @@
 # core/llm/providers/base.py
 from dataclasses import dataclass
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Optional
 try:
     from sqlmodel import SQLModel
@@ -19,18 +19,22 @@ class LLMRequest:
     stop: Optional[List[str]] = None
     timeout_s: int = 60
 
-@dataclass
 class LLMResponse(SQLModel):
 
-    """Réponse LLM normalisée. Tous les champs non essentiels sont optionnels
-    pour permettre aux tests de créer des mocks minimalistes.
+    """Réponse LLM normalisée.
+
+    Tous les champs non essentiels sont optionnels pour que les tests puissent
+    instancier facilement des réponses minimales sans devoir fournir de
+    métadonnées. `usage` utilise un ``default_factory`` afin d'éviter un défaut
+    mutable partagé entre instances.
     """
+
     text: str
     provider: Optional[str] = None
     model_used: Optional[str] = None
     latency_ms: int = 0
     raw: Optional[Dict[str, Any]] = None
-    usage: Dict[str, Any] = {}
+    usage: Dict[str, Any] = Field(default_factory=dict)
 
 class ProviderError(Exception): ...
 class ProviderUnavailable(ProviderError): ...
