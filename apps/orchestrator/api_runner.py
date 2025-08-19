@@ -1,84 +1,129 @@
 from __future__ import annotations
 
 import datetime as dt
-from uuid import UUID, uuid4
+from uuid import UUID
+from typing import Any, Dict, Optional
 
 from core.storage.composite_adapter import CompositeAdapter
-from core.storage.db_models import Run, RunStatus, Node, NodeStatus, Artifact
+from core.storage.db_models import Run, RunStatus, Node, NodeStatus
 from core.events.publisher import EventPublisher
 from core.events.types import EventType
+from core.planning.task_graph import TaskGraph
+from apps.orchestrator.executor import run_graph
+
+import json
+from pathlib import Path
 import logging
 log = logging.getLogger("orchestrator.api_runner")
+
+def _read_llm_sidecar(run_id: str, node_id: str) -> Dict[str, Any]:
+    """Lit le sidecar .llm.json pour extraire provider/model/latency/usage."""
+    try:
+        path = Path(".runs") / run_id / "nodes" / node_id / f"artifact_{node_id}.llm.json"
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 async def run_task(
     run_id: str,
     task_spec: dict,
-    options: object,
-    writer: CompositeAdapter,
+    options: Any,
+    storage: CompositeAdapter,
     event_publisher: EventPublisher,
     title: str,
-) -> None:
-    run_uuid = UUID(run_id)
+    request_id: Optional[str] = None,
+):
+    """
+    Exécution d'un DAG réel avec émission d'events RUN_* / NODE_*.
+    - run_id est fourni (UUID string)
+    - storage est le CompositeAdapter (DB + fichiers)
+    - event_publisher écrit dans la table events (via storage)
+    """
     started = dt.datetime.now(dt.timezone.utc)
-    await writer.save_run(run=Run(id=run_uuid, title=title, status=RunStatus.running, started_at=started))
-    await event_publisher.emit(EventType.RUN_STARTED, {"run_id": run_id, "title": title})
 
-    try:
-        # 1) Créer le node (running) AVANT d’émettre l’event NODE_STARTED (FK DB)
-        node_uuid = uuid4()
-        node = Node(
-            id=node_uuid,
-            run_id=run_uuid,
-            key="n1",
-            title="Node 1",
-            status=NodeStatus.running,   # running d’abord
-            created_at=started,
-            updated_at=started,
-            # checksum éventuel si NOT NULL dans ton schéma : ex. checksum=""
+    # --------- Construire le DAG ----------
+    dag = TaskGraph.from_plan(task_spec)
+
+    # --------- Callbacks pour la télémétrie ----------
+    async def on_node_start(node, node_id_txt):
+        await storage.save_node(
+            node=Node(
+                id=None,                     # laissé à l'adapter DB
+                run_id=UUID(run_id),
+                title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
+                status=NodeStatus.running,
+                started_at=dt.datetime.now(dt.timezone.utc),
+                logical_id=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
+                checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
+            )
         )
-        await writer.save_node(node=node)  # -> row présente en DB
         await event_publisher.emit(
-            EventType.NODE_STARTED, {"run_id": run_id, "node_id": str(node_uuid)}
-        )
-        art_id = uuid4()
-        artifact = Artifact(
-            id=art_id,
-            node_id=node_uuid,
-            # ⚠️ mets ici une valeur 100% compatible avec ton Enum DB
-            # (remplace "markdown" par la valeur exacte si ton Enum est différent)
-            type="markdown",
-            path="/tmp/demo.md",
-            content="# demo\nHello",
-            summary="demo",
-            created_at=started,
-        )
-        await writer.save_artifact(artifact=artifact)
-        await event_publisher.emit(
-            EventType.NODE_COMPLETED,
-            {"run_id": run_id, "node_id": str(node_uuid), "artifact_id": str(art_id)},
+            EventType.NODE_STARTED,
+            {"run_id": run_id, "node_id": node_id_txt, "request_id": request_id, "checksum": getattr(node, "checksum", None)},
         )
 
-        # 2) Clore proprement le node (completed) puis le run
+    async def on_node_end(node, node_id_txt, status: str):
         ended = dt.datetime.now(dt.timezone.utc)
-        node.status = NodeStatus.completed
-        node.updated_at = ended
-        await writer.save_node(node=node)
-
-        await writer.save_run(
-            run=Run(id=run_uuid, title=title, status=RunStatus.completed, started_at=started, ended_at=ended)
+        await storage.save_node(
+            node=Node(
+                id=None,
+                run_id=UUID(run_id),
+                title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
+                status=NodeStatus.completed if status == "completed" else NodeStatus.failed,
+                ended_at=ended,
+                logical_id=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
+                checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
+            )
         )
-        await event_publisher.emit(EventType.RUN_COMPLETED, {"run_id": run_id})
+        side = _read_llm_sidecar(run_id, node_id_txt)
+        payload = {
+            "run_id": run_id,
+            "node_id": node_id_txt,
+            "status": status.upper(),
+            "request_id": request_id,
+            "checksum": getattr(node, "checksum", None),
+        }
+        # enrichir si dispo
+        if isinstance(side, dict):
+            payload.update({
+                "provider": side.get("provider"),
+                "model": side.get("model_used") or side.get("model"),
+                "latency_ms": side.get("latency_ms"),
+                "usage": side.get("usage"),
+            })
+        await event_publisher.emit(
+            EventType.NODE_COMPLETED if status == "completed" else EventType.NODE_FAILED,
+            payload,
+        )
+
+    # --------- Exécution DAG ----------
+    try:
+        await event_publisher.emit(
+            EventType.RUN_STARTED, {"run_id": run_id, "title": title, "request_id": request_id}
+        )
+        res = await run_graph(
+            dag,
+            storage=storage,
+            run_id=run_id,
+            override_completed=set(options.override or []),
+            dry_run=bool(getattr(options, "dry_run", False)),
+            on_node_start=on_node_start,
+            on_node_end=on_node_end,
+        )
+        ended = dt.datetime.now(dt.timezone.utc)
+        final_status = RunStatus.completed if res.get("status") == "success" else RunStatus.failed
+        await storage.save_run(run=Run(id=UUID(run_id), title=title, status=final_status, started_at=started, ended_at=ended))
+        await event_publisher.emit(
+            EventType.RUN_COMPLETED if final_status == RunStatus.completed else EventType.RUN_FAILED,
+            {"run_id": run_id, "request_id": request_id},
+        )
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
         ended = dt.datetime.now(dt.timezone.utc)
-        await writer.save_run(
-            run=Run(id=run_uuid, title=title, status=RunStatus.failed, started_at=started, ended_at=ended)
-        )
+        await storage.save_run(run=Run(id=UUID(run_id), title=title, status=RunStatus.failed, started_at=started, ended_at=ended))
         await event_publisher.emit(
             EventType.RUN_FAILED,
-            {
-                "run_id": run_id,
-                "error_class": e.__class__.__name__,
-                "message": str(e),
-            },
+            {"run_id": run_id, "request_id": request_id, "error_class": e.__class__.__name__, "message": str(e)},
         )

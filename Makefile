@@ -188,6 +188,10 @@ api-test: ensure-venv
 		echo "⏭️  Pas de dossier api/tests — skip"; \
 	fi
 
+.PHONY: api-e2e-tasks
+api-e2e-tasks: ensure-venv
+	@$(ACTIVATE) && pytest -q api/tests/test_tasks_e2e.py
+
 # ---- Validation (optionnel) ----------------------------------
 .PHONY: validate
 validate:

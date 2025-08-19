@@ -235,3 +235,19 @@ async def seed_sample(db_session: AsyncSession):
         await db_session.execute(delete(Node).where(Node.run_id == run_id))
         await db_session.execute(delete(Run).where(Run.id == run_id))
         await db_session.commit()
+
+# ---- Stub LLM pour les tests API E2E ----
+import core.agents.executor_llm as exec_llm
+from core.llm.providers.base import LLMResponse
+
+@pytest_asyncio.fixture(autouse=True, scope="session")
+async def _stub_llm_for_api_tests():
+    async def _fake_run_llm(req, primary=None, fallback_order=None):
+        # renvoie un petit texte constant pour faire avancer le DAG sans réseau
+        return LLMResponse(text="ok", provider="test", model_used="test-model", latency_ms=5, usage={"tokens": 10})
+    old = exec_llm.run_llm
+    exec_llm.run_llm = _fake_run_llm
+    try:
+        yield
+    finally:
+        exec_llm.run_llm = old

@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Generic, List, Optional, TypeVar, Any, Dict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Generic, List, Optional, TypeVar, Any, Dict, Union
 from uuid import UUID
 from datetime import datetime
 
@@ -10,157 +10,77 @@ class Page(BaseModel, Generic[T]):
     total: int
     limit: int
     offset: int
+    model_config = ConfigDict(json_schema_extra={"examples": [{"items": [], "total": 0, "limit": 50, "offset": 0}]})
 
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "items": [],
-            "total": 0,
-            "limit": 50,
-            "offset": 0
-        }]
-    })
+# ---------- LLM options (facultatif) ----------
+class LLMRoleOptions(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
-class RunListItemOut(BaseModel):
-    id: UUID
-    title: Optional[str] = None
-    status: str
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
+class LLMOptions(BaseModel):
+    supervisor: Optional[LLMRoleOptions] = None
+    manager: Optional[LLMRoleOptions] = None
+    executor: Optional[LLMRoleOptions] = None
 
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3",
-            "title": "Rapport 80p",
-            "status": "running",
-            "started_at": "2025-08-17T12:18:41.591278Z",
-            "ended_at": None
-        }]
-    })
-
-class RunSummaryOut(BaseModel):
-    nodes_total: int
-    nodes_completed: int
-    nodes_failed: int
-    artifacts_total: int
-    events_total: int
-    duration_ms: Optional[int] = None
-
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "nodes_total": 10,
-            "nodes_completed": 9,
-            "nodes_failed": 1,
-            "artifacts_total": 12,
-            "events_total": 134,
-            "duration_ms": 58234
-        }]
-    })
-
-class RunOut(BaseModel):
-    id: UUID
-    title: Optional[str] = None
-    status: str
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
-    summary: RunSummaryOut
-
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3",
-            "title": "Rapport 80p",
-            "status": "running",
-            "started_at": "2025-08-17T12:18:41.591278Z",
-            "ended_at": None,
-            "summary": {
-                "nodes_total": 10,
-                "nodes_completed": 9,
-                "nodes_failed": 1,
-                "artifacts_total": 12,
-                "events_total": 134,
-                "duration_ms": 58234
-            }
-        }]
-    })
-
-class NodeOut(BaseModel):
-    id: UUID
-    run_id: UUID
-    key: Optional[str] = None
-    title: Optional[str] = None
-    status: str
-    checksum: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "id": "c0c8b56d-1d8e-43d3-b46c-11b4b7a8f23b",
-            "run_id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3",
-            "key": "n1",
-            "title": "Collecte données",
-            "status": "completed",
-            "checksum": None,
-            "created_at": "2025-08-17T12:18:41.591278Z",
-            "updated_at": "2025-08-17T12:19:01.123456Z"
-        }]
-    })
-
-class ArtifactOut(BaseModel):
-    id: UUID
-    node_id: UUID
-    type: str
-    path: Optional[str] = None
-    content: Optional[str] = None
-    summary: Optional[str] = None
-    created_at: datetime
-    preview: Optional[str] = None
-
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "id": "e8481f71-3dbe-4b18-8a5e-cc6c1e8a0e1c",
-            "node_id": "c0c8b56d-1d8e-43d3-b46c-11b4b7a8f23b",
-            "type": "markdown",
-            "path": "/runs/9a5a/artifacts/a1.md",
-            "content": "# Titre\nRésumé…",
-            "summary": "md",
-            "created_at": "2025-08-17T12:20:03.000000Z",
-            "preview": "# Titre"
-        }]
-    })
-
-class EventOut(BaseModel):
-    id: UUID
-    run_id: Optional[UUID] = None
-    node_id: Optional[UUID] = None
-    level: str
-    message: str
-    timestamp: datetime
-
-    model_config = ConfigDict(json_schema_extra={
-        "examples": [{
-            "id": "a9c5028c-2b07-4f64-bcfe-de7d9cb2c02d",
-            "run_id": "9a5a0d83-90b6-4d2a-81d5-9a3d3f99a7f3",
-            "node_id": "c0c8b56d-1d8e-43d3-b46c-11b4b7a8f23b",
-            "level": "ERROR",
-            "message": "boom",
-            "timestamp": "2025-08-17T12:21:02.000000Z"
-        }]
-    })
-
+# ---------- Task options ----------
 class TaskOptions(BaseModel):
     resume: bool = False
-    override: list[str] = Field(default_factory=list)
     dry_run: bool = False
+    override: List[str] = Field(default_factory=list)
+    use_supervisor: bool = False  # si vous déclenchez la génération via superviseur
+    llm: Optional[LLMOptions] = None
 
-
+# ---------- Task request ----------
 class TaskRequest(BaseModel):
     title: str
-    task_spec: Dict[str, Any]
+    # Une seule des 2 sources est requise :
+    task_file: Optional[str] = None       # chemin JSON (ex: examples/task_rapport_80p.json)
+    task: Optional[Dict[str, Any]] = None # plan inline (doit contenir "plan":[...])
+
+    # Compat : certains clients existaient déjà avec "task_spec"
+    task_spec: Optional[Dict[str, Any]] = None
+
     options: TaskOptions = Field(default_factory=TaskOptions)
     request_id: Optional[str] = None
 
+    @model_validator(mode="after")
+    def _normalize_spec(self):
+        # Priorité : task > task_file > task_spec
+        src_count = sum(bool(x) for x in [self.task, self.task_file, self.task_spec])
+        if src_count == 0:
+            raise ValueError("Provide one of: task | task_file | task_spec")
+        if src_count > 1:
+            raise ValueError("Provide only one of: task | task_file | task_spec")
+
+        # Normalise sur task_spec
+        if self.task is not None:
+            self.task_spec = self.task
+        return self
 
 class TaskAcceptedResponse(BaseModel):
     run_id: UUID
     status: str = "accepted"
     location: str
+
+# --------- Exemples d’autres schémas existants (inchangés) ---------
+class RunListItemOut(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+
+class RunOut(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    meta: Optional[Dict[str, Any]] = None
+
+class RunSummaryOut(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None

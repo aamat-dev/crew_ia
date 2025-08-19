@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from anyio import create_task_group
+import os
 
 # Charger .env le plus tôt possible
 from dotenv import load_dotenv
@@ -16,6 +17,7 @@ from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
 from core.storage.postgres_adapter import PostgresAdapter
+from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
 from core.events.publisher import EventPublisher
 
@@ -28,17 +30,33 @@ TAGS_METADATA = [
     {"name": "tasks", "description": "Déclenchement d’un run ad-hoc et suivi de statut."},
 ]
 
+def _build_storage():
+    # Ordre: env STORAGE_ORDER="file,pg" (défaut) | "pg,file" | "file" | "pg"
+    order = (os.getenv("STORAGE_ORDER") or "file,pg").replace(" ", "")
+    runs_root = os.getenv("RUNS_ROOT") or ".runs"
+
+    adapters = []
+    for item in order.split(","):
+        if item == "file":
+            adapters.append(FileAdapter(base_dir=runs_root))
+        elif item == "pg":
+            adapters.append(PostgresAdapter(settings.database_url))
+        elif item:
+            raise RuntimeError(f"Unknown adapter in STORAGE_ORDER: {item}")
+    if not adapters:
+        # filet de sécurité
+        adapters.append(FileAdapter(base_dir=runs_root))
+    return CompositeAdapter(adapters)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with create_task_group() as tg:
-        pg = PostgresAdapter(settings.database_url)
-        storage = CompositeAdapter([pg])
+        storage = _build_storage()
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)
         yield
         # task group exits cancelling background tasks
-
 
 app = FastAPI(
     title="Crew Orchestrator – Read-only API",
@@ -48,9 +66,8 @@ app = FastAPI(
 )
 
 # -------- Middlewares --------
-# Garde l’ID de requête le plus tôt possible
-app.add_middleware(RequestIDMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagation
+app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
 
 # CORS (une seule source de vérité : settings.cors_origins)
 app.add_middleware(
@@ -62,7 +79,6 @@ app.add_middleware(
 )
 
 # -------- Routes --------
-
 app.include_router(health.router)
 app.include_router(runs.router)
 app.include_router(nodes.router)
