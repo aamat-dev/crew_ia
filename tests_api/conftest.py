@@ -101,7 +101,7 @@ def _clear_auth_overrides():
             del app.dependency_overrides[dep]
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def client(_dispose_engine) -> AsyncClient:
     """
     Client httpx avec:
@@ -111,6 +111,7 @@ async def client(_dispose_engine) -> AsyncClient:
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.database_url = _TEST_DB_URL
+    api_deps.settings.api_key = "test-key"
     # branche get_db
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
@@ -123,13 +124,16 @@ async def client(_dispose_engine) -> AsyncClient:
             yield ac
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def client_noauth(_dispose_engine) -> AsyncClient:
     """
     Client httpx avec auth ACTIVE (pas d’override) pour tester les 401.
+    Après utilisation, les overrides d'auth sont rétablis pour ne pas
+    polluer les autres tests.
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.database_url = _TEST_DB_URL
+    api_deps.settings.api_key = "test-key"
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # enlève les overrides d'auth pour forcer la vraie auth
@@ -139,6 +143,9 @@ async def client_noauth(_dispose_engine) -> AsyncClient:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
+
+    # réactive l'override d'auth pour les autres tests
+    _disable_auth_overrides()
 
 
 # ---------- Données seed ----------
