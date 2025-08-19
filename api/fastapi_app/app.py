@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
+from uuid import UUID
 from anyio import create_task_group
 import os
 
@@ -52,6 +53,7 @@ def _build_storage():
 async def lifespan(app: FastAPI):
     async with create_task_group() as tg:
         storage = _build_storage()
+        storage.set_resolvers(run_resolver=lambda x: UUID(x), node_resolver=lambda x: UUID(x))
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)

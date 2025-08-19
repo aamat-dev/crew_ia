@@ -41,7 +41,8 @@ async def agent_runner(node: PlanNodeModel, storage) -> str:
             "### Checklist cochée\n" + content + "\n\n### Corrections proposées\n\n- \n\n### Risques résiduels\n\n- "
         )
 
-    await storage.save_artifact(node_id=node.id, content=content, ext=".md")
+    dbid = str(getattr(node, "db_id", node.id))
+    await storage.save_artifact(node_id=dbid, content=content, ext=".md")
     sidecar = {
         "role": role,
         "provider": getattr(resp, "provider", None),
@@ -53,10 +54,6 @@ async def agent_runner(node: PlanNodeModel, storage) -> str:
             "user": (user_msg or "")[:800],
         },
     }
-    await storage.save_artifact(
-        node_id=node.id,
-        content=json.dumps(sidecar, ensure_ascii=False, indent=2),
-        ext=".llm.json",
-    )
+    await storage.save_artifact(node_id=dbid, content=json.dumps(sidecar, ensure_ascii=False, indent=2), ext=".llm.json")
     log.info("executor role=%s provider=%s model=%s", role, resp.provider, resp.model_used)
     return f"artifact_{node.id}.md"

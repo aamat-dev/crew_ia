@@ -48,44 +48,44 @@ async def run_task(
 
     # --------- Callbacks pour la télémétrie ----------
     async def on_node_start(node, node_id_txt):
-        await storage.save_node(
+        saved = await storage.save_node(
             node=Node(
-                id=None,                     # laissé à l'adapter DB
                 run_id=UUID(run_id),
+                key=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
                 started_at=dt.datetime.now(dt.timezone.utc),
-                logical_id=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
+        setattr(node, "db_id", getattr(saved, "id", None))
         await event_publisher.emit(
             EventType.NODE_STARTED,
-            {"run_id": run_id, "node_id": node_id_txt, "request_id": request_id, "checksum": getattr(node, "checksum", None)},
+            {"run_id": run_id, "node_id": str(getattr(saved, "id", None)), "request_id": request_id, "checksum": getattr(node, "checksum", None)},
         )
 
     async def on_node_end(node, node_id_txt, status: str):
         ended = dt.datetime.now(dt.timezone.utc)
+        db_id = getattr(node, "db_id", None)
         await storage.save_node(
             node=Node(
-                id=None,
+                id=db_id,
                 run_id=UUID(run_id),
+                key=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.completed if status == "completed" else NodeStatus.failed,
                 ended_at=ended,
-                logical_id=getattr(node, "id", None) or (node.get("id") if isinstance(node, dict) else None),
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
         side = _read_llm_sidecar(run_id, node_id_txt)
         payload = {
             "run_id": run_id,
-            "node_id": node_id_txt,
+            "node_id": str(db_id) if db_id else None,
             "status": status.upper(),
             "request_id": request_id,
             "checksum": getattr(node, "checksum", None),
         }
-        # enrichir si dispo
         if isinstance(side, dict):
             payload.update({
                 "provider": side.get("provider"),

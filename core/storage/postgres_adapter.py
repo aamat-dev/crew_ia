@@ -128,6 +128,8 @@ class PostgresAdapter:
 
     async def save_artifact(self, artifact: Optional[Artifact] = None, **kwargs) -> Artifact:
         obj = self._coalesce_obj(Artifact, artifact, kwargs)
+        if obj.type is None:
+            obj.type = "artifact"
         if obj.created_at is None:
             obj.created_at = datetime.now(timezone.utc)
         async with self.session() as s:
