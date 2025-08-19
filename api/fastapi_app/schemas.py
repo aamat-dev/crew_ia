@@ -115,3 +115,9 @@ class EventOut(BaseModel):
     level: str
     message: str
     timestamp: datetime
+
+__all__ = [
+    name
+    for name, obj in globals().items()
+    if isinstance(obj, type) and issubclass(obj, BaseModel) and obj is not BaseModel
+]
