@@ -111,6 +111,7 @@ async def client(_dispose_engine) -> AsyncClient:
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.database_url = _TEST_DB_URL
+    api_deps.settings.api_key = "test-key"
     # branche get_db
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
@@ -132,6 +133,7 @@ async def client_noauth(_dispose_engine) -> AsyncClient:
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.database_url = _TEST_DB_URL
+    api_deps.settings.api_key = "test-key"
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # enlève les overrides d'auth pour forcer la vraie auth
