@@ -31,3 +31,6 @@ logs/
 # Système
 .DS_Store
 Thumbs.db
+
+# Tests
+test_api.db
