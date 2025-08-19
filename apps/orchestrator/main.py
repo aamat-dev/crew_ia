@@ -15,17 +15,44 @@ import argparse
 import json
 import os
 from datetime import datetime, timezone
-from typing import Set
+from typing import Set, Any
 
 from core.config import get_var
 from core.planning.task_graph import TaskGraph
-from core.storage.file_adapter import FileStorage
-from core.storage.postgres_adapter import PostgresAdapter
 from core.storage.composite_adapter import CompositeAdapter
+from core.storage.file_adapter import FileAdapter
 from core.telemetry.logging_setup import setup_logging
-from core.telemetry.hooks.tracker import DBTracker
 from apps.orchestrator.executor import run_graph
 from core.agents import supervisor
+
+
+# --------------------------------------------------------------------------------------
+# Fallback tracker: même interface que DBTracker, mais file-only et no-op côté DB
+# Compatible avec les deux signatures de hooks: (node, status) et (node, node_id_txt, status)
+# --------------------------------------------------------------------------------------
+class SafeTracker:
+    def __init__(self, run_key: str, run_title: str, storage: Any):
+        self.run_key = run_key
+        self.run_title = run_title
+        self.storage = storage
+
+    async def on_node_start(self, *args):
+        """
+        Signature acceptée:
+        - (node,)           [ancienne]
+        - (node, node_id,)  [nouvelle]
+        """
+        # Pas d'effet DB en mode CLI; on pourrait écrire un event file si besoin.
+        return None
+
+    async def on_node_end(self, *args):
+        """
+        Signature acceptée:
+        - (node, status)                    [ancienne]
+        - (node, node_id_txt, status)       [nouvelle]
+        """
+        # Pas d'effet DB en mode CLI; on pourrait écrire un event file si besoin.
+        return None
 
 
 def _normalize_supervisor_plan(super_plan: dict, title: str) -> dict:
@@ -90,11 +117,11 @@ def main() -> None:
         # logger du run
         logger = setup_logging(run_dir, logger_name="crew")
 
-        file_storage = FileStorage(base_dir=run_dir)
-        pg_storage = PostgresAdapter(os.getenv("DATABASE_URL"))
-        storage = CompositeAdapter([file_storage, pg_storage])
+        # Storage file-only pour le mode CLI
+        file_adapter = FileAdapter(runs_root)
+        storage = CompositeAdapter([file_adapter])
 
-        # 1) appelle le superviseur
+        # 1) appelle le superviseur (avec storage file-only pour poser les fichiers si besoin)
         import asyncio
         task = {"title": args.title, "description": args.description, "acceptance": args.acceptance}
         super_plan = asyncio.run(supervisor.run(task, storage))
@@ -132,17 +159,17 @@ def main() -> None:
         with open(os.path.join(run_dir, "plan.json"), "w", encoding="utf-8") as f:
             json.dump(plan_dict, f, ensure_ascii=False, indent=2)
 
-        file_storage = FileStorage(base_dir=run_dir)
-        pg_storage = PostgresAdapter(os.getenv("DATABASE_URL"))
-        storage = CompositeAdapter([file_storage, pg_storage])
+        # Storage file-only pour le mode CLI
+        file_adapter = FileAdapter(runs_root)
+        storage = CompositeAdapter([file_adapter])
 
     # ---------- Suite commune : build DAG + hooks + exécution ----------
     graph = TaskGraph.from_plan(plan_dict)
     if not graph.nodes:
         raise SystemExit("❌ Le plan est vide ou mal formé (clé 'plan' absente ou liste vide).")
 
-    # installe les hooks DB (résolution des IDs & upserts run/node)
-    tracker = DBTracker(run_key=run_id, run_title=plan_dict.get("title") or "Run", storage=storage, pg=pg_storage)
+    # Hooks: tracker file-only par défaut (no-op DB) compatible avec les deux signatures
+    tracker = SafeTracker(run_key=run_id, run_title=plan_dict.get("title") or "Run", storage=storage)
 
     override_completed: Set[str] = set(args.override or [])
 
@@ -157,7 +184,7 @@ def main() -> None:
     logger.info("Plan nodes: %d", len(graph.nodes))
     if override_completed:
         logger.info("Overrides: %s", sorted(override_completed))
-    # Exécution
+
     import asyncio
     result = asyncio.run(
         run_graph(

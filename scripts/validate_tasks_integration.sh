@@ -149,6 +149,9 @@ while [ $SECONDS -lt $DEADLINE ]; do
   elif [ "$RUN_STATUS" = "failed" ]; then
     echo "$RUN_JSON"
     echo "---- LOGS UVICORN ----"; tail -n +1 /tmp/crew_api.log || true
+    echo "---- LAST EVENTS (for error cause) ----"
+    EVT_JSON="$(curl -sS -H "X-API-Key: ${API_KEY}" "${BASE_URL}/runs/${RUN_ID}/events")"
+    echo "$EVT_JSON" | jq -r '.items[] | "\(.timestamp) \(.level) -> \(.message)"' | tail -n 10
     die "Le run est passé à l'état 'failed'."
   fi
   sleep 0.5

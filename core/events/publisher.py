@@ -7,6 +7,9 @@ from uuid import UUID
 from core.storage.composite_adapter import CompositeAdapter
 from .types import EventType
 
+import logging
+log = logging.getLogger("events.publisher")
+
 
 class EventPublisher:
     """Simple wrapper to persist structured events via a CompositeAdapter."""
@@ -29,4 +32,5 @@ class EventPublisher:
         except Exception:
             pass
         message = json.dumps(payload, ensure_ascii=False)
+        log.debug("emit %s: %s", level, message)
         await self.adapter.save_event(run_id=run_id, node_id=node_id, level=level, message=message)

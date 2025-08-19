@@ -3,6 +3,7 @@ from textwrap import dedent
 import json
 import logging
 import time
+from typing import Any
 
 from core.config import resolve_llm, resolve_llm_with_overrides
 from core.llm.providers.base import LLMRequest, ProviderTimeout, ProviderUnavailable
@@ -10,6 +11,7 @@ from core.llm.runner import run_llm
 from core.llm.utils import truncate
 
 log = logging.getLogger("crew.executor")
+
 
 def _json_safely(obj):
     """
@@ -29,6 +31,7 @@ def _json_safely(obj):
         except Exception:
             return None
 
+
 async def _safe_sidecar_write(storage, node_id: str, trace: dict) -> bool:
     """
     Tente d'écrire le sidecar .llm.json. En cas d'erreur, log et ne casse pas le nœud.
@@ -40,6 +43,7 @@ async def _safe_sidecar_write(storage, node_id: str, trace: dict) -> bool:
     except Exception as e:
         log.warning("node=%s sidecar write failed: %s", node_id, e)
         return False
+
 
 def _extract_usage(raw):
     try:
@@ -57,6 +61,7 @@ def _extract_usage(raw):
         }
     except Exception:
         return None
+
 
 def _estimate_cost(usage, provider: str, model: str) -> dict | None:
     """
@@ -87,14 +92,51 @@ def _estimate_cost(usage, provider: str, model: str) -> dict | None:
         "prompt_usd": round(cost_prompt, 6),
         "completion_usd": round(cost_completion, 6),
         "total_usd": round(cost_prompt + cost_completion, 6),
-        "price_per_1k": {"prompt": p, "completion": c}
+        "price_per_1k": {"prompt": p, "completion": c},
     }
 
+
+def _nget(node: Any, name: str, default=""):
+    """Accès tolérant: objet/dict/str (ignore les callables comme str.title)."""
+    if isinstance(node, dict):
+        val = node.get(name, default)
+    else:
+        val = getattr(node, name, default)
+    return default if callable(val) else val
+
+
+def _node_title(node: Any) -> str:
+    t = _nget(node, "title", None)
+    if t is None and isinstance(node, str):
+        return node
+    if not t:
+        t = _nget(node, "key", "node")
+    return t
+
+
+def _node_id_text(node: Any) -> str:
+    """ID texte robuste: utilise node.id si dispo, sinon dérive de title/key."""
+    nid = _nget(node, "id", None)
+    if isinstance(nid, str) and nid:
+        return nid
+    if nid not in (None, ""):
+        try:
+            return str(nid)
+        except Exception:
+            pass
+    # fallback déterministe simple
+    title = _node_title(node)
+    key = _nget(node, "key", "")
+    base = f"{key}|{title}".encode("utf-8", "ignore")
+    import hashlib
+    return f"auto-{hashlib.sha256(base).hexdigest()[:8]}"
+
+
 def _build_prompts(node) -> tuple[str, str]:
-    title = getattr(node, "title", node.id)
-    node_type = getattr(node, "type", "task")
-    acceptance = getattr(node, "acceptance", "")
-    description = getattr(node, "description", "")
+    title = _node_title(node)
+    node_type = _nget(node, "type", "task")
+    acceptance = _nget(node, "acceptance", "")
+    description = _nget(node, "description", "")
 
     system_prompt = (
         "Tu es un rédacteur technique senior. "
@@ -102,7 +144,8 @@ def _build_prompts(node) -> tuple[str, str]:
         "Respecte la consigne d'acceptance comme liste de critères."
     )
 
-    user_prompt = dedent(f"""\
+    user_prompt = dedent(
+        f"""\
     Contexte:
     - Titre: {title}
     - Type: {node_type}
@@ -115,7 +158,8 @@ def _build_prompts(node) -> tuple[str, str]:
     - Français
     - Clair et structuré (titres, sections courtes)
     - Couvrir explicitement les critères d'acceptance
-    """)
+    """
+    )
     return system_prompt, user_prompt
 
 
@@ -125,11 +169,19 @@ async def run_executor_llm(node, storage) -> bool:
     Retourne True/False pour laisser l'orchestrateur gérer retries/recovery.
     """
     system_prompt, user_prompt = _build_prompts(node)
-    overrides = getattr(node, "llm", None) or {}
+    overrides = _nget(node, "llm", {}) or {}
     provider, model, params = resolve_llm_with_overrides("executor", overrides)
 
+    node_id_txt = _node_id_text(node)
+
     # Log avant envoi
-    log.info("node=%s provider=%s model=%s timeout=%ss", node.id, provider, model, params["timeout_s"])
+    log.info(
+        "node=%s provider=%s model=%s timeout=%ss",
+        node_id_txt,
+        provider,
+        model,
+        params["timeout_s"],
+    )
 
     req = LLMRequest(
         system=system_prompt,
@@ -148,26 +200,27 @@ async def run_executor_llm(node, storage) -> bool:
         # Log après réponse
         log.info(
             "node=%s done in %dms provider=%s model=%s",
-            node.id,
+            node_id_txt,
             dt_ms,
             getattr(resp, "provider", None),
             getattr(resp, "model_used", None),
         )
 
         body = resp.text.strip()
-        title = getattr(node, "title", node.id)
-        node_type = getattr(node, "type", "task")
-        acceptance = getattr(node, "acceptance", "")
+        title = _node_title(node)
+        node_type = _nget(node, "type", "task")
+        acceptance = _nget(node, "acceptance", "")
 
         usage = _extract_usage(getattr(resp, "raw", {}) or {})
         cost = _estimate_cost(usage, getattr(resp, "provider", None), getattr(resp, "model_used", None))
 
         # Log debug tokens & coût
-        log.debug("node=%s tokens=%s cost=%s", node.id, usage, cost)
+        log.debug("node=%s tokens=%s cost=%s", node_id_txt, usage, cost)
 
-        content = dedent(f"""\
+        content = dedent(
+            f"""\
         ---
-        node_id: {node.id}
+        node_id: {node_id_txt}
         title: {title}
         type: {node_type}
         acceptance: "{(acceptance or "").replace('"','\\\"')}"
@@ -182,16 +235,17 @@ async def run_executor_llm(node, storage) -> bool:
 
         ## Livrable
         {body}
-        """)
+        """
+        )
 
         # 1) Artifact principal (.md)
-        await storage.save_artifact(node_id=node.id, content=content, ext=".md")
+        await storage.save_artifact(node_id=node_id_txt, content=content, ext=".md")
 
         # 2) Sidecar de traçabilité (.llm.json) — robustifié
         raw_hint_obj = _json_safely(getattr(resp, "raw", None))
 
         trace = {
-            "node_id": node.id,
+            "node_id": node_id_txt,
             "requested": {
                 "provider_primary": provider,
                 "model": model,
@@ -201,7 +255,7 @@ async def run_executor_llm(node, storage) -> bool:
                 "timeout_s": params["timeout_s"],
             },
             "used": {
-               "provider": getattr(resp, "provider", None),
+                "provider": getattr(resp, "provider", None),
                 "model": getattr(resp, "model_used", None),
             },
             "timing_ms": dt_ms,
@@ -212,19 +266,17 @@ async def run_executor_llm(node, storage) -> bool:
                 "user": truncate(user_prompt, 4000),
             },
             # 🔒 Toujours sérialisable (ou None)
-           "raw_hint": raw_hint_obj,
+            "raw_hint": raw_hint_obj,
         }
 
         # On ne casse PAS le nœud si le sidecar échoue à s’écrire
-        await _safe_sidecar_write(storage, node.id, trace)
-        
+        await _safe_sidecar_write(storage, node_id_txt, trace)
+
         return True
 
     except (ProviderTimeout, ProviderUnavailable) as e:
-        log.warning("node=%s provider error: %s", node.id, e)
+        log.warning("node=%s provider error: %s", node_id_txt, e)
         return False
     except Exception as e:
-        log.exception("node=%s unexpected error in executor_llm: %s", node.id, e)
+        log.exception("node=%s unexpected error in executor_llm: %s", node_id_txt, e)
         return False
-
-
