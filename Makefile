@@ -192,6 +192,11 @@ api-test: ensure-venv
 api-e2e-tasks: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_e2e.py
 
+.PHONY: api-e2e-meta
+api-e2e-meta: ensure-venv
+	@$(ACTIVATE) && pytest -q api/tests/test_tasks_e2e.py::test_events_include_llm_metadata
+
+
 # ---- Validation (optionnel) ----------------------------------
 .PHONY: validate
 validate:

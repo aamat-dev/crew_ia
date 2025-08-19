@@ -17,6 +17,25 @@ class CompositeAdapter:
         self._resolve_run_uuid: Optional[Callable[[str], Any]] = None
         self._resolve_node_uuid: Optional[Callable[[str], Any]] = None
 
+        async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
+            for ad in self.adapters:
+                meth = getattr(ad, "get_node_id_by_logical", None)
+                if meth:
+                    nid = await meth(run_id, logical_id)
+                    if nid:
+                        return nid
+            return None
+
+        async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+            for ad in self.adapters:
+                meth = getattr(ad, "list_artifacts_for_node", None)
+                if meth:
+                    try:
+                        return await meth(node_id)
+                    except Exception:
+                        pass
+            return []
+
     def set_resolvers(
         self,
         *,
@@ -124,4 +143,22 @@ class CompositeAdapter:
             if hasattr(a, "list_runs"):
                 fn = getattr(a, "list_runs")
                 return await fn(*args, **kwargs) if inspect.iscoroutinefunction(fn) else fn(*args, **kwargs)
+        return []
+
+    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
+        for ad in self.adapters:
+            if hasattr(ad, "get_node_id_by_logical"):
+                nid = await ad.get_node_id_by_logical(run_id, logical_id)
+                if nid:
+                    return nid
+        return None
+
+    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+        # On lit en priorité la DB (adapters qui savent)
+        for ad in self.adapters:
+            if hasattr(ad, "list_artifacts_for_node"):
+                try:
+                    return await ad.list_artifacts_for_node(node_id)
+                except Exception:
+                    pass
         return []

@@ -41,6 +41,49 @@ class PostgresAdapter:
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
 
+    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
+        """
+        Retourne l'UUID DB d'un node à partir de la clé logique (plan.id).
+        S'adapte selon ton schéma: 'key' OU 'logical_id'.
+        """
+        sql = text("""
+            SELECT id::text
+            FROM nodes
+            WHERE run_id = :run_id
+              AND (key = :logical_id OR logical_id = :logical_id)
+            ORDER BY created_at DESC
+            LIMIT 1
+        """)
+        async with self.async_session() as s:
+            r = await s.execute(sql, {"run_id": run_id, "logical_id": logical_id})
+            row = r.first()
+            return row[0] if row else None
+
+    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+        """
+        Liste les artifacts d'un node. Les colonnes typiques sont: id, type, content, path, created_at.
+        Adapte les noms si nécessaire.
+        """
+        sql = text("""
+            SELECT id::text, type, content, path, created_at
+            FROM artifacts
+            WHERE node_id = :node_id
+            ORDER BY created_at DESC
+        """)
+        async with self.async_session() as s:
+            r = await s.execute(sql, {"node_id": node_id})
+            items = []
+            for row in r.fetchall():
+                aid, typ, content, path, created_at = row
+                items.append({
+                    "id": aid,
+                    "type": typ,
+                    "content": content,
+                    "path": path,
+                    "created_at": created_at.isoformat() if created_at else None,
+                })
+            return items
+
     async def create_all(self):
         async with self._engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
@@ -216,6 +259,42 @@ class PostgresAdapter:
             )
             row = res.first()
             return row[0] if row else None
+
+    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
+        # Exemple SQLModel/SQLAlchemy Core selon ton implémentation ;
+        # ci-dessous, SQL text basique.
+        from sqlalchemy import text
+        async with self.async_session() as s:
+            q = text("""
+                SELECT id::text FROM nodes
+                WHERE run_id = :run_id AND (logical_id = :logical_id OR key = :logical_id)
+                ORDER BY created_at DESC
+                LIMIT 1
+            """)
+            r = await s.execute(q, {"run_id": run_id, "logical_id": logical_id})
+            row = r.first()
+            return row[0] if row else None
+
+    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+        from sqlalchemy import text
+        async with self.async_session() as s:
+            q = text("""
+                SELECT id::text, type, content, path, created_at
+                FROM artifacts
+                WHERE node_id = :node_id
+                ORDER BY created_at DESC
+            """)
+            r = await s.execute(q, {"node_id": node_id})
+            items = []
+            for (aid, typ, content, path, created_at) in r.fetchall():
+                items.append({
+                    "id": aid,
+                    "type": typ,
+                    "content": content,
+                    "path": path,
+                    "created_at": created_at.isoformat() if created_at else None,
+                })
+            return items
 
     async def ensure_node(
         self,

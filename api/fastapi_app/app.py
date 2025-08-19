@@ -1,7 +1,7 @@
 # api/fastapi_app/app.py
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -14,7 +14,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from .deps import settings
+from .deps import settings, api_key_auth
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
 from core.storage.postgres_adapter import PostgresAdapter
@@ -87,7 +87,7 @@ app.include_router(nodes.router)
 app.include_router(artifacts.router_nodes)
 app.include_router(artifacts.router_artifacts)
 app.include_router(events.router)
-app.include_router(tasks.router)
+app.include_router(tasks.router, dependencies=[Depends(api_key_auth)])
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)

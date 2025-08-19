@@ -152,3 +152,7 @@ class FileStatusStore:
 class FileAdapter(FileStorage):
     """Legacy name kept for backward compatibility."""
     pass
+    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
+        return None
+    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+        return []
