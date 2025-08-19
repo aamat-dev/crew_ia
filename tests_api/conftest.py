@@ -72,9 +72,11 @@ def _disable_auth_overrides():
     possible_auth_deps = [
         "get_current_user",
         "require_auth",
+        "require_api_key",
         "verify_auth",
         "get_bearer_user",
         "get_api_key_user",
+        "api_key_auth",
     ]
     for name in possible_auth_deps:
         dep = getattr(api_deps, name, None)
@@ -87,9 +89,11 @@ def _clear_auth_overrides():
     possible_auth_deps = [
         "get_current_user",
         "require_auth",
+        "require_api_key",
         "verify_auth",
         "get_bearer_user",
         "get_api_key_user",
+        "api_key_auth",
     ]
     for name in possible_auth_deps:
         dep = getattr(api_deps, name, None)
@@ -98,13 +102,15 @@ def _clear_auth_overrides():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def client() -> AsyncClient:
+async def client(_dispose_engine) -> AsyncClient:
     """
     Client httpx avec:
       - schema DB test via override get_db
       - auth neutralisée (toutes routes accessibles)
       - gestion correcte du lifespan app (startup/shutdown)
     """
+    # utilise la base de test pour les deps et l'adaptateur de stockage
+    api_deps.settings.database_url = _TEST_DB_URL
     # branche get_db
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
@@ -118,11 +124,12 @@ async def client() -> AsyncClient:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def client_noauth() -> AsyncClient:
+async def client_noauth(_dispose_engine) -> AsyncClient:
     """
     Client httpx avec auth ACTIVE (pas d’override) pour tester les 401.
     """
-    # assure que get_db est override (sinon pas de DB)
+    # utilise la base de test pour les deps et l'adaptateur de stockage
+    api_deps.settings.database_url = _TEST_DB_URL
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # enlève les overrides d'auth pour forcer la vraie auth
