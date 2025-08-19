@@ -7,6 +7,7 @@ from core.events.publisher import EventPublisher
 from core.storage.composite_adapter import CompositeAdapter
 from core.storage.db_models import Run, RunStatus
 from apps.orchestrator.api_runner import run_task
+import anyio
 
 
 async def schedule_run(task_spec: dict, options: Any, *, app_state, title: str | None = None) -> UUID:
@@ -29,4 +30,8 @@ async def schedule_run(task_spec: dict, options: Any, *, app_state, title: str |
         event_publisher,
         title,
     )
+    # Ensure the background task gets a chance to start before returning.
+    # This avoids race conditions in tests where the run might still be
+    # pending when immediately queried after scheduling.
+    await anyio.sleep(0)
     return run_id
