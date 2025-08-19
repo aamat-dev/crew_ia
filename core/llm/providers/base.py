@@ -20,7 +20,6 @@ class LLMResponse:
     # Ajouts pour la traçabilité
     provider: Optional[str] = None      # "ollama" | "openai" | ...
     model_used: Optional[str] = None    # modèle effectivement utilisé (peut différer en fallback)
-    latency_ms: Optional[int] = None    # durée d'appel en millisecondes
 
 
 class ProviderError(Exception): ...

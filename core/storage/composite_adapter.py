@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 from typing import Sequence, Callable, Optional, Any, Dict
 
 
@@ -11,27 +12,8 @@ class CompositeAdapter:
       les adaptateurs qui en ont besoin (expects_uuid_ids=True).
     """
 
-    def __init__(self, adapters: Sequence[object], order: Optional[Sequence[str]] = None):
-        """Initialise l'adaptateur composite.
-
-        Parameters
-        ----------
-        adapters: liste d'instances (FileAdapter, PostgresAdapter, ...)
-        order: séquence optionnelle de noms de classes pour forcer l'ordre
-               d'appel. Les adaptateurs non mentionnés sont ajoutés à la fin
-               dans l'ordre fourni.
-        """
-
-        adapters_list = list(adapters)
-        if order:
-            mapping = {a.__class__.__name__: a for a in adapters_list}
-            self.adapters = [mapping[name] for name in order if name in mapping]
-            for a in adapters_list:
-                if a not in self.adapters:
-                    self.adapters.append(a)
-        else:
-            self.adapters = adapters_list
-
+    def __init__(self, adapters: Sequence[object]):
+        self.adapters = list(adapters)
         self._resolve_run_uuid: Optional[Callable[[str], Any]] = None
         self._resolve_node_uuid: Optional[Callable[[str], Any]] = None
 
@@ -44,10 +26,26 @@ class CompositeAdapter:
         self._resolve_run_uuid = run_resolver
         self._resolve_node_uuid = node_resolver
 
-    async def _normalize_ids_async(self, kwargs: Dict) -> Dict:
-        """Normalise run_id/node_id en résolvant éventuellement des UUID.
+    def _normalize_ids(self, kwargs: Dict) -> Dict:
+        out = dict(kwargs)
+        if "run_id" in out and isinstance(out["run_id"], str) and self._resolve_run_uuid:
+            maybe = self._resolve_run_uuid(out["run_id"])
+            if inspect.iscoroutinefunction(self._resolve_run_uuid):
+                # support async resolver
+                pass  # handled in _call
+            elif maybe:
+                out["run_id"] = maybe
 
-        Les fonctions de résolution peuvent être sync ou async."""
+        if "node_id" in out and isinstance(out["node_id"], str) and self._resolve_node_uuid:
+            maybe = self._resolve_node_uuid(out["node_id"])
+            if inspect.iscoroutinefunction(self._resolve_node_uuid):
+                # support async resolver
+                pass
+            elif maybe:
+                out["node_id"] = maybe
+        return out
+
+    async def _normalize_ids_async(self, kwargs: Dict) -> Dict:
         out = dict(kwargs)
         if "run_id" in out and isinstance(out["run_id"], str) and self._resolve_run_uuid:
             if inspect.iscoroutinefunction(self._resolve_run_uuid):
@@ -82,30 +80,43 @@ class CompositeAdapter:
             else:
                 call_kwargs = kwargs
 
-            try:
-                if inspect.iscoroutinefunction(fn):
-                    result = await fn(*args, **call_kwargs)
-                else:
-                    result = fn(*args, **call_kwargs)
-            except TypeError:
-                # Signatures incompatibles : on ignore et passe au backend suivant
-                continue
+            if inspect.iscoroutinefunction(fn):
+                result = await fn(*args, **call_kwargs)
+            else:
+                result = fn(*args, **call_kwargs)
         return result
 
     # façade
-    async def save_run(self, *args, **kwargs): return await self._call("save_run", *args, **kwargs)
-    async def save_node(self, *args, **kwargs): return await self._call("save_node", *args, **kwargs)
-    async def save_artifact(self, *args, **kwargs): return await self._call("save_artifact", *args, **kwargs)
-    async def save_event(self, *args, **kwargs): return await self._call("save_event", *args, **kwargs)
+    async def save_run(self, *args, **kwargs):
+        return await self._call("save_run", *args, **kwargs)
+
+    async def save_node(self, *args, **kwargs):
+        return await self._call("save_node", *args, **kwargs)
+
+    async def save_artifact(self, *args, **kwargs):
+        return await self._call("save_artifact", *args, **kwargs)
+
+    async def save_event(self, *args, **kwargs):
+        return await self._call("save_event", *args, **kwargs)
 
     async def get_run(self, *args, **kwargs):
-        # premier qui répond
+        # premier qui répond (tolérant aux erreurs backend)
+        log = logging.getLogger(__name__)
         for a in self.adapters:
-            if hasattr(a, "get_run"):
-                fn = getattr(a, "get_run")
+            if not hasattr(a, "get_run"):
+                continue
+            fn = getattr(a, "get_run")
+            try:
                 res = await fn(*args, **kwargs) if inspect.iscoroutinefunction(fn) else fn(*args, **kwargs)
-                if res:
-                    return res
+            except Exception as e:
+                # Ex : Postgres occupé pendant qu'on peut lire depuis FileAdapter
+                log.warning(
+                    "composite.get_run backend_error adapter=%s err=%r",
+                    type(a).__name__, e
+                )
+                continue
+            if res:
+                return res
         return None
 
     async def list_runs(self, *args, **kwargs):

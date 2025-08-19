@@ -32,6 +32,7 @@ help:
 	@echo "  venv                -> (re)crée le venv"
 	@echo "  clean-venv          -> supprime le venv"
 	@echo "  test                -> pytest (rapide)"
+	@echo "  test-extra          -> pytest tests_extra (si présents)"
 	@echo "  test-recovery       -> pytest -k 'recovery or status_store' (si présent)"
 	@echo "  run                 -> exécute avec un plan JSON (DEFAULT_TASK_JSON)"
 	@echo "  run-supervisor      -> génère le plan via superviseur et exécute"
@@ -96,6 +97,10 @@ ensure-venv:
 .PHONY: test
 test: ensure-venv
 	@$(ACTIVATE) && pytest -q
+
+.PHONY: test-extra
+test-extra:
+	pytest tests_extra -v
 
 .PHONY: test-recovery
 test-recovery: ensure-venv

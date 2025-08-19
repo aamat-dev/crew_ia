@@ -7,8 +7,7 @@ from core.agents.schemas import PlanNodeModel
 from core.planning.task_graph import PlanNode
 
 async def plan_from_task(task_input: str, run_dir: str = ".") -> List[PlanNode]:
-    task = json.loads(task_input)
-    sup = await run(task)
+    sup = await run(json.loads(task_input))
     nodes: List[PlanNode] = []
     for n in sup.plan:
         nodes.append(

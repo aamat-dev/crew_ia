@@ -41,18 +41,17 @@ async def agent_runner(node: PlanNodeModel, storage) -> str:
         )
 
     await storage.save_artifact(node_id=node.id, content=content, ext=".md")
-
-    trunc = lambda s: s[:1000]  # prompts tronqués pour éviter les fichiers énormes
     sidecar = {
         "role": role,
-        "provider": resp.provider,
-        "model": resp.model_used,
-        "latency_ms": resp.latency_ms,
-        "prompts": {"system": trunc(system_prompt), "user": trunc(user_msg)},
+        "provider": getattr(resp, "provider", None),
+        "model": getattr(resp, "model_used", None),
+        "latency_ms": getattr(resp, "latency_ms", None),
+        "usage": getattr(resp, "usage", None),
+        "prompts": {
+            "system": (system_prompt or "")[:800],
+            "user": (user_msg or "")[:800],
+        },
     }
-    if resp.raw and isinstance(resp.raw, dict) and resp.raw.get("usage"):
-        sidecar["usage"] = resp.raw["usage"]
-
     await storage.save_artifact(
         node_id=node.id,
         content=json.dumps(sidecar, ensure_ascii=False, indent=2),

@@ -1,19 +1,12 @@
-from .registry import AgentSpec, ROLE_PROMPTS, _resolve_provider_model
+from .registry import AgentSpec
 
-
-def recruit(role: str) -> AgentSpec:
+def recruit(role:str) -> AgentSpec:
     r = role.strip()
-    if not r:
-        raise ValueError("role vide")
-
     if r.lower().startswith("writer"):
-        prompt, prefix = ROLE_PROMPTS["Writer_FR"]
-    elif r.lower().startswith("research"):
-        prompt, prefix = ROLE_PROMPTS["Researcher"]
-    elif r.lower().startswith("review"):
-        prompt, prefix = ROLE_PROMPTS["Reviewer"]
-    else:
-        prompt, prefix = ROLE_PROMPTS["Manager_Generic"]
-
-    provider, model = _resolve_provider_model(prefix)
-    return AgentSpec(r, prompt, provider, model, [])
+        return AgentSpec(role,"core/agents/prompts/executors/writer_fr.txt","ollama","llama3.1:8b",[])
+    if r.lower().startswith("research"):
+        return AgentSpec(role,"core/agents/prompts/executors/researcher.txt","ollama","llama3.1:8b",[])
+    if r.lower().startswith("review"):
+        return AgentSpec(role,"core/agents/prompts/executors/reviewer.txt","ollama","llama3.1:8b",[])
+    # fallback manager
+    return AgentSpec(role,"core/agents/prompts/manager.txt","ollama","llama3.1:8b",[])

@@ -15,9 +15,7 @@ load_dotenv()
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
-import os
 from core.storage.postgres_adapter import PostgresAdapter
-from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
 from core.events.publisher import EventPublisher
 
@@ -34,10 +32,7 @@ TAGS_METADATA = [
 async def lifespan(app: FastAPI):
     async with create_task_group() as tg:
         pg = PostgresAdapter(settings.database_url)
-        file = FileAdapter(settings.artifacts_dir)
-        order_env = os.getenv("STORAGE_ORDER")
-        order = [x.strip() for x in order_env.split(",") if x.strip()] if order_env else None
-        storage = CompositeAdapter([file, pg], order=order)
+        storage = CompositeAdapter([pg])
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)

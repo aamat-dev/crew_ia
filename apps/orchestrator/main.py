@@ -24,7 +24,6 @@ from core.storage.file_adapter import FileAdapter
 from core.telemetry.logging_setup import setup_logging
 from apps.orchestrator.executor import run_graph
 from core.agents import supervisor
-from core.agents.schemas import SupervisorPlan
 
 
 # --------------------------------------------------------------------------------------
@@ -56,13 +55,7 @@ class SafeTracker:
         return None
 
 
-def _normalize_supervisor_plan(super_plan: SupervisorPlan | dict, title: str) -> dict:
-    """Convertit le plan du superviseur en dict exploitable par TaskGraph."""
-    if isinstance(super_plan, SupervisorPlan):
-        items = [p.model_dump() for p in super_plan.plan]
-        return {"title": title, "plan": items}
-
-    # Fallback legacy (dict brut) pour compatibilité éventuelle
+def _normalize_supervisor_plan(super_plan: dict, title: str) -> dict:
     items = []
     if isinstance(super_plan.get("subtasks"), list) and super_plan["subtasks"]:
         for i, st in enumerate(super_plan["subtasks"], start=1):
@@ -130,7 +123,7 @@ def main() -> None:
         os.makedirs(run_dir, exist_ok=True)
 
         # logger du run
-        logger = setup_logging(run_dir, logger_name="crew", run_id=run_id)
+        logger = setup_logging(run_dir, logger_name="crew")
 
         # Storage file-only pour le mode CLI
         file_adapter = FileAdapter(runs_root)
@@ -169,7 +162,7 @@ def main() -> None:
         run_dir = os.path.join(runs_root, run_id)
         os.makedirs(run_dir, exist_ok=True)
 
-        logger = setup_logging(run_dir, logger_name="crew", run_id=run_id)
+        logger = setup_logging(run_dir, logger_name="crew")
 
         with open(os.path.join(run_dir, "plan.json"), "w", encoding="utf-8") as f:
             json.dump(plan_dict, f, ensure_ascii=False, indent=2)
