@@ -249,8 +249,8 @@ async def run_graph(
     # résumé
     now_utc = datetime.now(timezone.utc)
     try:
-        import pytz
-        tz = pytz.timezone("Europe/Paris")
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Europe/Paris")
         now_paris = now_utc.astimezone(tz)
     except Exception:
         now_paris = now_utc
