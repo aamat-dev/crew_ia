@@ -20,12 +20,12 @@ from dotenv import load_dotenv
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 EXAMPLE_PATH = Path(__file__).resolve().parent.parent / ".env.example"
 
-if ENV_PATH.exists():
-    SKIP_DOTENV = os.getenv("CONFIG_SKIP_DOTENV", "").strip() in {"1", "true", "yes", "on"}
-    if ENV_PATH.exists() and not SKIP_DOTENV:
+# Permet d'ignorer complètement le chargement de .env (utile en tests CI)
+SKIP_DOTENV = os.getenv("CONFIG_SKIP_DOTENV", "").strip() in {"1", "true", "yes", "on"}
+if ENV_PATH.exists() and not SKIP_DOTENV:
     # Ne surcharge pas les variables déjà présentes (override=False par défaut)
-        load_dotenv(dotenv_path=ENV_PATH)
-else:
+    load_dotenv(dotenv_path=ENV_PATH)
+elif not ENV_PATH.exists():
     print(f"⚠️ Fichier .env introuvable à {ENV_PATH} — certaines variables risquent de manquer.")
 
 # ===============================
@@ -42,7 +42,7 @@ if EXAMPLE_PATH.exists() and not SKIP_DOTENV:
     if missing_vars:
         print(f"⚠️ Variables manquantes dans .env : {', '.join(missing_vars)}")
         print("💡 Pense à copier .env.example vers .env et à remplir tes clés.")
-else:
+elif not EXAMPLE_PATH.exists():
     print(f"⚠️ Fichier .env.example introuvable à {EXAMPLE_PATH}")
 
 # ===============================

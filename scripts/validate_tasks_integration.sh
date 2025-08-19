@@ -25,19 +25,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR%/scripts}"
 cd "$ROOT_DIR"
 
-test -f ".env" || die ".env introuvable à la racine du projet."
-
-# Charge .env (sans exporter tout le shell)
-API_KEY="$(grep -E '^API_KEY=' .env | cut -d= -f2- | tr -d '"')" || true
-DB_URL="$(grep -E '^ALEMBIC_DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')" || true
-ASYNC_DB_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')" || true
+# Charge .env si présent, sinon valeurs par défaut adaptées aux tests (SQLite)
+if [ -f ".env" ]; then
+  API_KEY="$(grep -E '^API_KEY=' .env | cut -d= -f2- | tr -d '"')" || true
+  DB_URL="$(grep -E '^ALEMBIC_DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')" || true
+  ASYNC_DB_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')" || true
+else
+  warn ".env introuvable à la racine du projet — utilisation des valeurs par défaut."
+  API_KEY="test-key"
+  DB_URL="sqlite:///./test_api.db"
+  ASYNC_DB_URL="sqlite+aiosqlite:///./test_api.db"
+fi
 API_HOST="127.0.0.1"
 API_PORT="8000"
 BASE_URL="http://${API_HOST}:${API_PORT}"
 
-test -n "${API_KEY:-}" || die "API_KEY manquante dans .env"
-test -n "${DB_URL:-}" || warn "ALEMBIC_DATABASE_URL manquant dans .env (ok si DB déjà migrée)."
-test -n "${ASYNC_DB_URL:-}" || warn "DATABASE_URL manquant dans .env (l'API pourrait échouer à se connecter)."
+export API_KEY
+export DATABASE_URL="$ASYNC_DB_URL"
+export DATABASE_URL_SYNC="$DB_URL"
+
+test -n "${API_KEY:-}" || die "API_KEY manquante"
+test -n "${DB_URL:-}" || warn "ALEMBIC_DATABASE_URL manquant (ok si DB déjà migrée)."
+test -n "${ASYNC_DB_URL:-}" || warn "DATABASE_URL manquant (l'API pourrait échouer à se connecter)."
 
 # ========= Étape 1 : DB up & migrations =========
 if command -v docker >/dev/null 2>&1 && test -f docker-compose.yml; then
@@ -48,16 +57,29 @@ else
   warn "docker compose absent ou pas de docker-compose.yml — je suppose une DB Postgres déjà joignable."
 fi
 
-if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}"; then
+if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}" && [[ "$DB_URL" != sqlite* ]]; then
   log "Mise à niveau du schéma (alembic upgrade head)…"
   ALEMBIC_DATABASE_URL="$DB_URL" alembic upgrade head
 else
-  warn "alembic non trouvé ou ALEMBIC_DATABASE_URL manquant — je saute les migrations."
+  warn "Aucune migration Alembic exécutée (SQLite ou alembic absent) — création directe du schéma."
+  python - <<'PY'
+import os, asyncio
+from core.storage.postgres_adapter import PostgresAdapter
+
+async def main():
+    ad = PostgresAdapter(os.getenv("DATABASE_URL"))
+    await ad.create_all()
+
+asyncio.run(main())
+PY
 fi
 
 # ========= Étape 2 : Lancement API (uvicorn) =========
 log "Lancement de l’API (uvicorn) en arrière-plan…"
-UVICORN_CMD=(uvicorn api.fastapi_app.app:app --env-file .env --host "$API_HOST" --port "$API_PORT")
+UVICORN_CMD=(uvicorn api.fastapi_app.app:app --host "$API_HOST" --port "$API_PORT")
+if [ -f ".env" ]; then
+  UVICORN_CMD+=(--env-file .env)
+fi
 # --reload engendre des process enfants : on évite en CI
 "${UVICORN_CMD[@]}" >/tmp/crew_api.log 2>&1 &
 API_PID=$!
