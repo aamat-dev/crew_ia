@@ -1,6 +1,24 @@
-from core.planning import planner
+from core.planning.task_graph import TaskGraph
 
 def test_taskgraph_normalization_lists():
-    plan = {"nodes": [{"id": "n1", "role": "Writer_FR", "deps": "x"}]}
-    tg = planner.TaskGraph.from_plan(plan)
-    assert isinstance(tg.nodes[0].deps, list)
+    plan = {
+        "plan": [{
+            "id": "n1",
+            "title": "A",
+            "type": "execute",
+            "suggested_agent_role": "Researcher",
+            "acceptance": "crit",
+            "deps": None,
+            "risks": 0,
+            "assumptions": ["x", None, "y"],
+            "notes": True
+        }]
+    }
+    dag = TaskGraph.from_plan(plan)
+    a = dag.nodes["n1"]
+    assert a.acceptance == ["crit"]
+    assert a.deps == []
+    assert a.risks == ["0"]
+    assert a.assumptions == ["x","y"]
+    # Current behavior: booleans are coerced to strings
+    assert a.notes == ["True"]

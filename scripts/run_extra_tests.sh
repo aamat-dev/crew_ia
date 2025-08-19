@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-if [ -d .venv ]; then
+if [ -f ".venv/bin/activate" ]; then
   source .venv/bin/activate
 fi
-pytest tests_extra -v
+pytest -q tests_extra

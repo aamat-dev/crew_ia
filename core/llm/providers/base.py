@@ -1,6 +1,7 @@
 # core/llm/providers/base.py
 from dataclasses import dataclass
-from typing import Optional, Dict, List
+from pydantic import BaseModel
+from typing import Optional, Dict, List, Any
 
 @dataclass
 class LLMRequest:
@@ -14,13 +15,21 @@ class LLMRequest:
     timeout_s: int = 60
 
 @dataclass
-class LLMResponse:
+class LLMResponse(BaseModel):
     text: str
-    raw: Optional[Dict] = None
-    # Ajouts pour la traçabilité
-    provider: Optional[str] = None      # "ollama" | "openai" | ...
-    model_used: Optional[str] = None    # modèle effectivement utilisé (peut différer en fallback)
+    provider: Optional[str] = None
+    model_used: Optional[str] = None
+    latency_ms: Optional[int] = None
+    raw: Optional[Dict[str, Any]] = None
+    # 🔸 Nouveau: usage optionnel (certains providers ne l’exposent pas)
+    usage: Optional[Dict[str, Any]] = None
 
+    def ensure_usage(self):
+        if self.usage is None and self.raw and isinstance(self.raw, dict):
+            u = self.raw.get("usage")
+            if isinstance(u, dict):
+                self.usage = u
+        return self
 
 class ProviderError(Exception): ...
 class ProviderUnavailable(ProviderError): ...

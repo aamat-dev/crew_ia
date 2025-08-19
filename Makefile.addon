@@ -1,0 +1,13 @@
+.PHONY: help-extra test-extra test-all-extra
+
+help-extra: ## Show extra test targets
+	@echo 'Extra targets:'
+	@echo '  make test-extra      # run tests_extra only'
+	@echo '  make test-all-extra  # run full suite then tests_extra'
+
+test-extra: ## Run only tests in tests_extra/
+	bash scripts/run_extra_tests.sh
+
+test-all-extra: ## Run default tests then extra tests
+	${MAKE} test
+	bash scripts/run_extra_tests.sh
