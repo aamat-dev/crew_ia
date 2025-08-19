@@ -2,12 +2,13 @@ from pathlib import Path
 from typing import List
 import json
 
-from core.agents.supervisor import run_supervisor
+from core.agents.supervisor import run
 from core.agents.schemas import PlanNodeModel
 from core.planning.task_graph import PlanNode
 
 async def plan_from_task(task_input: str, run_dir: str = ".") -> List[PlanNode]:
-    sup = await run_supervisor(task_input)
+    task = json.loads(task_input)
+    sup = await run(task)
     nodes: List[PlanNode] = []
     for n in sup.plan:
         nodes.append(

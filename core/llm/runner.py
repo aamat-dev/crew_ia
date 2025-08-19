@@ -126,6 +126,7 @@ async def run_llm(req: LLMRequest, primary: Optional[str] = None, fallback_order
             # enrichir la réponse pour la traçabilité
             resp.provider = name
             resp.model_used = model
+            resp.latency_ms = dt_ms
 
             log.info("llm.used provider=%s model=%s duration_ms=%d", name, model, dt_ms)
             return resp

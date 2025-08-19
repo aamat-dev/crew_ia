@@ -4,10 +4,10 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Any, Dict, Tuple
+from contextlib import asynccontextmanager
 
 from sqlalchemy import text, select, update
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
@@ -37,9 +37,7 @@ class PostgresAdapter:
             poolclass=NullPool,       # 1 connexion par session (évite soucis en tests / outils)
             pool_pre_ping=True,
         )
-        self._sessionmaker = sessionmaker(
-            self._engine, expire_on_commit=False, class_=AsyncSession
-        )
+        self._sessionmaker = async_sessionmaker(self._engine, expire_on_commit=False, class_=AsyncSession)
 
     async def create_all(self):
         async with self._engine.begin() as conn:
@@ -52,22 +50,16 @@ class PostgresAdapter:
 
     # --- Contexte de session -------------------------------------------------
 
-    async def __aenter__(self):
-        self._session = self._sessionmaker()
-        return self._session
-
-    async def __aexit__(self, exc_type, exc, tb):
-        try:
-            if exc:
-                await self._session.rollback()
-            else:
-                await self._session.commit()
-        finally:
-            await self._session.close()
-
-    def session(self):
-        # usage: async with adapter.session() as s:
-        return self
+    @asynccontextmanager
+    async def session(self):
+        """Context manager retournant une session indépendante."""
+        async with self._sessionmaker() as s:
+            try:
+                yield s
+                await s.commit()
+            except Exception:
+                await s.rollback()
+                raise
 
     # --- Helpers "souples" ---------------------------------------------------
 
