@@ -92,48 +92,62 @@ async def run_task(
     started = dt.datetime.now(dt.timezone.utc)
 
     # 1) Construire DAG
+    if not task_spec.get("plan") and task_spec.get("type") == "demo":
+        # Plan minimal de démonstration
+        task_spec = {"plan": [{"id": "n1", "title": title}]}
     dag = TaskGraph.from_plan(task_spec)
 
     # 2) Callbacks télémétrie
+    node_ids: dict[str, UUID] = {}
+
     async def on_node_start(node, node_key: str):
-        # node_key = id logique du plan (ex: "n1")
-        await storage.save_node(
+        """Persiste un nœud au démarrage et mémorise son UUID."""
+        node_db = await storage.save_node(
             node=Node(
-                id=None,
                 run_id=UUID(run_id),
+                key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
-                started_at=dt.datetime.now(dt.timezone.utc),
-                logical_id=node_key,  # <- on stocke aussi la clé logique
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
+        node_ids[node_key] = node_db.id
+        # permet à agent_runner de retrouver l'id DB
+        try:
+            setattr(node, "db_id", node_db.id)
+        except Exception:
+            pass
         await event_publisher.emit(
             EventType.NODE_STARTED,
-            {"run_id": run_id, "node_key": node_key, "request_id": request_id,
-             "checksum": getattr(node, "checksum", None)},
+            {
+                "run_id": run_id,
+                "node_key": node_key,
+                "request_id": request_id,
+                "checksum": getattr(node, "checksum", None),
+            },
         )
 
     async def on_node_end(node, node_key: str, status: str):
         ended = dt.datetime.now(dt.timezone.utc)
+        node_id = node_ids.get(node_key)
         await storage.save_node(
             node=Node(
-                id=None,
+                id=node_id,
                 run_id=UUID(run_id),
+                key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.completed if status == "completed" else NodeStatus.failed,
-                ended_at=ended,
-                logical_id=node_key,
+                updated_at=ended,
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
 
         # 1) Essaye via DB: logical_id -> node_id -> artifacts
         meta = {}
-        node_db_id = None
+        node_db_id = node_id
         try:
             # méthode optionnelle selon l'adapter; on tente si dispo
-            if hasattr(storage, "get_node_id_by_logical"):
+            if node_db_id is None and hasattr(storage, "get_node_id_by_logical"):
                 node_db_id = await storage.get_node_id_by_logical(run_id, node_key)
             # si on a un id DB, on liste les artifacts (si dispo)
             if node_db_id and hasattr(storage, "list_artifacts_for_node"):
