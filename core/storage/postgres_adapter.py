@@ -4,8 +4,8 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Any, Dict
-
 from contextlib import asynccontextmanager
+
 from sqlalchemy import text, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
@@ -41,48 +41,7 @@ class PostgresAdapter:
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
 
-    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
-        """
-        Retourne l'UUID DB d'un node à partir de la clé logique (plan.id).
-        S'adapte selon ton schéma: 'key' OU 'logical_id'.
-        """
-        sql = text("""
-            SELECT id::text
-            FROM nodes
-            WHERE run_id = :run_id
-              AND (key = :logical_id OR logical_id = :logical_id)
-            ORDER BY created_at DESC
-            LIMIT 1
-        """)
-        async with self.async_session() as s:
-            r = await s.execute(sql, {"run_id": run_id, "logical_id": logical_id})
-            row = r.first()
-            return row[0] if row else None
-
-    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
-        """
-        Liste les artifacts d'un node. Les colonnes typiques sont: id, type, content, path, created_at.
-        Adapte les noms si nécessaire.
-        """
-        sql = text("""
-            SELECT id::text, type, content, path, created_at
-            FROM artifacts
-            WHERE node_id = :node_id
-            ORDER BY created_at DESC
-        """)
-        async with self.async_session() as s:
-            r = await s.execute(sql, {"node_id": node_id})
-            items = []
-            for row in r.fetchall():
-                aid, typ, content, path, created_at = row
-                items.append({
-                    "id": aid,
-                    "type": typ,
-                    "content": content,
-                    "path": path,
-                    "created_at": created_at.isoformat() if created_at else None,
-                })
-            return items
+    # ---------- Infra utilitaires ----------
 
     async def create_all(self):
         async with self._engine.begin() as conn:
@@ -93,15 +52,10 @@ class PostgresAdapter:
             await conn.execute(text("SELECT 1"))
         return True
 
-    # --- Contexte de session (une session courte par opération) --------------
-
     @asynccontextmanager
     async def session(self):
         async with self._sessionmaker() as s:
-            # Pas de close() manuel ici: le async with s'en charge proprement
             yield s
-
-    # --- Helpers "souples" ---------------------------------------------------
 
     @staticmethod
     def _coalesce_obj(model_cls, obj: Any, kwargs: Dict[str, Any]):
@@ -109,7 +63,7 @@ class PostgresAdapter:
             return obj
         return model_cls(**kwargs)
 
-    # --- CRUD Run ------------------------------------------------------------
+    # ---------- Runs ----------
 
     async def save_run(self, run: Optional[Run] = None, **kwargs) -> Run:
         obj = self._coalesce_obj(Run, run, kwargs)
@@ -145,7 +99,7 @@ class PostgresAdapter:
             )
             return list(res.scalars().all())
 
-    # --- CRUD Node -----------------------------------------------------------
+    # ---------- Nodes ----------
 
     async def save_node(self, node: Optional[Node] = None, **kwargs) -> Node:
         obj = self._coalesce_obj(Node, node, kwargs)
@@ -166,135 +120,6 @@ class PostgresAdapter:
             except Exception:
                 await s.rollback()
                 raise
-
-    # --- CRUD Artifact -------------------------------------------------------
-
-    async def save_artifact(self, artifact: Optional[Artifact] = None, **kwargs) -> Artifact:
-        obj = self._coalesce_obj(Artifact, artifact, kwargs)
-        if obj.type is None:
-            obj.type = "artifact"
-        if obj.created_at is None:
-            obj.created_at = datetime.now(timezone.utc)
-        async with self.session() as s:
-            try:
-                s.add(obj)
-                await s.flush()
-                await s.commit()
-                return obj
-            except Exception:
-                await s.rollback()
-                raise
-
-    # --- CRUD Event ----------------------------------------------------------
-
-    async def save_event(self, event: Optional[Event] = None, **kwargs) -> Event:
-        obj = self._coalesce_obj(Event, event, kwargs)
-        if obj.timestamp is None:
-            obj.timestamp = datetime.now(timezone.utc)
-        async with self.session() as s:
-            try:
-                s.add(obj)
-                await s.flush()
-                await s.commit()
-                return obj
-            except Exception:
-                await s.rollback()
-                raise
-
-    async def list_events(
-        self,
-        run_id: Optional[uuid.UUID] = None,
-        node_id: Optional[uuid.UUID] = None,
-        level: Optional[str] = None,
-        limit: int = 200
-    ) -> List[Event]:
-        stmt = select(Event).order_by(Event.timestamp.desc()).limit(limit)
-        if run_id:
-            stmt = stmt.where(Event.run_id == run_id)
-        if node_id:
-            stmt = stmt.where(Event.node_id == node_id)
-        if level:
-            stmt = stmt.where(Event.level == level)
-
-        async with self.session() as s:
-            res = await s.execute(stmt)
-            return list(res.scalars().all())
-
-    # --- Résolutions & ensures (pour hooks / composite) ---------------------
-
-    async def resolve_run_uuid(self, run_key: str) -> Optional[uuid.UUID]:
-        async with self.session() as s:
-            res = await s.execute(
-                text("SELECT id FROM runs WHERE metadata ->> 'key' = :k LIMIT 1")
-                .bindparams(k=run_key)
-            )
-            row = res.first()
-            return row[0] if row else None
-
-    async def ensure_run(self, run_key: str, title: str) -> Run:
-        ruuid = await self.resolve_run_uuid(run_key)
-        if ruuid:
-            r = await self.get_run(ruuid)
-            if r:
-                return r
-        r = Run(
-            title=title,
-            status=RunStatus.running,
-            started_at=datetime.now(timezone.utc),
-            metadata={"key": run_key},
-        )
-        return await self.save_run(r)
-
-    async def resolve_node_uuid(self, run_key: str, node_key: str) -> Optional[uuid.UUID]:
-        async with self.session() as s:
-            res = await s.execute(
-                text("""
-                    SELECT n.id
-                    FROM nodes n
-                    JOIN runs r ON r.id = n.run_id
-                    WHERE (r.metadata ->> 'key') = :rk
-                      AND n.key = :nk
-                    LIMIT 1
-                """).bindparams(rk=run_key, nk=node_key)
-            )
-            row = res.first()
-            return row[0] if row else None
-
-    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> str | None:
-        # Exemple SQLModel/SQLAlchemy Core selon ton implémentation ;
-        # ci-dessous, SQL text basique.
-        from sqlalchemy import text
-        async with self.async_session() as s:
-            q = text("""
-                SELECT id::text FROM nodes
-                WHERE run_id = :run_id AND (logical_id = :logical_id OR key = :logical_id)
-                ORDER BY created_at DESC
-                LIMIT 1
-            """)
-            r = await s.execute(q, {"run_id": run_id, "logical_id": logical_id})
-            row = r.first()
-            return row[0] if row else None
-
-    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
-        from sqlalchemy import text
-        async with self.async_session() as s:
-            q = text("""
-                SELECT id::text, type, content, path, created_at
-                FROM artifacts
-                WHERE node_id = :node_id
-                ORDER BY created_at DESC
-            """)
-            r = await s.execute(q, {"node_id": node_id})
-            items = []
-            for (aid, typ, content, path, created_at) in r.fetchall():
-                items.append({
-                    "id": aid,
-                    "type": typ,
-                    "content": content,
-                    "path": path,
-                    "created_at": created_at.isoformat() if created_at else None,
-                })
-            return items
 
     async def ensure_node(
         self,
@@ -337,3 +162,143 @@ class PostgresAdapter:
             except Exception:
                 await s.rollback()
                 raise
+
+    # ---------- Artifacts ----------
+
+    async def save_artifact(self, artifact: Optional[Artifact] = None, **kwargs) -> Artifact:
+        obj = self._coalesce_obj(Artifact, artifact, kwargs)
+        if obj.type is None:
+            obj.type = "artifact"
+        if obj.created_at is None:
+            obj.created_at = datetime.now(timezone.utc)
+        async with self.session() as s:
+            try:
+                s.add(obj)
+                await s.flush()
+                await s.commit()
+                return obj
+            except Exception:
+                await s.rollback()
+                raise
+
+    # ---------- Events ----------
+
+    async def save_event(self, event: Optional[Event] = None, **kwargs) -> Event:
+        obj = self._coalesce_obj(Event, event, kwargs)
+        if obj.timestamp is None:
+            obj.timestamp = datetime.now(timezone.utc)
+        async with self.session() as s:
+            try:
+                s.add(obj)
+                await s.flush()
+                await s.commit()
+                return obj
+            except Exception:
+                await s.rollback()
+                raise
+
+    async def list_events(
+        self,
+        run_id: Optional[uuid.UUID] = None,
+        node_id: Optional[uuid.UUID] = None,
+        level: Optional[str] = None,
+        limit: int = 200
+    ) -> List[Event]:
+        stmt = select(Event).order_by(Event.timestamp.desc()).limit(limit)
+        if run_id:
+            stmt = stmt.where(Event.run_id == run_id)
+        if node_id:
+            stmt = stmt.where(Event.node_id == node_id)
+        if level:
+            stmt = stmt.where(Event.level == level)
+
+        async with self.session() as s:
+            res = await s.execute(stmt)
+            return list(res.scalars().all())
+
+    # ---------- Résolutions & ensures (optionnels) ----------
+
+    async def resolve_run_uuid(self, run_key: str) -> Optional[uuid.UUID]:
+        # suppose une colonne JSONB 'meta' :: {"key": "..."}
+        async with self.session() as s:
+            res = await s.execute(
+                text("SELECT id FROM runs WHERE meta ->> 'key' = :k LIMIT 1"),
+                {"k": run_key},
+            )
+            row = res.first()
+            return row[0] if row else None
+
+    async def ensure_run(self, run_key: str, title: str) -> Run:
+        ruuid = await self.resolve_run_uuid(run_key)
+        if ruuid:
+            r = await self.get_run(ruuid)
+            if r:
+                return r
+        r = Run(
+            title=title,
+            status=RunStatus.running,
+            started_at=datetime.now(timezone.utc),
+            meta={"key": run_key},
+        )
+        return await self.save_run(r)
+
+    async def resolve_node_uuid(self, run_key: str, node_key: str) -> Optional[uuid.UUID]:
+        # suppose 'runs.meta' + 'nodes.key'
+        async with self.session() as s:
+            res = await s.execute(
+                text("""
+                    SELECT n.id
+                    FROM nodes n
+                    JOIN runs r ON r.id = n.run_id
+                    WHERE (r.meta ->> 'key') = :rk
+                      AND n.key = :nk
+                    LIMIT 1
+                """),
+                {"rk": run_key, "nk": node_key},
+            )
+            row = res.first()
+            return row[0] if row else None
+
+    # ---------- Télémétrie LLM (pour enrichir NODE_COMPLETED) ----------
+
+    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> Optional[str]:
+        """
+        Retourne l'UUID DB d'un node à partir de la clé logique (plan.id).
+        Colonnes: nodes(id UUID PK, run_id UUID, key TEXT, logical_id TEXT?, created_at TIMESTAMPTZ)
+        """
+        q = text("""
+            SELECT id::text
+            FROM nodes
+            WHERE run_id = :run_id
+              AND (key = :logical_id OR logical_id = :logical_id)
+            ORDER BY created_at DESC NULLS LAST
+            LIMIT 1
+        """)
+        async with self.session() as s:
+            r = await s.execute(q, {"run_id": run_id, "logical_id": logical_id})
+            row = r.first()
+            return row[0] if row else None
+
+    async def list_artifacts_for_node(self, node_id: str) -> list[dict]:
+        """
+        Liste brute des artifacts pour un node.
+        Colonnes: artifacts(id UUID, node_id UUID, type TEXT, content TEXT, path TEXT, created_at TIMESTAMPTZ)
+        """
+        q = text("""
+            SELECT id::text, type, content, path, created_at
+            FROM artifacts
+            WHERE node_id = :node_id
+            ORDER BY created_at DESC NULLS LAST
+        """)
+        async with self.session() as s:
+            r = await s.execute(q, {"node_id": node_id})
+            items = []
+            for aid, typ, content, path, created_at in r.fetchall():
+                items.append({
+                    "id": aid,
+                    "type": typ,
+                    "content": content,
+                    "path": path,
+                    "created_at": created_at.isoformat() if created_at else None,
+                })
+            return items
