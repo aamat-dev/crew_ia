@@ -1,6 +1,5 @@
 import pytest
-import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from core.agents.manager import run_manager
 from core.agents.schemas import PlanNodeModel
 from core.llm.providers.base import LLMResponse

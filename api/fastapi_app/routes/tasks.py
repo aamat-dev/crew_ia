@@ -28,6 +28,7 @@ class TaskSpec(BaseModel):
     model_config = ConfigDict(extra="allow")  # tolère "plan", etc.
 
 class TaskRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
     title: str = Field(..., examples=["Rapport 80p"])
     task: Optional[TaskSpec] = None
     task_spec: Optional[TaskSpec] = None
