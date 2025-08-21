@@ -261,21 +261,27 @@ class PostgresAdapter:
 
     # ---------- Télémétrie LLM (pour enrichir NODE_COMPLETED) ----------
 
-    async def get_node_id_by_logical(self, run_id: str, logical_id: str) -> Optional[str]:
+    async def get_node_id_by_logical(self, run_id: str | uuid.UUID, logical_id: str) -> Optional[str]:
         """
         Retourne l'UUID DB d'un node à partir de la clé logique (plan.id).
-        Colonnes: nodes(id UUID PK, run_id UUID, key TEXT, logical_id TEXT?, created_at TIMESTAMPTZ)
+        On cast explicitement run_id en UUID pour éviter tout souci de comparaison.
         """
+        # cast run_id en UUID côté Python (évite d'avoir à faire ::uuid côté SQL)
+        try:
+            run_uuid = run_id if isinstance(run_id, uuid.UUID) else uuid.UUID(str(run_id))
+        except Exception:
+            return None
+
         q = text("""
             SELECT id::text
             FROM nodes
-            WHERE run_id = :run_id
+            WHERE run_id = :run_uuid
               AND (key = :logical_id OR logical_id = :logical_id)
             ORDER BY created_at DESC NULLS LAST
             LIMIT 1
         """)
         async with self.session() as s:
-            r = await s.execute(q, {"run_id": run_id, "logical_id": logical_id})
+            r = await s.execute(q, {"run_uuid": run_uuid, "logical_id": logical_id})
             row = r.first()
             return row[0] if row else None
 

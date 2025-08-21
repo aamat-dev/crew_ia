@@ -59,21 +59,37 @@ def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
     return {}
 
 def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> dict:
-    """Lit un sidecar ``artifact_<node_key>.llm.json``.
-
-    La racine de recherche est, par ordre de priorité :
-    ``runs_root`` si fourni, puis ``ARTIFACTS_DIR``, ``RUNS_ROOT``
-    et enfin ``.runs``.  Retourne un ``dict`` si le fichier existe,
-    sinon ``{}``.
+    """
+    Cherche un sidecar LLM JSON dans:
+      .runs/<run_id>/nodes/<node_key>/*.llm.json
+    Retourne le premier JSON valide trouvé.
     """
     base = runs_root or os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs"
-    path = Path(base) / run_id / "nodes" / node_key / f"artifact_{node_key}.llm.json"
-    if path.exists():
+    node_dir = Path(base) / run_id / "nodes" / node_key
+    if not node_dir.is_dir():
+        return {}
+    # ordre de préférence: artifact_<node_key>.llm.json puis tout *.llm.json
+    candidates = [node_dir / f"artifact_{node_key}.llm.json"] + sorted(node_dir.glob("*.llm.json"))
+    seen = set()
+    for p in candidates:
+        if not p.exists():
+            continue
+        if p in seen:
+            continue
+        seen.add(p)
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            obj = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(obj, dict):
+                return {
+                    "provider": obj.get("provider"),
+                    "model": obj.get("model_used") or obj.get("model"),
+                    "latency_ms": obj.get("latency_ms"),
+                    "usage": obj.get("usage"),
+                }
         except Exception:
-            return {}
+            continue
     return {}
+
 
 async def run_task(
     run_id: str,
@@ -113,6 +129,10 @@ async def run_task(
             setattr(node, "db_id", node_db.id)
         except Exception:
             pass
+
+        if not meta:
+            log.debug("no LLM meta for run_id=%s node_key=%s (DB+FS empty)", run_id, node_key)
+
         await event_publisher.emit(
             EventType.NODE_STARTED,
             {
