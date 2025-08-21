@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, read_timezone, to_tz
+from ..deps import get_session, read_timezone, to_tz
 from ..schemas import Page, EventOut
 from core.storage.db_models import Event  # type: ignore
 
 from ..deps import api_key_auth
 
-router = APIRouter(prefix="/runs", tags=["events"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="/events", tags=["events"], dependencies=[Depends(api_key_auth)])
 
 ORDERABLE = {"timestamp": Event.timestamp, "level": Event.level}
 
@@ -25,9 +25,9 @@ def order(stmt, order_by: str | None):
     col = ORDERABLE.get(key, Event.timestamp)
     return stmt.order_by(direction(col))
 
-@router.get("/{run_id}/events", response_model=Page[EventOut])
+@router.get("", response_model=Page[EventOut])
 async def list_events(
-    run_id: UUID,
+    run_id: UUID = Query(...),
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
     limit: int = Query(50, ge=1, le=200),

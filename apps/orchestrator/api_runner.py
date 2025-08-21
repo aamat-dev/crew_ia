@@ -106,7 +106,6 @@ async def run_task(
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
-                started_at=dt.datetime.now(dt.timezone.utc),  # ← ajouté
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
@@ -121,9 +120,9 @@ async def run_task(
             {
                 "run_id": run_id,
                 "node_key": node_key,
-                "request_id": request_id,
                 "checksum": getattr(node, "checksum", None),
             },
+            request_id=request_id,
         )
 
     async def on_node_end(node, node_key: str, status: str):
@@ -168,7 +167,6 @@ async def run_task(
             "run_id": run_id,
             "node_key": node_key,
             "status": node_status.value.upper(),
-            "request_id": request_id,
             "checksum": getattr(node, "checksum", None),
         }
         if meta:
@@ -180,11 +178,11 @@ async def run_task(
             })
 
         event_type = EventType.NODE_COMPLETED if node_status == NodeStatus.completed else EventType.NODE_FAILED
-        await event_publisher.emit(event_type, payload)
+        await event_publisher.emit(event_type, payload, request_id=request_id)
 
     try:
         await event_publisher.emit(
-            EventType.RUN_STARTED, {"run_id": run_id, "title": title, "request_id": request_id}
+            EventType.RUN_STARTED, {"run_id": run_id, "title": title}, request_id=request_id
         )
 
         res = await run_graph(
@@ -204,7 +202,8 @@ async def run_task(
         )
         await event_publisher.emit(
             EventType.RUN_COMPLETED if final_status == RunStatus.completed else EventType.RUN_FAILED,
-            {"run_id": run_id, "request_id": request_id},
+            {"run_id": run_id},
+            request_id=request_id,
         )
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
@@ -214,5 +213,6 @@ async def run_task(
         )
         await event_publisher.emit(
             EventType.RUN_FAILED,
-            {"run_id": run_id, "request_id": request_id, "error_class": e.__class__.__name__, "message": str(e)},
+            {"run_id": run_id, "error_class": e.__class__.__name__, "message": str(e)},
+            request_id=request_id,
         )

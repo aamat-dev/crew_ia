@@ -190,10 +190,10 @@ if [[ -n "$RUN_ID" ]]; then
   fi
 
   # 5) Events
-  if req GET "/runs/${RUN_ID}/events?order_by=-timestamp" body 200; then
-    OK "GET /runs/{run_id}/events"
+  if req GET "/events?run_id=${RUN_ID}&order_by=-timestamp" body 200; then
+    OK "GET /events?run_id={run_id}"
   else
-    FAIL "GET /runs/{run_id}/events"
+    FAIL "GET /events?run_id={run_id}"
     failures=$((failures+1))
   fi
 else

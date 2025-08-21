@@ -26,6 +26,12 @@ make api-run
 curl -H "X-API-Key: test-key" http://localhost:8000/runs
 ```
 
+Pour lister les événements d'un run spécifique :
+
+```
+curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
+```
+
 The server always returns timestamps in UTC. Clients may supply `X-Timezone`
 header to ask for conversion to a specific zone.
 

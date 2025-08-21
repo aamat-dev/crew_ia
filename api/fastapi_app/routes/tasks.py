@@ -71,7 +71,7 @@ async def create_task(
             raise HTTPException(status_code=400, detail="task_file must be a .json file")
 
     # Propagation du request_id
-    req_id = x_request_id or body.request_id
+    request_id = x_request_id or body.request_id
 
     try:
         run_id: UUID = await schedule_run(
@@ -80,7 +80,7 @@ async def create_task(
             app_state=request.app.state,
             title=body.title,
             task_file=body.task_file,  # le service relira le JSON
-            request_id=req_id,
+            request_id=request_id,
         )
     except (FileNotFoundError, ValueError) as e:
         # Sécurité ceinture+bretelles si le service relance ce type d'erreurs

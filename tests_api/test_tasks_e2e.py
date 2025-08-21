@@ -36,7 +36,11 @@ async def test_create_and_follow_task(client):
     assert r_artifacts.json()["total"] >= 1
 
     # Events
-    r_events = await client.get(f"/runs/{run_id}/events", headers={"X-API-Key": "test-key"})
+    r_events = await client.get(
+        "/events",
+        params={"run_id": run_id},
+        headers={"X-API-Key": "test-key"},
+    )
     levels = [e["level"] for e in r_events.json()["items"]]
     assert "RUN_STARTED" in levels
     assert "RUN_COMPLETED" in levels
