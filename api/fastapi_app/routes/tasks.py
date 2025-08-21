@@ -1,201 +1,82 @@
 # api/fastapi_app/routes/tasks.py
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Header
-from pydantic import BaseModel, Field
-from uuid import uuid4, UUID
-import datetime as dt
-import logging
-import anyio
-from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Header
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, Any, Dict, List
+from uuid import UUID
 
-from core.storage.composite_adapter import CompositeAdapter
-from core.storage.db_models import Run, RunStatus
-from core.events.publisher import EventPublisher
-from apps.orchestrator.api_runner import run_task
+from ..deps import api_key_auth  # ✅ valide la valeur de l’API key
+from core.services.orchestrator_service import schedule_run
 
-log = logging.getLogger("api.tasks")
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter(
+    prefix="/tasks",
+    tags=["tasks"],
+    dependencies=[Depends(api_key_auth)],  # 🔒 protège /tasks
+)
 
+# ---------- Schemas d’entrée/sortie ----------
 
-# --- Schemas ---
+class Options(BaseModel):
+    resume: bool = False
+    dry_run: bool = False
+    override: List[str] = Field(default_factory=list)  # ex: ["n2"]
 
 class TaskSpec(BaseModel):
-    type: Optional[str] = None
-    class Config:
-        extra = "allow"  # accepte 'plan', etc.
+    # schéma minimal ; on tolère des champs libres comme "plan"
+    model_config = ConfigDict(extra="allow")
 
+class TaskRequest(BaseModel):
+    title: str = Field(..., examples=["Rapport 80p"])
+    # l’appelant peut envoyer soit "task", soit "task_spec"
+    task: Optional[TaskSpec] = None
+    task_spec: Optional[TaskSpec] = None
+    task_file: Optional[str] = None
+    options: Options = Field(default_factory=Options)
+    llm: Optional[Dict[str, Any]] = None  # transmis tel quel à l’orchestrateur si besoin
+    request_id: Optional[str] = None
 
-class CreateTaskBody(BaseModel):
-    title: str = Field(..., examples=["Adhoc run"])
-    task_spec: Optional[TaskSpec] = None  # certains clients envoient 'task' à la place
-
-    class Config:
-        extra = "allow"  # tolère 'task', 'options', etc.
-
-
-class CreateTaskResponse(BaseModel):
-    status: str
+class TaskAcceptedResponse(BaseModel):
+    status: str = "accepted"
     run_id: str
     location: str
 
+# ---------- Route ----------
 
-class TaskStatusResponse(BaseModel):
-    run_id: str
-    status: str
-    title: str | None = None
-    started_at: str | None = None
-    ended_at: str | None = None
-
-
-# --- Helpers ---
-
-def _normalize_status(value) -> str:
-    """
-    Normalise un statut en chaîne simple: 'running' / 'completed' / 'failed' / 'unknown'.
-    Gère les Enum (RunStatus.completed), les strings comme 'RunStatus.completed', etc.
-    """
-    if value is None:
-        return "unknown"
-    # Enum -> prendre .value
-    try:
-        enum_value = getattr(value, "value")
-        if enum_value:
-            value = enum_value
-    except Exception:
-        pass
-    s = str(value)
-    if "." in s:
-        # ex: "RunStatus.completed" -> "completed"
-        s = s.split(".", 1)[1]
-    return s.lower() or "unknown"
-
-
-# --- Dependencies from app state ---
-
-def get_storage(request: Request) -> CompositeAdapter:
-    storage: CompositeAdapter | None = getattr(request.app.state, "storage", None)
-    if not storage:
-        raise HTTPException(status_code=500, detail="Storage not initialized")
-    return storage
-
-
-def get_publisher(request: Request) -> EventPublisher:
-    pub: EventPublisher | None = getattr(request.app.state, "event_publisher", None)
-    if not pub:
-        raise HTTPException(status_code=500, detail="Event publisher not initialized")
-    return pub
-
-
-# --- Routes ---
-
-@router.post("", response_model=CreateTaskResponse, status_code=202)
+@router.post("", response_model=TaskAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_task(
-    body: CreateTaskBody,
-    background: BackgroundTasks,
+    body: TaskRequest,
     request: Request,
-    storage: CompositeAdapter = Depends(get_storage),
-    publisher: EventPublisher = Depends(get_publisher),
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
 ):
-    # Auth minimale : absence d'API key => 401 (les tests le vérifient)
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    """
+    POST /tasks
+      -> 202 Accepted immédiat {run_id, location}
+      L’exécution est planifiée dans le TaskGroup du lifespan (fire‑and‑forget).
+    """
 
-    # Supporte 'task_spec' (API) ou 'task' (tests e2e)
-    raw = await request.json()
+    # Source du plan: task_spec > task > task_file
+    task_spec: Optional[Dict[str, Any]] = None
     if body.task_spec is not None:
         task_spec = body.task_spec.model_dump(exclude_unset=True)
-    elif isinstance(raw, dict) and isinstance(raw.get("task"), dict):
-        task_spec = raw["task"]
-    else:
-        task_spec = {}
+    elif body.task is not None:
+        task_spec = body.task.model_dump(exclude_unset=True)
 
-    run_id_str = str(uuid4())
-    run_id = UUID(run_id_str)
-    title = body.title or "Adhoc run"
+    # request_id: header > body.request_id
+    req_id = x_request_id or body.request_id
 
-    started_at = dt.datetime.now(dt.timezone.utc)
-    # IMPORTANT : Run.id en UUID
-    await storage.save_run(
-        run=Run(id=run_id, title=title, status=RunStatus.running, started_at=started_at)
+    # planifier via le service (gère: create Run(running) + start_soon(...))
+    run_id: UUID = await schedule_run(
+        task_spec=task_spec,
+        options=body.options,          # ✅ passe bien resume/dry_run/override
+        app_state=request.app.state,
+        title=body.title,
+        task_file=body.task_file,      # ✅ 400 si fichier manquant côté service
+        request_id=req_id,
     )
 
-    # === Chemin spécial DEMO : exécution synchrone pour éviter les flakes ===
-    if (task_spec or {}).get("type") == "demo":
-        try:
-            class _Opts:
-                dry_run = False
-                override = []
-            await run_task(
-                run_id=run_id_str,
-                task_spec=task_spec,
-                options=_Opts(),
-                storage=storage,
-                event_publisher=publisher,
-                title=title,
-                request_id=None,
-            )
-        except Exception as e:  # pragma: no cover
-            log.exception("Inline demo task failed for run_id=%s", run_id_str)
-            ended = dt.datetime.now(dt.timezone.utc)
-            await storage.save_run(
-                run=Run(id=run_id, title=title, status=RunStatus.failed, started_at=started_at, ended_at=ended)
-            )
-            raise HTTPException(status_code=500, detail=f"Demo task failed: {e}")
-
-        return CreateTaskResponse(status="accepted", run_id=run_id_str, location=f"/runs/{run_id_str}")
-
-    # === Chemin normal : arrière-plan ===
-    def _bg():
-        async def _runner():
-            class _Opts:
-                dry_run = False
-                override = []
-            try:
-                await run_task(
-                    run_id=run_id_str,
-                    task_spec=task_spec,
-                    options=_Opts(),
-                    storage=storage,
-                    event_publisher=publisher,
-                    title=title,
-                    request_id=None,
-                )
-            except Exception:
-                log.exception("Background run failed for run_id=%s", run_id_str)
-        anyio.run(_runner)
-
-    background.add_task(_bg)
-    return CreateTaskResponse(status="accepted", run_id=run_id_str, location=f"/runs/{run_id_str}")
-
-
-@router.get("/{run_id}", response_model=TaskStatusResponse)
-async def get_task_status(
-    run_id: str,
-    storage: CompositeAdapter = Depends(get_storage),
-):
-    # Essayer d'abord en UUID (Postgres), puis retomber sur str (filesystem)
-    run = None
-    try:
-        run = await storage.get_run(UUID(run_id))
-    except Exception:
-        pass
-    if not run:
-        run = await storage.get_run(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-
-    status_raw = getattr(run, "status", None)
-    status = _normalize_status(status_raw)
-    started_at = getattr(run, "started_at", None)
-    ended_at = getattr(run, "ended_at", None)
-    title = getattr(run, "title", None)
-
-    return TaskStatusResponse(
-        run_id=run_id,
-        status=status,
-        title=title,
-        started_at=started_at.isoformat() if started_at else None,
-        ended_at=ended_at.isoformat() if ended_at else None,
+    return TaskAcceptedResponse(
+        run_id=str(run_id),
+        location=f"/runs/{run_id}",
     )
