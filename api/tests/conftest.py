@@ -2,8 +2,6 @@
 import asyncio
 import datetime as dt
 import uuid
-import os
-import sys
 
 import pytest
 import pytest_asyncio
@@ -13,11 +11,6 @@ from asgi_lifespan import LifespanManager
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import delete, insert
-
-# Ensure project root on sys.path
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
 
 # --- importe l'app et les deps ---
 from api.fastapi_app.main import app

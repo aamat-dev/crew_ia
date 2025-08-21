@@ -1,5 +1,6 @@
-import os, sys, json, pytest
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import json
+import pytest
+
 from core.agents.supervisor import run as supervisor_run
 from core.llm.providers.base import LLMResponse
 import core.llm.runner as runner_mod

@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 import pytest
-import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..','..')))
 
 from core.planning.task_graph import PlanNode, TaskGraph
 from apps.orchestrator.executor import run_graph

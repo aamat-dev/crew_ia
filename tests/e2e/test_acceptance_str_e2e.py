@@ -1,8 +1,5 @@
-import os, sys
 from pathlib import Path
 import pytest
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from core.planning.task_graph import TaskGraph
 from apps.orchestrator.executor import run_graph

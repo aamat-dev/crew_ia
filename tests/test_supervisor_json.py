@@ -1,6 +1,4 @@
 import pytest
-import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pydantic import ValidationError
 from core.agents.schemas import parse_supervisor_json, SupervisorPlan
 
