@@ -28,6 +28,7 @@ class TaskSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 class TaskRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
     title: str = Field(..., examples=["Rapport 80p"])
     # l’appelant peut envoyer soit "task", soit "task_spec"
     task: Optional[TaskSpec] = None
