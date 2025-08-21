@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
-import os, sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from apps.orchestrator.api_runner import _read_llm_sidecar_fs
 
 
@@ -30,4 +28,3 @@ def test_read_llm_sidecar_fs_with_env(tmp_path: Path, monkeypatch) -> None:
 def test_read_llm_sidecar_fs_missing(tmp_path: Path) -> None:
     out = _read_llm_sidecar_fs("missing", "none", runs_root=str(tmp_path))
     assert out == {}
-

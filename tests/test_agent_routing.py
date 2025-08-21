@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
 import pytest
-import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from core.agents.executor_llm import agent_runner
 from core.agents.schemas import PlanNodeModel
 from core.llm.providers.base import LLMResponse
