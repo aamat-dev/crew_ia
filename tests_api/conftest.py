@@ -125,6 +125,10 @@ async def client(_dispose_engine) -> AsyncClient:
 
 
 @pytest_asyncio.fixture
+async def async_client(client: AsyncClient) -> AsyncClient:
+    return client
+
+@pytest_asyncio.fixture
 async def client_noauth(_dispose_engine) -> AsyncClient:
     """
     Client httpx avec auth ACTIVE (pas d’override) pour tester les 401.

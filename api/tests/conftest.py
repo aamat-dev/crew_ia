@@ -126,6 +126,10 @@ async def client() -> AsyncClient:
             yield ac
 
 
+@pytest_asyncio.fixture
+async def async_client(client: AsyncClient) -> AsyncClient:
+    return client
+
 @pytest_asyncio.fixture(scope="session")
 async def client_noauth() -> AsyncClient:
     """
