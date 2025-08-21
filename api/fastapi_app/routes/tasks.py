@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Header
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import uuid4, UUID
 import datetime as dt
 import logging
@@ -22,16 +22,14 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 class TaskSpec(BaseModel):
     type: Optional[str] = None
-    class Config:
-        extra = "allow"  # accepte 'plan', etc.
+    model_config = ConfigDict(extra="allow")  # accepte 'plan', etc.
 
 
 class CreateTaskBody(BaseModel):
     title: str = Field(..., examples=["Adhoc run"])
     task_spec: Optional[TaskSpec] = None  # certains clients envoient 'task' à la place
 
-    class Config:
-        extra = "allow"  # tolère 'task', 'options', etc.
+    model_config = ConfigDict(extra="allow")  # tolère 'task', 'options', etc.
 
 
 class CreateTaskResponse(BaseModel):
