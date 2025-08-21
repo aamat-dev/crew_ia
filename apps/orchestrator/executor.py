@@ -1,7 +1,11 @@
+# apps/orchestrator/executor.py
 """
-executor.py — Exécute un DAG avec gestion de reprise + checksum des inputs.
-- Skip seulement si: status == completed ET input_checksum identique (sauf override).
+Exécute un DAG avec gestion de reprise + checksum des inputs.
+- Skip si: status == completed ET input_checksum identique (sauf override).
 - --dry-run: affiche [SKIP]/[RECALC] pour tous les nœuds et n'exécute rien.
+- Écrit les artifacts côté FS dans:
+    .runs/<run_id>/nodes/<node_key>/artifact_<node_key>.md
+    .runs/<run_id>/nodes/<node_key>/artifact_<node_key>.llm.json
 """
 from __future__ import annotations
 
@@ -14,13 +18,20 @@ from pathlib import Path
 
 from core.config import get_var
 from core.planning.task_graph import TaskGraph, PlanNode
-from core.storage.db_models import NodeStatus  # peut rester importé si réutilisé ailleurs
+from core.storage.db_models import NodeStatus
 from core.storage.composite_adapter import CompositeAdapter
 from core.agents.executor_llm import agent_runner
 from core.agents.manager import run_manager
 from core.agents.registry import load_default_registry
 from core.agents.recruiter import recruit
 from core.agents.schemas import PlanNodeModel
+
+# <<< AJOUT >>> helpers FS unifiés (option B)
+from core.io.artifacts_fs import (
+    write_llm_sidecar,
+    write_md,
+    node_dir as fs_node_dir,
+)
 
 log = logging.getLogger("crew.executor")
 
@@ -35,34 +46,31 @@ def colorize(msg: str, color: str) -> str:
     return f"{color}{msg}{RESET}"
 
 
+def _get_attr(node, name, default=""):
+    if isinstance(node, dict):
+        val = node.get(name, default)
+    else:
+        val = getattr(node, name, default)
+    return default if callable(val) else val
+
+
 def _node_input_checksum(node) -> str:
-    """
-    Calcule un checksum stable en acceptant:
-      - PlanNode (avec .title/.key/.params/.deps)
-      - dict (keys semblables)
-      - str (titre brut)
-    NE FAIT AUCUNE ASSUMPTION sur la présence de .deps / .title etc.
-    """
     import hashlib, json
 
     def _get(obj, attr, default=None):
-        # attr depuis objet (getattr) ou dict (get), sinon default
         if isinstance(obj, dict):
             return obj.get(attr, default)
         return getattr(obj, attr, default)
 
-    # Champs "soft"
     title = _get(node, "title")
     if callable(title):
         title = None
     key = _get(node, "key")
     params = _get(node, "params", {}) or {}
 
-    # deps peut ne pas exister (str), ne pas être list, etc.
     raw_deps = _get(node, "deps", []) or []
     if not isinstance(raw_deps, (list, tuple)):
         raw_deps = [raw_deps]
-    # Normaliser les deps pour le hash (identifiants lisibles)
     norm_deps = []
     for d in raw_deps:
         if isinstance(d, str):
@@ -70,18 +78,15 @@ def _node_input_checksum(node) -> str:
         elif isinstance(d, dict):
             norm_deps.append(d.get("key") or d.get("title") or "")
         else:
-            # objet PlanNode-like
             nk = getattr(d, "key", None)
             nt = getattr(d, "title", None)
             if callable(nt):
                 nt = None
             norm_deps.append(nk or nt or "")
 
-    # Si node est str, on la prend comme titre
     if title is None and isinstance(node, str):
         title = node
 
-    # Construire un payload stable pour hashing
     payload = {
         "title": title or "",
         "key": key or "",
@@ -94,26 +99,7 @@ def _node_input_checksum(node) -> str:
     return h.hexdigest()
 
 
-def _get_attr(node, name, default=""):
-    """
-    Accès tolérant aux attributs d'un nœud (PlanNode | dict | str).
-    - Si dict: lit node[name]
-    - Si objet: getattr(node, name)
-    - Si valeur est callable (ex: str.title), on renvoie default
-    """
-    if isinstance(node, dict):
-        val = node.get(name, default)
-    else:
-        val = getattr(node, name, default)
-    return default if callable(val) else val
-
-
 def _node_id_str(node, checksum: str) -> str:
-    """
-    Retourne un identifiant *texte* pour le nœud.
-    - Si le nœud a un .id (UUID/str), on l'utilise.
-    - Sinon on dérive un id déterministe à partir du checksum (stable).
-    """
     if isinstance(node, str) and node:
         return node
     nid = _get_attr(node, "id", None)
@@ -128,10 +114,6 @@ def _node_id_str(node, checksum: str) -> str:
 
 
 def _norm_dep_ids(node) -> list[str]:
-    """
-    Normalise la liste des deps en une liste d'identifiants texte.
-    Accepte deps en str/dict/objets PlanNode.
-    """
     raw = _get_attr(node, "deps", []) or []
     if not isinstance(raw, (list, tuple)):
         raw = [raw]
@@ -142,11 +124,80 @@ def _norm_dep_ids(node) -> list[str]:
     return out
 
 
-async def _execute_node(node: PlanNode, storage: CompositeAdapter, dag: TaskGraph) -> Dict[str, Any]:
+# ---------- Extraction méta & markdown depuis le résultat agent_runner ---------
+
+def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
+    """
+    Rend un dict normalisé pour le sidecar:
+      {provider, model, latency_ms, usage, prompts?}
+    On est tolérant: artifact peut être dict imbriqué, etc.
+    """
+    if not isinstance(artifact, dict):
+        return {}
+
+    # chemins possibles
+    candidates = [artifact]
+    for k in ("llm", "meta", "metrics"):
+        v = artifact.get(k)
+        if isinstance(v, dict):
+            candidates.append(v)
+
+    out: Dict[str, Any] = {}
+    for obj in candidates:
+        prov = obj.get("provider")
+        model = obj.get("model_used") or obj.get("model")
+        lat = obj.get("latency_ms") or obj.get("duration_ms") or obj.get("latency")
+        usage = obj.get("usage")
+        prompts = obj.get("prompts")
+
+        if prov or model or lat or usage or prompts:
+            out = {
+                "provider": prov,
+                "model": model,
+                "latency_ms": lat,
+                "usage": usage,
+            }
+            if isinstance(prompts, dict):
+                out["prompts"] = prompts
+            break
+
+    return out
+
+
+def _extract_markdown_from_result(artifact: Any) -> str | None:
+    """
+    Essaie de récupérer un contenu markdown. Sinon None.
+    On ne force pas: beaucoup d’agents renvoient du JSON structuré.
+    """
+    if isinstance(artifact, dict):
+        # conventions possibles
+        for key in ("markdown", "md", "content_md", "text_md", "content"):
+            val = artifact.get(key)
+            if isinstance(val, str) and val.strip():
+                return val
+    if isinstance(artifact, str) and artifact.strip():
+        return artifact
+    return None
+
+
+# ---------- Exécution d'un nœud ----------------------------------------------
+
+async def _execute_node(
+    node: PlanNode,
+    storage: CompositeAdapter,
+    dag: TaskGraph,
+    run_id: str,
+    node_key: str,
+) -> Dict[str, Any]:
     role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
     registry = load_default_registry()
     spec = registry.get(role) or recruit(role)
-    log.info("node=%s role=%s provider=%s model=%s", node.id, role, spec.provider, spec.model)
+    log.info("node=%s role=%s provider=%s model=%s", node_key, role, spec.provider, spec.model)
+
+    # Assure le dossier FS du nœud
+    ndir = fs_node_dir(run_id, node_key)
+    ndir.mkdir(parents=True, exist_ok=True)
+
     if node.type == "manage":
         subplan = [
             PlanNodeModel(
@@ -162,17 +213,32 @@ async def _execute_node(node: PlanNode, storage: CompositeAdapter, dag: TaskGrap
             )
         ]
         output = await run_manager(subplan)
-        Path(f"manager_{node.id}.json").write_text(
+
+        # Ranger le fichier manager_<key>.json DANS le dossier du nœud
+        (ndir / f"manager_{node_key}.json").write_text(
             json.dumps(output.model_dump(), indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        for a in output.assignments:
-            if a.node_id in dag.nodes:
-                dag.nodes[a.node_id].suggested_agent_role = a.agent
-        return output.model_dump()
-    else:
-        artifact = await agent_runner(node, storage)
-        return {"artifact": artifact}
 
+        # Pas de sidecar LLM dans ce cas (agent manager). On peut ajouter une trace si besoin.
+        return output.model_dump()
+
+    # Sinon: agent "exécuteur" (LLM)
+    artifact = await agent_runner(node, storage)
+
+    # Écrire éventuel markdown
+    md = _extract_markdown_from_result(artifact)
+    if md:
+        write_md(run_id, node_key, md)
+
+    # Écrire sidecar LLM si disponible
+    meta = _extract_llm_meta_from_result(artifact)
+    if meta:
+        write_llm_sidecar(run_id, node_key, meta)
+
+    return {"artifact": artifact}
+
+
+# ---------- Boucle d'exécution du DAG ----------------------------------------
 
 async def run_graph(
     dag: TaskGraph,
@@ -193,10 +259,8 @@ async def run_graph(
     replayed_count = 0
     any_failed = False
 
-    # exécution topologique simple (le DAG produit déjà un ordre valable)
     nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
     for node in nodes_iter:
-        # Préparation (tolérante aux str/dict)
         log.debug(
             "Preparing node: key=%s title=%s deps=%s",
             _get_attr(node, "key"),
@@ -222,7 +286,6 @@ async def run_graph(
         prev_status = previous.get("status")
         prev_checksum = previous.get("input_checksum")
 
-        # Dépendances: si une dep a échoué, on s'arrête
         dep_ids = _norm_dep_ids(node)
         if any(dep not in completed_ids for dep in dep_ids):
             raise RuntimeError(f"Dependencies incomplete for node {node_id_txt}")
@@ -242,20 +305,18 @@ async def run_graph(
             completed_ids.add(node_id_txt)
             continue
 
-        # start hook (tolérant: tente (node, node_id_txt), sinon (node))
         if on_node_start:
             try:
                 try:
-                    await on_node_start(node, node_id_txt)  # nouvelle signature
+                    await on_node_start(node, node_id_txt)
                 except TypeError:
-                    await on_node_start(node)  # rétro-compat
+                    await on_node_start(node)
             except Exception as e:
                 print(colorize(f"[HOOK-ERR] on_node_start: {e}", RED))
 
-        # Exécution du nœud
         status = "failed"
         try:
-            _ = await _execute_node(node, storage, dag)
+            _ = await _execute_node(node, storage, dag, run_id, node_id_txt)
             status = "completed"
             replayed_count += 1
             completed_ids.add(node_id_txt)
@@ -265,7 +326,6 @@ async def run_graph(
             status = "failed"
             any_failed = True
 
-        # Persiste statut file-based (toujours)
         out = {
             "run_id": run_id,
             "node_id": node_id_txt,
@@ -275,22 +335,19 @@ async def run_graph(
         }
         status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
 
-        # end hook (tolérant: tente (node, node_id_txt, status), sinon (node, status))
         if on_node_end:
             try:
                 try:
-                    await on_node_end(node, node_id_txt, status)  # nouvelle signature
+                    await on_node_end(node, node_id_txt, status)
                 except TypeError:
-                    await on_node_end(node, status)  # rétro-compat
+                    await on_node_end(node, status)
             except Exception as e:
                 print(colorize(f"[HOOK-ERR] on_node_end: {e}", RED))
 
-    # résumé
     now_utc = datetime.now(timezone.utc)
     try:
         from zoneinfo import ZoneInfo
-        tz = ZoneInfo("Europe/Paris")
-        now_paris = now_utc.astimezone(tz)
+        now_paris = now_utc.astimezone(ZoneInfo("Europe/Paris"))
     except Exception:
         now_paris = now_utc
 

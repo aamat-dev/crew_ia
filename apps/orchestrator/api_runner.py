@@ -59,24 +59,14 @@ def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
     return {}
 
 def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> dict:
-    """
-    Cherche un sidecar LLM JSON dans:
-      .runs/<run_id>/nodes/<node_key>/*.llm.json
-    Retourne le premier JSON valide trouvé.
-    """
     base = runs_root or os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs"
     node_dir = Path(base) / run_id / "nodes" / node_key
     if not node_dir.is_dir():
         return {}
-    # ordre de préférence: artifact_<node_key>.llm.json puis tout *.llm.json
     candidates = [node_dir / f"artifact_{node_key}.llm.json"] + sorted(node_dir.glob("*.llm.json"))
-    seen = set()
     for p in candidates:
         if not p.exists():
             continue
-        if p in seen:
-            continue
-        seen.add(p)
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             if isinstance(obj, dict):
@@ -90,7 +80,6 @@ def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> d
             continue
     return {}
 
-
 async def run_task(
     run_id: str,
     task_spec: dict,
@@ -102,17 +91,13 @@ async def run_task(
 ):
     started = dt.datetime.now(dt.timezone.utc)
 
-    # 1) Construire DAG
     if not task_spec.get("plan") and task_spec.get("type") == "demo":
-        # Plan minimal de démonstration
         task_spec = {**task_spec, "plan": [{"id": "n1", "title": title}]}
     dag = TaskGraph.from_plan(task_spec)
 
-    # 2) Callbacks télémétrie
     node_ids: dict[str, UUID] = {}
 
     async def on_node_start(node, node_key: str):
-        """Persiste un nœud au démarrage et mémorise son UUID."""
         node_db = await storage.save_node(
             node=Node(
                 id=uuid.uuid4(),
@@ -120,18 +105,15 @@ async def run_task(
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
+                started_at=dt.datetime.now(dt.timezone.utc),  # ← ajouté
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
         node_ids[node_key] = node_db.id
-        # permet à agent_runner de retrouver l'id DB
         try:
             setattr(node, "db_id", node_db.id)
         except Exception:
             pass
-
-        if not meta:
-            log.debug("no LLM meta for run_id=%s node_key=%s (DB+FS empty)", run_id, node_key)
 
         await event_publisher.emit(
             EventType.NODE_STARTED,
@@ -151,6 +133,7 @@ async def run_task(
         except ValueError:
             log.warning("Statut de nœud inconnu: %s", status)
             node_status = NodeStatus.failed
+
         await storage.save_node(
             node=Node(
                 id=node_id,
@@ -163,23 +146,21 @@ async def run_task(
             )
         )
 
-        # 1) Essaye via DB: logical_id -> node_id -> artifacts
+        # ----- Enrichissement LLM: DB -> FS (+ micro‑retry) -----
         meta = {}
         node_db_id = node_id
         try:
-            # méthode optionnelle selon l'adapter; on tente si dispo
             if node_db_id is None and hasattr(storage, "get_node_id_by_logical"):
                 node_db_id = await storage.get_node_id_by_logical(run_id, node_key)
-            # si on a un id DB, on liste les artifacts (si dispo)
             if node_db_id and hasattr(storage, "list_artifacts_for_node"):
                 artifacts = await storage.list_artifacts_for_node(node_db_id)
                 meta = _extract_llm_meta_from_artifacts(artifacts) or {}
         except Exception:
-            # on n'échoue pas l'exécution pour de la télémétrie
             meta = {}
 
-        # 2) Fallback FS
         if not meta:
+            # micro‑retry: laisse le temps à l’exécuteur d’écrire le sidecar
+            await anyio.sleep(0.35)
             meta = _read_llm_sidecar_fs(run_id, node_key) or {}
 
         payload = {
@@ -197,14 +178,9 @@ async def run_task(
                 "usage": meta.get("usage"),
             })
 
-        event_type = (
-            EventType.NODE_COMPLETED
-            if node_status == NodeStatus.completed
-            else EventType.NODE_FAILED
-        )
+        event_type = EventType.NODE_COMPLETED if node_status == NodeStatus.completed else EventType.NODE_FAILED
         await event_publisher.emit(event_type, payload)
 
-    # 3) Exécution DAG + events de run
     try:
         await event_publisher.emit(
             EventType.RUN_STARTED, {"run_id": run_id, "title": title, "request_id": request_id}
