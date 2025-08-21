@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from uuid import UUID
 from typing import Any, Dict, Optional
 
@@ -104,6 +105,7 @@ async def run_task(
         """Persiste un nœud au démarrage et mémorise son UUID."""
         node_db = await storage.save_node(
             node=Node(
+                id=uuid.uuid4(),
                 run_id=UUID(run_id),
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
