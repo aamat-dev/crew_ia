@@ -130,13 +130,18 @@ async def run_task(
     async def on_node_end(node, node_key: str, status: str):
         ended = dt.datetime.now(dt.timezone.utc)
         node_id = node_ids.get(node_key)
+        try:
+            node_status = NodeStatus(status)
+        except ValueError:
+            log.warning("Statut de nœud inconnu: %s", status)
+            node_status = NodeStatus.failed
         await storage.save_node(
             node=Node(
                 id=node_id,
                 run_id=UUID(run_id),
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
-                status=NodeStatus.completed if status == "completed" else NodeStatus.failed,
+                status=node_status,
                 updated_at=ended,
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
@@ -164,7 +169,7 @@ async def run_task(
         payload = {
             "run_id": run_id,
             "node_key": node_key,
-            "status": status.upper(),
+            "status": node_status.value.upper(),
             "request_id": request_id,
             "checksum": getattr(node, "checksum", None),
         }
@@ -176,10 +181,12 @@ async def run_task(
                 "usage": meta.get("usage"),
             })
 
-        await event_publisher.emit(
-            EventType.NODE_COMPLETED if status == "completed" else EventType.NODE_FAILED,
-            payload,
+        event_type = (
+            EventType.NODE_COMPLETED
+            if node_status == NodeStatus.completed
+            else EventType.NODE_FAILED
         )
+        await event_publisher.emit(event_type, payload)
 
     # 3) Exécution DAG + events de run
     try:
