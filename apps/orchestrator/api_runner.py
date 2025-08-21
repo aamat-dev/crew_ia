@@ -94,7 +94,7 @@ async def run_task(
     # 1) Construire DAG
     if not task_spec.get("plan") and task_spec.get("type") == "demo":
         # Plan minimal de démonstration
-        task_spec = {"plan": [{"id": "n1", "title": title}]}
+        task_spec = {**task_spec, "plan": [{"id": "n1", "title": title}]}
     dag = TaskGraph.from_plan(task_spec)
 
     # 2) Callbacks télémétrie
