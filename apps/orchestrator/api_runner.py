@@ -97,8 +97,10 @@ async def run_task(
     dag = TaskGraph.from_plan(task_spec)
 
     node_ids: dict[str, UUID] = {}
+    node_started_at: dict[str, dt.datetime] = {}
 
     async def on_node_start(node, node_key: str):
+        now = dt.datetime.now(dt.timezone.utc)
         node_db = await storage.save_node(
             node=Node(
                 id=uuid.uuid4(),
@@ -106,10 +108,13 @@ async def run_task(
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
+                started_at=now,
+
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
         node_ids[node_key] = node_db.id
+        node_started_at[node_key] = now
         try:
             setattr(node, "db_id", node_db.id)
         except Exception:
@@ -141,6 +146,7 @@ async def run_task(
                 key=node_key,
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=node_status,
+                started_at=node_started_at.get(node_key),
                 updated_at=ended,
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )

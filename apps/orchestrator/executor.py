@@ -12,9 +12,11 @@ from __future__ import annotations
 import json
 import traceback
 import logging
+import inspect
 from typing import Optional, Set, Callable, Awaitable, Dict, Any
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import UUID
 
 from core.config import get_var
 from core.planning.task_graph import TaskGraph, PlanNode
@@ -149,6 +151,7 @@ def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
         lat = obj.get("latency_ms") or obj.get("duration_ms") or obj.get("latency")
         usage = obj.get("usage")
         prompts = obj.get("prompts")
+        markdown = obj.get("markdown")
 
         if prov or model or lat or usage or prompts:
             out = {
@@ -159,7 +162,12 @@ def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
             }
             if isinstance(prompts, dict):
                 out["prompts"] = prompts
+            if isinstance(markdown, str):
+                out["markdown"] = markdown
             break
+
+    if not out and isinstance(artifact.get("markdown"), str):
+        out["markdown"] = artifact["markdown"]
 
     return out
 
@@ -180,6 +188,33 @@ def _extract_markdown_from_result(artifact: Any) -> str | None:
     return None
 
 
+async def _save_artifact_db(storage: CompositeAdapter, **kwargs) -> None:
+    """Persiste l'artifact sur les adaptateurs DB (ext=.md/.llm.json) si node_id est un UUID."""
+    node_id = kwargs.get("node_id")
+    try:
+        UUID(str(node_id))
+    except Exception:
+        log.debug("node_id non UUID, DB ignorée: %s", node_id)
+        return
+
+    adapters = getattr(storage, "adapters", None)
+    if adapters:
+        for ad in adapters:
+            if getattr(ad, "expects_uuid_ids", False) and hasattr(ad, "save_artifact"):
+                fn = getattr(ad, "save_artifact")
+                if inspect.iscoroutinefunction(fn):
+                    await fn(**kwargs)
+                else:
+                    fn(**kwargs)
+    else:
+        fn = getattr(storage, "save_artifact", None)
+        if fn:
+            if inspect.iscoroutinefunction(fn):
+                await fn(**kwargs)
+            else:
+                fn(**kwargs)
+
+
 # ---------- Exécution d'un nœud ----------------------------------------------
 
 async def _execute_node(
@@ -192,7 +227,7 @@ async def _execute_node(
     role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
     registry = load_default_registry()
     spec = registry.get(role) or recruit(role)
-    log.info("node=%s role=%s provider=%s model=%s", node_key, role, spec.provider, spec.model)
+    log.debug("node=%s role=%s provider=%s model=%s", node_key, role, spec.provider, spec.model)
 
     # Assure le dossier FS du nœud
     ndir = fs_node_dir(run_id, node_key)
@@ -223,19 +258,52 @@ async def _execute_node(
         return output.model_dump()
 
     # Sinon: agent "exécuteur" (LLM)
-    artifact = await agent_runner(node, storage)
+    artifact = await agent_runner(node)
+
+    node_dbid = getattr(node, "db_id", None)
 
     # Écrire éventuel markdown
     md = _extract_markdown_from_result(artifact)
     if md:
         write_md(run_id, node_key, md)
+        if node_dbid:
+            try:
+                node_uuid = UUID(str(node_dbid))
+                await _save_artifact_db(storage, node_id=node_uuid, content=md, ext=".md")
+            except Exception:
+                log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
 
     # Écrire sidecar LLM si disponible
     meta = _extract_llm_meta_from_result(artifact)
-    if meta:
-        write_llm_sidecar(run_id, node_key, meta)
+    sidecar = None
+    if meta or md:
+        sidecar = {**(meta or {})}
+        if md:
+            sidecar["markdown"] = md
+    if sidecar:
+        write_llm_sidecar(run_id, node_key, sidecar)
+        if node_dbid:
+            try:
+                node_uuid = UUID(str(node_dbid))
+                await _save_artifact_db(
+                    storage,
+                    node_id=node_uuid,
+                    content=json.dumps(sidecar, ensure_ascii=False, indent=2),
+                    ext=".llm.json",
+                )
+            except Exception:
+                log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
 
-    return {"artifact": artifact}
+    log.info(
+        "node=%s role=%s provider=%s model=%s latency_ms=%s",
+        node_key,
+        role,
+        sidecar.get("provider") if sidecar else None,
+        sidecar.get("model") if sidecar else None,
+        sidecar.get("latency_ms") if sidecar else None,
+    )
+
+    return {"markdown": md, "llm": sidecar}
 
 
 # ---------- Boucle d'exécution du DAG ----------------------------------------

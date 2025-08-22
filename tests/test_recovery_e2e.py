@@ -49,7 +49,7 @@ async def test_recovery_resume(tmp_path, monkeypatch):
     flag_file.write_text("first")
 
     # Monkeypatch du worker LLM
-    async def fake_agent_runner(node, storage):
+    async def fake_agent_runner(node):
         await asyncio.sleep(0.01)
         if node.id == "B":
             if flag_file.read_text().strip() == "first":
@@ -61,7 +61,7 @@ async def test_recovery_resume(tmp_path, monkeypatch):
     monkeypatch.setattr(ex_mod, "agent_runner", fake_agent_runner)
 
     class DummyStorage:
-        async def save_artifact(self, *args, **kwargs):
+        async def save_artifact(self, node_id, content, *, ext):
             return True
     storage = DummyStorage()
 

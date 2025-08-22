@@ -20,11 +20,9 @@ async def test_events_include_llm_metadata(client):
             break
         await asyncio.sleep(0.05)
 
-    ev = await client.get(
-        "/events",
-        params={"run_id": rid},
-        headers={"X-API-Key": "test-key"},
-    )
+
+    ev = await client.get("/events", params={"run_id": rid}, headers={"X-API-Key": "test-key"})
+
     assert ev.status_code == 200
     items = ev.json()["items"]
     node_completed = [e for e in items if e["level"] == "NODE_COMPLETED"]

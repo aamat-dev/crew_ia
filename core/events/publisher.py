@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from uuid import UUID
 
 from core.storage.composite_adapter import CompositeAdapter
@@ -18,12 +18,9 @@ class EventPublisher:
         self.adapter = adapter
 
     async def emit(
-        self,
-        event_type: EventType | str,
-        payload: Dict[str, Any],
-        request_id: Optional[str] = None,
+        self, event_type: EventType | str, payload: Dict[str, Any], request_id: str | None = None
     ):
-        if request_id:
+        if request_id is not None:
             payload = {**payload, "request_id": request_id}
 
         level = event_type.value if isinstance(event_type, EventType) else str(event_type)

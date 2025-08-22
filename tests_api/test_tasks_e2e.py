@@ -37,9 +37,7 @@ async def test_create_and_follow_task(client):
 
     # Events
     r_events = await client.get(
-        "/events",
-        params={"run_id": run_id},
-        headers={"X-API-Key": "test-key"},
+        "/events", params={"run_id": run_id}, headers={"X-API-Key": "test-key"}
     )
     levels = [e["level"] for e in r_events.json()["items"]]
     assert "RUN_STARTED" in levels
