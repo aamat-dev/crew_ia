@@ -160,6 +160,11 @@ tail:
 	echo "Tailing $$latest_run/orchestrator.log"; \
 	tail -f "$$latest_run/orchestrator.log"
 
+.PHONY: tail-events
+tail-events: ensure-venv
+	@if [ -z "$(RUN_ID)" ]; then echo "RUN_ID requis"; exit 1; fi
+	@$(ACTIVATE) && $(PYTHON) tools/tail_events.py --run-id $(RUN_ID) --url http://$(API_HOST):$(API_PORT)/events
+
 .PHONY: env-check
 env-check: ensure-venv
 	@$(ACTIVATE) && $(PYTHON) - << 'PY'
