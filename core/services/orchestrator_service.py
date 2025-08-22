@@ -5,6 +5,7 @@ import json
 import os
 import anyio
 from datetime import datetime, timezone
+import logging
 
 from core.storage.db_models import Run, RunStatus
 from core.storage.composite_adapter import CompositeAdapter
@@ -12,6 +13,8 @@ from core.storage.file_adapter import FileAdapter
 from core.storage.postgres_adapter import PostgresAdapter
 from core.events.publisher import EventPublisher
 from apps.orchestrator.api_runner import run_task
+
+log = logging.getLogger("orchestrator.service")
 
 def _load_task_from_file(path: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
@@ -63,6 +66,7 @@ async def schedule_run(
     await storage.save_run(
         run=Run(id=run_id, title=title, status=RunStatus.running, started_at=now, meta={"request_id": request_id})
     )
+    log.info("run created request_id=%s run_id=%s", request_id, run_id)
 
     # Démarrer l'exécution asynchrone fire-and-forget
     tg.start_soon(

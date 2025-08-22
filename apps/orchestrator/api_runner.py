@@ -197,6 +197,15 @@ async def run_task(
             if node_status == NodeStatus.completed
             else EventType.NODE_FAILED
         )
+        if node_status == NodeStatus.completed:
+            log.info(
+                "NODE_COMPLETED run_id=%s node=%s provider=%s model=%s latency_ms=%s",
+                run_id,
+                node_key,
+                payload.get("provider"),
+                payload.get("model"),
+                payload.get("latency_ms"),
+            )
         await event_publisher.emit(event_type, payload, request_id=request_id)
 
     try:
