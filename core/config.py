@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
@@ -96,9 +97,10 @@ LLM_DEFAULT_MODEL = get_var("LLM_DEFAULT_MODEL")
 LLM_FALLBACK_ORDER = [
     p.strip() for p in get_var("LLM_FALLBACK_ORDER", "ollama,openai").split(",") if p.strip()
 ]
+# Paramètres globaux (avec compatibilité des anciens noms)
 LLM_TIMEOUT_S = int(get_var("LLM_TIMEOUT_S", 60))
-LLM_TEMPERATURE = float(get_var("LLM_TEMPERATURE", 0.2))
-LLM_MAX_TOKENS = int(get_var("LLM_MAX_TOKENS", 1500))
+LLM_DEFAULT_TEMPERATURE = _env_float("LLM_DEFAULT_TEMPERATURE", _env_float("LLM_TEMPERATURE", 0.2))
+LLM_DEFAULT_MAX_TOKENS = _env_int("LLM_DEFAULT_MAX_TOKENS", _env_int("LLM_MAX_TOKENS", 1500))
 
 # Overrides par agent (nouveau schéma)
 SUPERVISOR_PROVIDER = get_var("SUPERVISOR_PROVIDER")
@@ -170,8 +172,8 @@ def resolve_llm(agent_role: str) -> Tuple[str, str, Dict[str, Any]]:
 
     # PARAMS PAR DÉFAUT (globaux)
     default_timeout = _env_int("LLM_TIMEOUT_S", 60)
-    default_temp = _env_float("LLM_TEMPERATURE", 0.2)
-    default_tokens = _env_int("LLM_MAX_TOKENS", 1500)
+    default_temp = LLM_DEFAULT_TEMPERATURE
+    default_tokens = LLM_DEFAULT_MAX_TOKENS
 
     # OVERRIDES PAR RÔLE (si présents)
     timeout = _env_int(_role_key(role, "TIMEOUT_S"), default_timeout)
@@ -222,6 +224,30 @@ def resolve_llm_with_overrides(role: str, overrides: Dict[str, Any] | None = Non
         params["fallback_order"] = list(fo)
 
     return provider, model, params
+
+
+# ===============================
+# 6) Rôle -> config simplifiée
+# ===============================
+
+
+@dataclass
+class RoleConfig:
+    provider: str
+    model: str
+    temperature: float
+    max_tokens: int
+
+
+def get_role_config(role: str) -> RoleConfig:
+    """Expose la config LLM (provider, modèle, température, max_tokens) pour un rôle."""
+    provider, model, params = resolve_llm(role)
+    return RoleConfig(
+        provider=provider,
+        model=model,
+        temperature=params.get("temperature", LLM_DEFAULT_TEMPERATURE),
+        max_tokens=params.get("max_tokens", LLM_DEFAULT_MAX_TOKENS),
+    )
 
 
 # Petits helpers debug si besoin
