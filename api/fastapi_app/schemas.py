@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, StrictBool
 from typing import Generic, List, Optional, TypeVar, Any, Dict, Union
 from uuid import UUID
 from datetime import datetime
@@ -24,21 +24,42 @@ class LLMOptions(BaseModel):
 
 # ---------- Task options ----------
 class TaskOptions(BaseModel):
-    resume: bool = False
-    dry_run: bool = False
+    """Options de déclenchement d'une tâche."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resume: StrictBool = False
+    dry_run: StrictBool = False
     override: List[str] = Field(default_factory=list)
-    use_supervisor: bool = False  # si vous déclenchez la génération via superviseur
+    use_supervisor: StrictBool = False  # si vous déclenchez la génération via superviseur
     llm: Optional[LLMOptions] = None
+
+
+# ---------- Task spec ----------
+class NodeSpec(BaseModel):
+    id: str
+    title: str
+    deps: Optional[List[str]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class TaskSpec(BaseModel):
+    type: Optional[str] = None
+    title: Optional[str] = None
+    plan: Optional[List[NodeSpec]] = None
+
+    model_config = ConfigDict(extra="allow")
 
 # ---------- Task request ----------
 class TaskRequest(BaseModel):
     title: str
     # Une seule des 2 sources est requise :
-    task_file: Optional[str] = None       # chemin JSON (ex: examples/task_rapport_80p.json)
-    task: Optional[Dict[str, Any]] = None # plan inline (doit contenir "plan":[...])
+    task_file: Optional[str] = None  # chemin JSON (ex: examples/task_rapport_80p.json)
+    task: Optional[TaskSpec] = None  # plan inline (doit contenir "plan":[...])
 
     # Compat : certains clients existaient déjà avec "task_spec"
-    task_spec: Optional[Dict[str, Any]] = None
+    task_spec: Optional[TaskSpec] = None
 
     options: TaskOptions = Field(default_factory=TaskOptions)
     request_id: Optional[str] = None
