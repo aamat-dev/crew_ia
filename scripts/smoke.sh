@@ -4,22 +4,22 @@ set -euo pipefail
 # -----------------------------
 # Config & arguments
 # -----------------------------
-API_BASE="${API_BASE:-http://localhost:8080}"
+API_BASE="${API_BASE:-http://localhost:8000}"
 API_KEY="${API_KEY:-}"
 RUN_ID="${RUN_ID:-}"
 NODE_ID="${NODE_ID:-}"
 
 usage() {
   cat <<USAGE
-Usage: API_BASE=http://localhost:8080 API_KEY=<key> ./smoke.sh
+Usage: API_BASE=http://localhost:8000 API_KEY=<key> ./smoke.sh
 Options:
-  -b <base_url>   (ex: http://localhost:8080)    [par défaut: \$API_BASE]
+  -b <base_url>   (ex: http://localhost:8000)    [par défaut: \$API_BASE]
   -k <api_key>    (ou export API_KEY)            [obligatoire]
   -r <run_uuid>   (sinon auto-détection)
   -n <node_uuid>  (sinon auto-détection)
 Exemples:
   API_KEY=changeme ./smoke.sh
-  ./smoke.sh -b http://127.0.0.1:8080 -k changeme
+  ./smoke.sh -b http://127.0.0.1:8000 -k changeme
 USAGE
 }
 
