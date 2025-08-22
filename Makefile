@@ -188,17 +188,17 @@ api-test: ensure-venv
 		echo "⏭️  Pas de dossier api/tests — skip"; \
 	fi
 
-.PHONY: api-e2e-tasks
-api-e2e-tasks: ensure-venv
-	@$(ACTIVATE) && pytest -q api/tests/test_tasks_e2e.py
-
-.PHONY: api-e2e-meta
-api-e2e-meta: ensure-venv
-	@$(ACTIVATE) && pytest -q api/tests/test_tasks_e2e.py::test_events_include_llm_metadata
+.PHONY: api-e2e
+api-e2e: ensure-venv
+	@$(ACTIVATE) && pytest -q api/tests
 
 .PHONY: api-e2e-happy
 api-e2e-happy: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_happy_e2e.py
+
+.PHONY: api-e2e-meta
+api-e2e-meta: ensure-venv
+	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
 
 # ---- Validation (optionnel) ----------------------------------
 .PHONY: validate
