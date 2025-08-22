@@ -14,12 +14,14 @@ async def test_events_include_llm_metadata(client):
     rid = r.json()["run_id"]
 
     # poll
-    for _ in range(60):
+    for _ in range(120):
         rr = await client.get(f"/runs/{rid}", headers={"X-API-Key": "test-key"})
-        if rr.json()["status"] in ("completed", "failed"):
+        status = rr.json()["status"]
+        if status in ("completed", "failed"):
             break
         await asyncio.sleep(0.05)
-
+    else:
+        pytest.fail("Run did not finish in time")
 
     ev = await client.get("/events", params={"run_id": rid}, headers={"X-API-Key": "test-key"})
 
