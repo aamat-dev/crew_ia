@@ -17,7 +17,11 @@ class EventPublisher:
     def __init__(self, adapter: CompositeAdapter):
         self.adapter = adapter
 
-    async def emit(self, event_type: EventType | str, payload: Dict[str, Any]):
+    async def emit(
+        self, event_type: EventType | str, payload: Dict[str, Any], request_id: str | None = None
+    ):
+        if request_id is not None:
+            payload = {**payload, "request_id": request_id}
         level = event_type.value if isinstance(event_type, EventType) else str(event_type)
         run_id = payload.get("run_id")
         node_id = payload.get("node_id")

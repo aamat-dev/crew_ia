@@ -24,6 +24,8 @@ async def test_post_tasks_and_follow(async_client):
     # checks de base
     nodes = await async_client.get(f"/runs/{rid}/nodes", headers={"X-API-Key":"test-key"})
     assert nodes.status_code == 200
-    events = await async_client.get(f"/runs/{rid}/events", headers={"X-API-Key":"test-key"})
+    events = await async_client.get(
+        "/events", params={"run_id": rid}, headers={"X-API-Key": "test-key"}
+    )
     assert events.status_code == 200
     assert any(e["level"].startswith("RUN_") for e in events.json()["items"])

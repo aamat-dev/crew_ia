@@ -18,7 +18,9 @@ async def test_node_completed_has_meta(async_client):
             break
         await asyncio.sleep(0.06)
 
-    ev = await async_client.get(f"/runs/{rid}/events", headers={"X-API-Key":"test-key"})
+    ev = await async_client.get(
+        "/events", params={"run_id": rid}, headers={"X-API-Key": "test-key"}
+    )
     msgs = [e["message"] for e in ev.json()["items"] if e["level"]=="NODE_COMPLETED"]
     assert msgs, "missing NODE_COMPLETED"
     meta = json.loads(msgs[0])

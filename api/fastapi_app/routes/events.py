@@ -3,17 +3,20 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+import logging
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, read_timezone, to_tz
+from ..deps import get_session
 from ..schemas import Page, EventOut
 from core.storage.db_models import Event  # type: ignore
 
 from ..deps import api_key_auth
 
-router = APIRouter(prefix="/runs", tags=["events"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(api_key_auth)])
+_deprecated_warned = False
+log = logging.getLogger("api.events")
 
 ORDERABLE = {"timestamp": Event.timestamp, "level": Event.level}
 
@@ -25,11 +28,12 @@ def order(stmt, order_by: str | None):
     col = ORDERABLE.get(key, Event.timestamp)
     return stmt.order_by(direction(col))
 
-@router.get("/{run_id}/events", response_model=Page[EventOut])
+@router.get("/events", response_model=Page[EventOut])
+@router.get("/runs/{run_id_path}/events", response_model=Page[EventOut])
 async def list_events(
-    run_id: UUID,
+    run_id: UUID | None = Query(None),
+    run_id_path: UUID | None = None,
     session: AsyncSession = Depends(get_session),
-    tz = Depends(read_timezone),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     level: Optional[str] = Query(None),
@@ -38,6 +42,14 @@ async def list_events(
     ts_to: Optional[datetime] = Query(None),
     order_by: Optional[str] = Query("-timestamp"),
 ):
+    global _deprecated_warned
+    run_id = run_id or run_id_path
+    if run_id_path and not _deprecated_warned:
+        log.warning("/runs/{run_id}/events est déprécié; utilisez /events?run_id=…")
+        _deprecated_warned = True
+    if run_id is None:
+        raise HTTPException(status_code=400, detail="run_id requis")
+
     where = [Event.run_id == run_id]
     if level:
         where.append(Event.level == level)
@@ -66,7 +78,7 @@ async def list_events(
             node_id=getattr(e, "node_id", None),
             level=e.level,
             message=e.message,
-            timestamp=to_tz(e.timestamp, tz),
+            timestamp=e.timestamp,
         )
         for e in rows
     ]
