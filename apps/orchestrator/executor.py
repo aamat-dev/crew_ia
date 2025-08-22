@@ -272,6 +272,8 @@ async def _execute_node(
                 await _save_artifact_db(storage, node_id=node_uuid, content=md, ext=".md")
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+        else:
+            Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
 
     # Écrire sidecar LLM si disponible
     meta = _extract_llm_meta_from_result(artifact)
@@ -293,6 +295,10 @@ async def _execute_node(
                 )
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+        else:
+            Path(f"artifact_{node_key}.llm.json").write_text(
+                json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
     log.info(
         "node=%s role=%s provider=%s model=%s latency_ms=%s",
