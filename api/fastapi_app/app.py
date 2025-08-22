@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)
+        app.state.rate_limits = {}
         yield
         # task group exits cancelling background tasks
 
