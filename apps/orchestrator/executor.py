@@ -45,6 +45,12 @@ YELLOW = "\033[93m"
 RED = "\033[91m"
 
 
+def _is_pytest_tmp_cwd() -> bool:
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    # si on est dans le repo (dossier qui contient .git), on NE veut pas écrire à la racine
+    return not (Path.cwd() / ".git").exists()
+
 def colorize(msg: str, color: str) -> str:
     return f"{color}{msg}{RESET}"
 
@@ -274,8 +280,8 @@ async def _execute_node(
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
-            # Fallback legacy pour compat tests E2E uniquement
-            if os.getenv("PYTEST_CURRENT_TEST"):
+            # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
+            if _is_pytest_tmp_cwd():
                 Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
 
     # Écrire sidecar LLM si disponible
@@ -299,8 +305,8 @@ async def _execute_node(
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
-            # Fallback legacy pour compat tests E2E uniquement
-            if os.getenv("PYTEST_CURRENT_TEST"):
+            # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
+            if _is_pytest_tmp_cwd():
                 Path(f"artifact_{node_key}.llm.json").write_text(
                     json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
