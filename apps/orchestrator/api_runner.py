@@ -21,12 +21,12 @@ import anyio
 
 log = logging.getLogger("orchestrator.api_runner")
 
+
 def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
     """
-    Cherche dans les artifacts DB un JSON contenant provider/model/latency/usage.
-    On tente 'content' JSON ; à défaut si 'path' pointe vers un .llm.json on le lit.
+    Cherche dans les artifacts DB un JSON contenant provider/model/latency/usage/prompts.
+    On ne touche qu'aux contenus en base ; le fallback FS est géré ailleurs.
     """
-    # 1) contenu JSON direct
     for a in artifacts:
         c = a.get("content")
         if not c:
@@ -35,51 +35,59 @@ def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
             obj = json.loads(c)
         except Exception:
             continue
-        if isinstance(obj, dict) and ("provider" in obj or "model" in obj or "latency_ms" in obj):
-            return {
-                "provider": obj.get("provider"),
-                "model": obj.get("model_used") or obj.get("model"),
-                "latency_ms": obj.get("latency_ms"),
-                "usage": obj.get("usage"),
-            }
-    # 2) chemin .llm.json éventuel
-    for a in artifacts:
-        p = a.get("path")
-        if not p or not str(p).endswith(".llm.json"):
+        if not isinstance(obj, dict):
             continue
-        try:
-            obj = json.loads(Path(p).read_text(encoding="utf-8"))
-            return {
+
+        if any(
+            k in obj
+            for k in (
+                "provider",
+                "model",
+                "model_used",
+                "latency_ms",
+                "usage",
+                "prompts",
+            )
+        ):
+            out = {
                 "provider": obj.get("provider"),
                 "model": obj.get("model_used") or obj.get("model"),
                 "latency_ms": obj.get("latency_ms"),
                 "usage": obj.get("usage"),
             }
-        except Exception:
-            pass
+            if obj.get("prompts") is not None:
+                out["prompts"] = obj.get("prompts")
+            return out
     return {}
+
 
 def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> dict:
     base = runs_root or os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs"
     node_dir = Path(base) / run_id / "nodes" / node_key
     if not node_dir.is_dir():
         return {}
-    candidates = [node_dir / f"artifact_{node_key}.llm.json"] + sorted(node_dir.glob("*.llm.json"))
+    candidates = [node_dir / f"artifact_{node_key}.llm.json"] + sorted(
+        node_dir.glob("*.llm.json")
+    )
     for p in candidates:
         if not p.exists():
             continue
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             if isinstance(obj, dict):
-                return {
+                out = {
                     "provider": obj.get("provider"),
                     "model": obj.get("model_used") or obj.get("model"),
                     "latency_ms": obj.get("latency_ms"),
                     "usage": obj.get("usage"),
                 }
+                if obj.get("prompts") is not None:
+                    out["prompts"] = obj.get("prompts")
+                return out
         except Exception:
             continue
     return {}
+
 
 async def run_task(
     run_id: str,
@@ -106,11 +114,12 @@ async def run_task(
                 id=uuid.uuid4(),
                 run_id=UUID(run_id),
                 key=node_key,
-                title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
+                title=getattr(node, "title", "")
+                or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
                 started_at=now,
-
-                checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
+                checksum=getattr(node, "checksum", None)
+                or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
         node_ids[node_key] = node_db.id
@@ -144,11 +153,13 @@ async def run_task(
                 id=node_id,
                 run_id=UUID(run_id),
                 key=node_key,
-                title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
+                title=getattr(node, "title", "")
+                or (node.get("title") if isinstance(node, dict) else ""),
                 status=node_status,
                 started_at=node_started_at.get(node_key),
                 updated_at=ended,
-                checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
+                checksum=getattr(node, "checksum", None)
+                or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
 
@@ -176,19 +187,23 @@ async def run_task(
             "checksum": getattr(node, "checksum", None),
         }
         if meta:
-            payload.update({
-                "provider": meta.get("provider"),
-                "model": meta.get("model"),
-                "latency_ms": meta.get("latency_ms"),
-                "usage": meta.get("usage"),
-            })
+            for k in ("provider", "model", "latency_ms", "usage", "prompts"):
+                v = meta.get(k)
+                if v is not None:
+                    payload[k] = v
 
-        event_type = EventType.NODE_COMPLETED if node_status == NodeStatus.completed else EventType.NODE_FAILED
+        event_type = (
+            EventType.NODE_COMPLETED
+            if node_status == NodeStatus.completed
+            else EventType.NODE_FAILED
+        )
         await event_publisher.emit(event_type, payload, request_id=request_id)
 
     try:
         await event_publisher.emit(
-            EventType.RUN_STARTED, {"run_id": run_id, "title": title}, request_id=request_id
+            EventType.RUN_STARTED,
+            {"run_id": run_id, "title": title},
+            request_id=request_id,
         )
 
         res = await run_graph(
@@ -202,12 +217,24 @@ async def run_task(
         )
 
         ended = dt.datetime.now(dt.timezone.utc)
-        final_status = RunStatus.completed if res.get("status") == "success" else RunStatus.failed
+        final_status = (
+            RunStatus.completed if res.get("status") == "success" else RunStatus.failed
+        )
         await storage.save_run(
-            run=Run(id=UUID(run_id), title=title, status=final_status, started_at=started, ended_at=ended)
+            run=Run(
+                id=UUID(run_id),
+                title=title,
+                status=final_status,
+                started_at=started,
+                ended_at=ended,
+            )
         )
         await event_publisher.emit(
-            EventType.RUN_COMPLETED if final_status == RunStatus.completed else EventType.RUN_FAILED,
+            (
+                EventType.RUN_COMPLETED
+                if final_status == RunStatus.completed
+                else EventType.RUN_FAILED
+            ),
             {"run_id": run_id},
             request_id=request_id,
         )
@@ -215,7 +242,13 @@ async def run_task(
         log.exception("Background run failed for run_id=%s", run_id)
         ended = dt.datetime.now(dt.timezone.utc)
         await storage.save_run(
-            run=Run(id=UUID(run_id), title=title, status=RunStatus.failed, started_at=started, ended_at=ended)
+            run=Run(
+                id=UUID(run_id),
+                title=title,
+                status=RunStatus.failed,
+                started_at=started,
+                ended_at=ended,
+            )
         )
         await event_publisher.emit(
             EventType.RUN_FAILED,
