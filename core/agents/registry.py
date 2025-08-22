@@ -1,6 +1,8 @@
-import os
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict
+
+from core.config import get_role_config
+
 
 @dataclass
 class AgentSpec:
@@ -10,29 +12,45 @@ class AgentSpec:
     model: str
     tools: list[str]
 
-def _env(name:str, default:str=""):
-    return os.getenv(name, default)
 
-def load_default_registry() -> Dict[str,AgentSpec]:
+def load_default_registry() -> Dict[str, AgentSpec]:
+    sup_cfg = get_role_config("SUPERVISOR")
+    man_cfg = get_role_config("MANAGER")
+    exe_cfg = get_role_config("EXECUTOR")
     return {
-        "Supervisor": AgentSpec("Supervisor","core/agents/prompts/supervisor.txt",
-            _env("SUPERVISOR_PROVIDER",_env("LLM_DEFAULT_PROVIDER","ollama")),
-            _env("SUPERVISOR_MODEL",_env("LLM_DEFAULT_MODEL","llama3.1:8b")),
-            []),
-        "Manager_Generic": AgentSpec("Manager_Generic","core/agents/prompts/manager.txt",
-            _env("MANAGER_PROVIDER",_env("LLM_DEFAULT_PROVIDER","ollama")),
-            _env("MANAGER_MODEL",_env("LLM_DEFAULT_MODEL","llama3.1:8b")),
-            []),
-        "Writer_FR": AgentSpec("Writer_FR","core/agents/prompts/executors/writer_fr.txt",
-            _env("EXECUTOR_PROVIDER",_env("LLM_DEFAULT_PROVIDER","ollama")),
-            _env("EXECUTOR_MODEL",_env("LLM_DEFAULT_MODEL","llama3.1:8b")),
-            []),
-        "Researcher": AgentSpec("Researcher","core/agents/prompts/executors/researcher.txt",
-            _env("EXECUTOR_PROVIDER",_env("LLM_DEFAULT_PROVIDER","ollama")),
-            _env("EXECUTOR_MODEL",_env("LLM_DEFAULT_MODEL","llama3.1:8b")),
-            []),
-        "Reviewer": AgentSpec("Reviewer","core/agents/prompts/executors/reviewer.txt",
-            _env("EXECUTOR_PROVIDER",_env("LLM_DEFAULT_PROVIDER","ollama")),
-            _env("EXECUTOR_MODEL",_env("LLM_DEFAULT_MODEL","llama3.1:8b")),
-            []),
+        "Supervisor": AgentSpec(
+            "Supervisor",
+            "core/agents/prompts/supervisor.txt",
+            sup_cfg.provider,
+            sup_cfg.model,
+            [],
+        ),
+        "Manager_Generic": AgentSpec(
+            "Manager_Generic",
+            "core/agents/prompts/manager.txt",
+            man_cfg.provider,
+            man_cfg.model,
+            [],
+        ),
+        "Writer_FR": AgentSpec(
+            "Writer_FR",
+            "core/agents/prompts/executors/writer_fr.txt",
+            exe_cfg.provider,
+            exe_cfg.model,
+            [],
+        ),
+        "Researcher": AgentSpec(
+            "Researcher",
+            "core/agents/prompts/executors/researcher.txt",
+            exe_cfg.provider,
+            exe_cfg.model,
+            [],
+        ),
+        "Reviewer": AgentSpec(
+            "Reviewer",
+            "core/agents/prompts/executors/reviewer.txt",
+            exe_cfg.provider,
+            exe_cfg.model,
+            [],
+        ),
     }
