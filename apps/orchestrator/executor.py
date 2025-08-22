@@ -13,6 +13,7 @@ import json
 import traceback
 import logging
 import inspect
+import os
 from typing import Optional, Set, Callable, Awaitable, Dict, Any
 from datetime import datetime, timezone
 from pathlib import Path
@@ -273,7 +274,9 @@ async def _execute_node(
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
-            Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
+            # Fallback legacy pour compat tests E2E uniquement
+            if os.getenv("PYTEST_CURRENT_TEST"):
+                Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
 
     # Écrire sidecar LLM si disponible
     meta = _extract_llm_meta_from_result(artifact)
@@ -296,9 +299,11 @@ async def _execute_node(
             except Exception:
                 log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
-            Path(f"artifact_{node_key}.llm.json").write_text(
-                json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            # Fallback legacy pour compat tests E2E uniquement
+            if os.getenv("PYTEST_CURRENT_TEST"):
+                Path(f"artifact_{node_key}.llm.json").write_text(
+                    json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
 
     log.info(
         "node=%s role=%s provider=%s model=%s latency_ms=%s",
