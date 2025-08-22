@@ -109,6 +109,7 @@ async def run_task(
                 title=getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
                 started_at=now,
+
                 checksum=getattr(node, "checksum", None) or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )

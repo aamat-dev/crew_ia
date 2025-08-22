@@ -150,7 +150,7 @@ while [ $SECONDS -lt $DEADLINE ]; do
     echo "$RUN_JSON"
     echo "---- LOGS UVICORN ----"; tail -n +1 /tmp/crew_api.log || true
     echo "---- LAST EVENTS (for error cause) ----"
-    EVT_JSON="$(curl -sS -H "X-API-Key: ${API_KEY}" "${BASE_URL}/runs/${RUN_ID}/events")"
+    EVT_JSON="$(curl -sS -H "X-API-Key: ${API_KEY}" "${BASE_URL}/events?run_id=${RUN_ID}")"
     echo "$EVT_JSON" | jq -r '.items[] | "\(.timestamp) \(.level) -> \(.message)"' | tail -n 10
     die "Le run est passé à l'état 'failed'."
   fi
@@ -173,7 +173,7 @@ test "$ARTS_TOTAL" -ge 1 || { echo "$ARTS_JSON"; die "Aucun artifact pour le pre
 ok "Artifacts OK (total: ${ARTS_TOTAL})"
 
 log "Vérification des events du run…"
-EVT_JSON="$(curl -sS -H "X-API-Key: ${API_KEY}" "${BASE_URL}/runs/${RUN_ID}/events")"
+EVT_JSON="$(curl -sS -H "X-API-Key: ${API_KEY}" "${BASE_URL}/events?run_id=${RUN_ID}")"
 LEVELS="$(echo "$EVT_JSON" | jq -r '.items[].level')"
 echo "$LEVELS" | grep -q 'RUN_STARTED'   || { echo "$EVT_JSON"; die "RUN_STARTED absent des events"; }
 echo "$LEVELS" | grep -q 'RUN_COMPLETED' || { echo "$EVT_JSON"; die "RUN_COMPLETED absent des events"; }

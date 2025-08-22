@@ -22,6 +22,7 @@ class EventPublisher:
     ):
         if request_id is not None:
             payload = {**payload, "request_id": request_id}
+
         level = event_type.value if isinstance(event_type, EventType) else str(event_type)
         run_id = payload.get("run_id")
         node_id = payload.get("node_id")

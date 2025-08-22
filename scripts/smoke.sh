@@ -194,6 +194,7 @@ if [[ -n "$RUN_ID" ]]; then
     OK "GET /events"
   else
     FAIL "GET /events"
+
     failures=$((failures+1))
   fi
 else

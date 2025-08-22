@@ -24,6 +24,7 @@ async def test_create_and_follow_task(client):
 
     r_events = await client.get(
         f"/events", params={"run_id": run_id}, headers={"X-API-Key": "test-key"}
+
     )
     assert r_events.status_code == 200
     assert r_events.json()["total"] >= 1

@@ -63,9 +63,7 @@ async def list_events(
     base = select(Event).where(and_(*where))
     total = (
         await session.execute(
-            select(func.count(Event.id))
-            .select_from(Event)
-            .where(and_(*where))
+            select(func.count(Event.id)).select_from(Event).where(and_(*where))
         )
     ).scalar_one()
     stmt = order(base, order_by).limit(limit).offset(offset)

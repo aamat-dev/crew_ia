@@ -3,7 +3,9 @@ import pytest
 @pytest.mark.asyncio
 async def test_list_events_filter_level(client, seed_sample):
     run_id = seed_sample["run_id"]
+
     r = await client.get("/events", params={"run_id": run_id, "level": "ERROR"})
+
     assert r.status_code == 200
     js = r.json()
     assert js["total"] == 1
@@ -13,6 +15,7 @@ async def test_list_events_filter_level(client, seed_sample):
 @pytest.mark.asyncio
 async def test_list_events_filter_q(client, seed_sample):
     run_id = seed_sample["run_id"]
+
     r = await client.get("/events", params={"run_id": run_id, "q": "boom"})
     assert r.status_code == 200
     js = r.json()
