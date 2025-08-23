@@ -13,6 +13,11 @@ from core.llm.providers.base import (
     ProviderUnavailable,
 )
 from core.llm.providers.ollama import OllamaProvider
+from core.telemetry.metrics import (
+    metrics_enabled,
+    get_llm_tokens_total,
+    get_llm_cost_total,
+)
 
 log = logging.getLogger("crew.llm")
 
@@ -66,6 +71,42 @@ async def run_llm(req: LLMRequest, *, primary: Optional[str] = None, fallback_or
             out.latency_ms = dur_ms
             if out.raw and isinstance(out.raw, dict):
                 out.usage = out.raw.get("usage") or out.raw.get("token_usage") or out.usage
+            if metrics_enabled():
+                provider_label = out.provider or "unknown"
+                model_label = out.model_used or model or "unknown"
+                usage = out.usage if isinstance(out.usage, dict) else {}
+                prompt_tokens = usage.get("prompt_tokens")
+                completion_tokens = usage.get("completion_tokens")
+                try:
+                    prompt_tokens = int(prompt_tokens) if prompt_tokens is not None else 0
+                except Exception:
+                    prompt_tokens = 0
+                try:
+                    completion_tokens = int(completion_tokens) if completion_tokens is not None else 0
+                except Exception:
+                    completion_tokens = 0
+                get_llm_tokens_total().labels("prompt", provider_label, model_label).inc(
+                    prompt_tokens or 0
+                )
+                get_llm_tokens_total().labels("completion", provider_label, model_label).inc(
+                    completion_tokens or 0
+                )
+                cost_usd = None
+                if out.raw and isinstance(out.raw, dict):
+                    raw_usage = out.raw.get("usage") or {}
+                    cost_usd = (
+                        out.raw.get("cost_usd")
+                        or raw_usage.get("cost_usd")
+                        or out.raw.get("cost")
+                        or out.raw.get("price_usd")
+                    )
+                try:
+                    if cost_usd is not None:
+                        get_llm_cost_total().labels(provider_label, model_label).inc(
+                            float(cost_usd)
+                        )
+                except Exception:
+                    pass
             return out
         except ProviderTimeout as e:
             last_err = e
