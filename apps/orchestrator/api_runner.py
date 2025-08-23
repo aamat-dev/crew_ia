@@ -12,12 +12,18 @@ from core.events.publisher import EventPublisher
 from core.events.types import EventType
 from core.planning.task_graph import TaskGraph
 from apps.orchestrator.executor import run_graph
+from core.telemetry.metrics import (
+    metrics_enabled,
+    get_runs_total,
+    get_run_duration_seconds,
+)
 
 import json
 from pathlib import Path
 import logging
 import os
 import anyio
+import time
 
 log = logging.getLogger("orchestrator.api_runner")
 
@@ -122,6 +128,9 @@ async def run_task(
     request_id: Optional[str] = None,
 ):
     started = dt.datetime.now(dt.timezone.utc)
+    start_ts = time.perf_counter()
+    metrics_recorded = False
+    status_metric = "failed"
 
     if not task_spec.get("plan") and task_spec.get("type") == "demo":
         task_spec = {**task_spec, "plan": [{"id": "n1", "title": title}]}
@@ -252,6 +261,9 @@ async def run_task(
         final_status = (
             RunStatus.completed if res.get("status") == "success" else RunStatus.failed
         )
+        status_metric = (
+            "completed" if final_status == RunStatus.completed else "failed"
+        )
         await storage.save_run(
             run=Run(
                 id=UUID(run_id),
@@ -273,6 +285,7 @@ async def run_task(
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
         ended = dt.datetime.now(dt.timezone.utc)
+        status_metric = "failed"
         await storage.save_run(
             run=Run(
                 id=UUID(run_id),
@@ -287,3 +300,10 @@ async def run_task(
             {"run_id": run_id, "error_class": e.__class__.__name__, "message": str(e)},
             request_id=request_id,
         )
+    finally:
+        if not metrics_recorded:
+            if metrics_enabled():
+                total = time.perf_counter() - start_ts
+                get_runs_total().labels(status=status_metric).inc()
+                get_run_duration_seconds().labels(status=status_metric).observe(total)
+            metrics_recorded = True
