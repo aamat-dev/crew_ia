@@ -53,7 +53,7 @@ async def test_llm_meta_fallback_fs(tmp_path, monkeypatch):
         node_dir.mkdir(parents=True)
         meta = {
             "provider": "openai",
-            "model": "gpt4",
+            "model_used": "gpt4",
             "latency_ms": 123,
             "usage": {"prompt_tokens": 1},
             "prompts": {"user": "hello"},
