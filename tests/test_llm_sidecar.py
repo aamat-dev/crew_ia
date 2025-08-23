@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from apps.orchestrator.api_runner import _read_llm_sidecar_fs
+from apps.orchestrator.api_runner import _read_llm_sidecar_fs, _normalize_llm_sidecar
 
 
 def _write_sidecar(base: Path, run_id: str, node_key: str, data: dict) -> None:
@@ -28,3 +28,12 @@ def test_read_llm_sidecar_fs_with_env(tmp_path: Path, monkeypatch) -> None:
 def test_read_llm_sidecar_fs_missing(tmp_path: Path) -> None:
     out = _read_llm_sidecar_fs("missing", "none", runs_root=str(tmp_path))
     assert out == {}
+
+
+def test_normalize_llm_sidecar_idempotent() -> None:
+    src = {"model": "a", "usage": {"prompt_tokens": 1}}
+    first = _normalize_llm_sidecar(src)
+    second = _normalize_llm_sidecar(first)
+    assert first == second
+    assert first["model"] == first["model_used"] == "a"
+    assert src == {"model": "a", "usage": {"prompt_tokens": 1}}
