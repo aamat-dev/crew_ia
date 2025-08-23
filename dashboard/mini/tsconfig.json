@@ -3,11 +3,7 @@
     "target": "ES2020",
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -21,13 +17,7 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "composite": true,
-    "types": [
-      "vitest/globals",
-      "node",
-      "vite/client"
-    ]
+    "types": ["vitest/globals", "node", "vite/client"]
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }
