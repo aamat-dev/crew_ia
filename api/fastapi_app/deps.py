@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os
+import logging
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
 
@@ -14,6 +14,38 @@ from sqlalchemy.ext.asyncio import (
 )
 from zoneinfo import ZoneInfo
 from datetime import timezone, datetime
+
+from core.telemetry.metrics import metrics_enabled, get_db_pool_in_use
+
+logger = logging.getLogger(__name__)
+_db_pool_hooks_attached = False
+
+
+def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
+    global _db_pool_hooks_attached
+    if _db_pool_hooks_attached or not metrics_enabled():
+        return
+    pool = getattr(getattr(engine, "sync_engine", engine), "pool", None)
+    if pool is None:
+        logger.debug("db_pool_in_use: aucun pool disponible, instrumentation ignorée")
+        return
+
+    def _checkout(*_, **__):
+        if metrics_enabled():
+            get_db_pool_in_use().labels(db="primary").inc()
+
+    def _checkin(*_, **__):
+        if metrics_enabled():
+            get_db_pool_in_use().labels(db="primary").dec()
+
+    try:
+        from sqlalchemy import event
+        event.listen(pool, "checkout", _checkout)
+        event.listen(pool, "checkin", _checkin)
+        _db_pool_hooks_attached = True
+        logger.debug("db_pool_in_use hooks attached")
+    except Exception:
+        logger.debug("db_pool_in_use: échec de l'attachement des hooks", exc_info=True)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -44,6 +76,8 @@ settings = get_settings()
 
 # SQLAlchemy async engine/session (lecture seule côté API)
 engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)
+_setup_db_pool_metrics(engine)
+
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, expire_on_commit=False, class_=AsyncSession
 )
