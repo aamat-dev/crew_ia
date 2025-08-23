@@ -69,13 +69,17 @@ def normalize_llm_sidecar(data: Dict[str, Any] | None, *, run_id: str | None = N
         provider = "other"
     out["provider"] = provider
 
-    # run_id / node_id
+    # run_id (uuid v4 obligatoire)
     rid = _to_uuid(run_id or out.get("run_id"))
-    if rid:
-        out["run_id"] = rid
+    if not rid:
+        rid = str(uuid.uuid4())
+    out["run_id"] = rid
+
+    # node_id (uuid v4 obligatoire)
     nid = _to_uuid(node_id or out.get("node_id"))
-    if nid:
-        out["node_id"] = nid
+    if not nid:
+        nid = str(uuid.uuid4())
+    out["node_id"] = nid
 
     # model / model_used harmonisation
     warnings: List[str] = list(out.get("warnings") or [])
