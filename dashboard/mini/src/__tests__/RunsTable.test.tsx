@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import 'whatwg-fetch';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, describe, it, expect } from 'vitest';
@@ -86,5 +87,22 @@ describe('RunsTable', () => {
       </QueryClientProvider>,
     );
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+  });
+
+  it('mappe le filtre queued vers pending', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [], total: 0, limit: 20, offset: 0 }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    setup({ status: ['queued'] });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get('status')).toBe('pending');
   });
 });

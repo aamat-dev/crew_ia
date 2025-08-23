@@ -1,6 +1,8 @@
 import { fetchJson, FetchOpts } from './http';
 import {
+  ApiStatus,
   ArtifactItem,
+  BackendRunsList,
   EventItem,
   NodeItem,
   Page,
@@ -9,6 +11,38 @@ import {
   RunSummary,
   Status,
 } from './types';
+
+const apiToUiStatus = (status: ApiStatus | Status): Status => {
+  switch (status) {
+    case 'pending':
+      return 'queued';
+    case 'completed':
+      return 'succeeded';
+    default:
+      return status as Status;
+  }
+};
+
+export const mapUiStatusesToApi = (status?: Status[]): ApiStatus[] => {
+  if (!status) return [];
+  return status
+    .map((s) => {
+      switch (s) {
+        case 'queued':
+          return 'pending';
+        case 'succeeded':
+          return 'completed';
+        case 'running':
+        case 'failed':
+        case 'pending':
+        case 'completed':
+          return s;
+        default:
+          return undefined;
+      }
+    })
+    .filter((s): s is ApiStatus => Boolean(s));
+};
 
 export const listRuns = async (
   params: {
@@ -21,16 +55,27 @@ export const listRuns = async (
   },
   opts: FetchOpts = {},
 ): Promise<Page<Run>> => {
+  const status = mapUiStatusesToApi(params.status).join(',');
   const query: Record<string, string | number | boolean | undefined> = {
     page: params.page,
     page_size: params.pageSize,
-    status: params.status?.join(','),
+    status: status || undefined,
     date_from: params.dateFrom,
     date_to: params.dateTo,
     title: params.title,
   };
-  const { data } = await fetchJson<Page<Run>>('/runs', { ...opts, query });
-  return data;
+  const { data } = await fetchJson<BackendRunsList>('/runs', {
+    ...opts,
+    query,
+  });
+  return {
+    items: data.items.map((r) => ({ ...r, status: apiToUiStatus(r.status) })),
+    meta: {
+      page: Math.floor(data.offset / data.limit) + 1,
+      page_size: data.limit,
+      total: data.total,
+    },
+  };
 };
 
 export const getRun = async (
@@ -38,7 +83,17 @@ export const getRun = async (
   opts: FetchOpts = {},
 ): Promise<RunDetail> => {
   const { data } = await fetchJson<RunDetail>(`/runs/${id}`, opts);
-  return data;
+  const run: RunDetail = { ...data, status: apiToUiStatus(data.status) };
+  if (run.dag) {
+    run.dag = {
+      nodes: run.dag.nodes.map((n) => ({
+        ...n,
+        status: apiToUiStatus(n.status),
+      })),
+      edges: run.dag.edges,
+    };
+  }
+  return run;
 };
 
 export const getRunSummary = async (
@@ -59,7 +114,10 @@ export const listRunNodes = async (
     ...opts,
     query,
   });
-  return data;
+  return {
+    items: data.items.map((n) => ({ ...n, status: apiToUiStatus(n.status) })),
+    meta: data.meta,
+  };
 };
 
 export const listRunEvents = async (
