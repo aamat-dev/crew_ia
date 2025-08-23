@@ -215,7 +215,7 @@ api-e2e-meta: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
 
 # ---- Validation ----------------------------------
-.PHONY: validate validate-all validate-strict
+.PHONY: validate validate-all validate-strict validate-non-uuid
 validate: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py
 
@@ -224,6 +224,9 @@ validate-all: ensure-venv
 
 validate-strict: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --strict
+
+validate-non-uuid: ensure-venv
+	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
 
 # ---- Docker compose (optionnel) -------------------------------
 HAS_COMPOSE := $(shell test -f docker-compose.yml && echo yes || echo no)
