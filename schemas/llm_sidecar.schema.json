@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/llm_sidecar.schema.json",
+  "title": "LLM Sidecar v1.0",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string" },
+    "provider": { "type": "string", "enum": ["openai", "anthropic", "ollama", "azure_openai", "other"] },
+    "model": { "type": "string" },
+    "model_used": { "type": "string" },
+    "latency_ms": { "type": "integer", "minimum": 0 },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["prompt_tokens", "completion_tokens"]
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "estimated": { "type": "number", "minimum": 0 }
+      },
+      "required": ["estimated"]
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "system": { "type": "string", "maxLength": 800 },
+        "user": {
+          "oneOf": [
+            { "type": "string", "maxLength": 800 },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": { "type": "string", "maxLength": 800 },
+                  "content": { "type": "string", "maxLength": 800 }
+                },
+                "required": ["role", "content"]
+              }
+            }
+          ]
+        },
+        "final": { "type": "string", "maxLength": 800 },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string", "maxLength": 800 },
+              "content": { "type": "string", "maxLength": 800 }
+            },
+            "required": ["role", "content"]
+          }
+        }
+      },
+      "required": ["system", "user"]
+    },
+    "timestamps": {
+      "type": "object",
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["started_at", "ended_at"]
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "node_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "request_id": { "type": "string" },
+    "retry": {
+      "type": "object",
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["index"]
+    },
+    "inputs": { "type": "object" },
+    "tooling": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["name"]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "retriable": { "type": "boolean" }
+        },
+        "required": ["code", "message"]
+      }
+    },
+    "metadata": { "type": "object" },
+    "raw": {
+      "$comment": "deprecated; will be rejected in strict mode",
+      "type": "object"
+    }
+  },
+  "required": ["version", "provider", "latency_ms", "usage", "cost", "prompts", "timestamps", "run_id", "node_id"],
+  "allOf": [
+    {
+      "oneOf": [
+        { "required": ["model"] },
+        { "required": ["model_used"] }
+      ]
+    },
+    {
+      "if": { "required": ["model", "model_used"] },
+      "then": { "$comment": "'model' et 'model_used' doivent être égaux" }
+    }
+  ]
+}
