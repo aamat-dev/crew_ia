@@ -15,3 +15,7 @@ httpx
 asgi-lifespan
 pytest
 pytest-asyncio
+
+# Observabilité
+prometheus-client==0.22.1
+sentry-sdk==2.35.0
