@@ -59,7 +59,6 @@ def load_default_registry() -> Dict[str, AgentSpec]:
 # Registry global, initialisé vide (rôles par défaut résolus à la volée)
 _REGISTRY: Dict[str, AgentSpec] = {}
 
-
 def register_agent(spec: AgentSpec) -> None:
     """Ajoute ou remplace la spécification d'un agent dans le registry."""
     _REGISTRY[spec.role] = spec
@@ -72,12 +71,13 @@ def resolve_agent(role: str) -> AgentSpec:
     """
     if role in _REGISTRY:
         return _REGISTRY[role]
+
     registry = load_default_registry()
     if role in registry:
         return registry[role]
     raise KeyError(role)
 
-
 def clear_registry() -> None:
     """Vide le registre dynamique (utile pour les tests)."""
     _REGISTRY.clear()
+
