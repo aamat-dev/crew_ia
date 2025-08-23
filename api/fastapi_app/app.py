@@ -5,6 +5,7 @@ from fastapi import FastAPI, Depends
 from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from uuid import UUID
 from anyio import create_task_group
@@ -13,6 +14,22 @@ import os
 # Charger .env le plus tôt possible
 from dotenv import load_dotenv
 load_dotenv()
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.getenv("SENTRY_ENV", "dev"),
+        release=os.getenv("RELEASE", "crew_ia@dev"),
+    )
+
+    class SentryRequestIDMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            rid = getattr(request.state, "request_id", None)
+            if rid:
+                sentry_sdk.set_tag("request_id", rid)
+            return await call_next(request)
 
 from .deps import settings, api_key_auth
 from .routes import health, runs, nodes, artifacts, events, tasks
@@ -73,6 +90,8 @@ app = FastAPI(
 
 # -------- Middlewares --------
 app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagation
+if SENTRY_DSN:
+    app.add_middleware(SentryRequestIDMiddleware)      # Sentry tag request_id
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
 app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
 

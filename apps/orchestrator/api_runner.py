@@ -284,6 +284,12 @@ async def run_task(
         )
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
+        if os.getenv("SENTRY_DSN"):
+            import sentry_sdk
+            with sentry_sdk.push_scope() as scope:
+                if run_id:
+                    scope.set_tag("run_id", run_id)
+                sentry_sdk.capture_exception(e)
         ended = dt.datetime.now(dt.timezone.utc)
         status_metric = "failed"
         await storage.save_run(
