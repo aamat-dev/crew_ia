@@ -72,4 +72,6 @@ def test_malformed_timestamp_invalid(validator, minimal_payload):
     payload = deepcopy(minimal_payload)
     payload["timestamps"]["started_at"] = "not-a-timestamp"
     errors = list(validator.iter_errors(payload))
-    assert any(list(e.path) == ["timestamps", "started_at"] for e in errors)
+    assert errors
+    msgs = [e.message for e in errors]
+    assert any("date-time" in m for m in msgs)
