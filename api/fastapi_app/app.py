@@ -103,12 +103,13 @@ if metrics_enabled():
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
 
-# CORS (une seule source de vérité : settings.cors_origins)
+# CORS
+# Permettre l'accès depuis le frontend de développement
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["http://192.168.1.50:5173"],  # origine du frontend
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
