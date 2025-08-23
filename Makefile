@@ -215,9 +215,12 @@ api-e2e-meta: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
 
 # ---- Validation ----------------------------------
-.PHONY: validate validate-strict
+.PHONY: validate validate-all validate-strict
 validate: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py
+
+validate-all: ensure-venv
+	@$(ACTIVATE) && python tools/validate_sidecars.py --all
 
 validate-strict: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --strict
