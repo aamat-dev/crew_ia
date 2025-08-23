@@ -440,6 +440,21 @@ async def run_graph(
         except Exception as e:
             traceback.print_exc()
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))
+            if os.getenv("SENTRY_DSN"):
+                import sentry_sdk
+                with sentry_sdk.push_scope() as scope:
+                    if run_id:
+                        scope.set_tag("run_id", run_id)
+                    if node_id_txt:
+                        scope.set_tag("node_id", node_id_txt)
+                    llm_conf = getattr(node, "llm", {}) or {}
+                    provider = llm_conf.get("provider")
+                    model = llm_conf.get("model")
+                    if provider:
+                        scope.set_tag("provider", provider)
+                    if model:
+                        scope.set_tag("model", model)
+                    sentry_sdk.capture_exception(e)
             status = "failed"
             any_failed = True
 
