@@ -8,6 +8,8 @@ import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+import sentry_sdk
+
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Attach a request ID and log access in JSON format."""
@@ -19,8 +21,13 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        sentry_sdk.set_tag("request_id", rid)
         start = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            sentry_sdk.capture_exception()
+            raise
         duration_ms = int((time.perf_counter() - start) * 1000)
         response.headers["X-Request-ID"] = rid
         self.logger.info(
