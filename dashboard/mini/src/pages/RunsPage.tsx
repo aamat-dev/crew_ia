@@ -1,61 +1,51 @@
 import type { JSX } from 'react';
-import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRuns } from '../api/hooks';
-import { ApiError } from '../api/http';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Status } from '../api/types';
+import RunsTable from '../components/RunsTable';
 import { useApiKey } from '../state/ApiKeyContext';
+import useDebouncedValue from '../hooks/useDebouncedValue';
 
 const RunsPage = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
   const hasKey = Boolean(apiKey) || useEnvKey;
+  const navigate = useNavigate();
 
-  const queryClient = useQueryClient();
-  const runsQuery = useRuns({ page: 1, pageSize: 20 }, { enabled: hasKey });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [status, setStatus] = useState<Status[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [titleInput, setTitleInput] = useState('');
 
-  const retry = (): void => {
-    queryClient.invalidateQueries({ queryKey: ['runs'] });
+  const title = useDebouncedValue(titleInput, 300);
+
+  const onOpenRun = (id: string): void => {
+    navigate(`/runs/${id}`);
   };
+
+  const resetFilters = (): void => {
+    setPage(1);
+    setPageSize(20);
+    setStatus([]);
+    setDateFrom('');
+    setDateTo('');
+    setTitleInput('');
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, dateFrom, dateTo, title]);
 
   if (!hasKey) {
     return <div>Veuillez saisir une clé API pour continuer.</div>;
   }
 
-  let content: JSX.Element;
-  if (runsQuery.isLoading) {
-    content = (
-      <ul>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <li key={i} className="skeleton">
-            Chargement...
-          </li>
-        ))}
-      </ul>
+  const toggleStatus = (s: Status): void => {
+    setStatus((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
-  } else if (runsQuery.isError) {
-    const err = runsQuery.error;
-    content = (
-      <div>
-        <p>Une erreur est survenue.</p>
-        {err instanceof ApiError && <p>Request ID: {err.requestId}</p>}
-        <button onClick={retry}>Réessayer</button>
-      </div>
-    );
-  } else {
-    const items = runsQuery.data?.items ?? [];
-    if (items.length === 0) {
-      content = <p>Aucune donnée.</p>;
-    } else {
-      content = (
-        <ul>
-          {items.map((run) => (
-            <li key={run.id}>
-              <Link to={`/runs/${run.id}`}>{run.title ?? run.id}</Link>
-            </li>
-          ))}
-        </ul>
-      );
-    }
-  }
+  };
 
   return (
     <div>
@@ -66,9 +56,69 @@ const RunsPage = (): JSX.Element => {
           marginBottom: '16px',
         }}
       >
-        Filtres (placeholder)
+        <div style={{ marginBottom: '8px' }}>
+          {(
+            [
+              'queued',
+              'running',
+              'succeeded',
+              'failed',
+              'canceled',
+              'partial',
+            ] as Status[]
+          ).map((s) => (
+            <label key={s} style={{ marginRight: '8px' }}>
+              <input
+                type="checkbox"
+                checked={status.includes(s)}
+                onChange={() => toggleStatus(s)}
+              />
+              {s}
+            </label>
+          ))}
+        </div>
+        <div style={{ marginBottom: '8px' }}>
+          <label>
+            Du{' '}
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </label>
+          <label style={{ marginLeft: '8px' }}>
+            au{' '}
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </label>
+        </div>
+        <div style={{ marginBottom: '8px' }}>
+          <input
+            type="text"
+            placeholder="Titre"
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.target.value)}
+          />
+        </div>
+        <button onClick={resetFilters}>Réinitialiser</button>
       </div>
-      {content}
+      <RunsTable
+        page={page}
+        pageSize={pageSize}
+        status={status.length ? status : undefined}
+        dateFrom={dateFrom || undefined}
+        dateTo={dateTo || undefined}
+        title={title || undefined}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          setPage(1);
+        }}
+        onOpenRun={onOpenRun}
+      />
     </div>
   );
 };
