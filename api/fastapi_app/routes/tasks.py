@@ -9,14 +9,14 @@ from uuid import UUID
 import os
 import time
 
-from ..deps import api_key_auth
+from ..deps import strict_api_key_auth
 from ..schemas import TaskRequest, TaskAcceptedResponse
 from core.services.orchestrator_service import schedule_run
 
 router = APIRouter(
     prefix="/tasks",
     tags=["tasks"],
-    dependencies=[Depends(api_key_auth)],  # 🔒 vérifie la valeur de la clé
+    dependencies=[Depends(strict_api_key_auth)],  # 🔒 vérifie la valeur de la clé
 )
 
 # ---------- Rate limit config ----------
@@ -45,6 +45,7 @@ async def create_task(
     payload: Dict[str, Any],
     request: Request,
     x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+    _auth: bool = Depends(strict_api_key_auth),
 ):
     """Lance l'orchestrateur en arrière-plan, répond 202 + run_id."""
 

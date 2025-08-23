@@ -31,7 +31,7 @@ if SENTRY_DSN:
                 sentry_sdk.set_tag("request_id", rid)
             return await call_next(request)
 
-from .deps import settings, api_key_auth
+from .deps import settings, strict_api_key_auth
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
 from .middleware.metrics import MetricsMiddleware
@@ -115,12 +115,12 @@ app.add_middleware(
 
 # -------- Routes --------
 app.include_router(health.router)
-app.include_router(runs.router, dependencies=[Depends(api_key_auth)])
-app.include_router(nodes.router, dependencies=[Depends(api_key_auth)])
-app.include_router(artifacts.router_nodes, dependencies=[Depends(api_key_auth)])
-app.include_router(artifacts.router_artifacts, dependencies=[Depends(api_key_auth)])
-app.include_router(events.router, dependencies=[Depends(api_key_auth)])
-app.include_router(tasks.router, dependencies=[Depends(api_key_auth)])
+app.include_router(runs.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(nodes.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(artifacts.router_nodes, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(artifacts.router_artifacts, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(events.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(tasks.router, dependencies=[Depends(strict_api_key_auth)])
 
 # Exposition des métriques Prometheus (optionnelle)
 if metrics_enabled():

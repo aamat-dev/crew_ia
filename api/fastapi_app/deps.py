@@ -4,7 +4,7 @@ import logging
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, status, Request
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from sqlalchemy import event
@@ -104,6 +104,21 @@ get_db = get_session
 
 # Auth par clé API
 def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+    if settings.api_key and x_api_key == settings.api_key:
+        return True
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or missing API key",
+        headers={"WWW-Authenticate": "ApiKey"},
+    )
+
+
+def strict_api_key_auth(
+    request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
+) -> bool:
+    """Vérifie la clé API sauf si l'appli a explicitement désactivé l'auth."""
+    if api_key_auth in request.app.dependency_overrides:
+        return True
     if settings.api_key and x_api_key == settings.api_key:
         return True
     raise HTTPException(

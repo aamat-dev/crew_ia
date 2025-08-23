@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, require_api_key, read_timezone, to_tz, api_key_auth
+from ..deps import get_session, require_api_key, read_timezone, to_tz, strict_api_key_auth
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
 
 # Import des modèles ORM existants
 from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
 
-router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(strict_api_key_auth)])
 
 # Helpers
 ORDERABLE_FIELDS = {"started_at": Run.started_at, "ended_at": Run.ended_at, "title": Run.title, "status": Run.status}
@@ -39,6 +39,7 @@ async def list_runs(
     started_from: Optional[datetime] = Query(None),
     started_to: Optional[datetime] = Query(None),
     order_by: Optional[str] = Query("-started_at"),
+    _auth: bool = Depends(strict_api_key_auth),
 ):
     where_clauses = []
     if status:
@@ -79,7 +80,12 @@ async def list_runs(
     return Page[RunListItemOut](items=items, total=total, limit=limit, offset=offset)
 
 @router.get("/{run_id}", response_model=RunOut)
-async def get_run(run_id: UUID, session: AsyncSession = Depends(get_session), tz=Depends(read_timezone)):
+async def get_run(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    tz=Depends(read_timezone),
+    _auth: bool = Depends(strict_api_key_auth),
+):
     run = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -132,7 +138,11 @@ async def get_run(run_id: UUID, session: AsyncSession = Depends(get_session), tz
     )
 
 @router.get("/{run_id}/summary", response_model=RunSummaryOut)
-async def get_run_summary(run_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_run_summary(
+    run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    _auth: bool = Depends(strict_api_key_auth),
+):
     # même logique que ci-dessus, exposée séparément
     nodes_total = (
         await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id))
