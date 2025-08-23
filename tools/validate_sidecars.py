@@ -96,6 +96,7 @@ def main() -> None:
             ):
                 file_errors.append("'model' et 'model_used' diffèrent")
         unknown = set(data.keys()) - known_props
+        unknown.discard("markdown")  # champs optionnel ignoré
         if unknown:
             file_warnings.append("Champs inconnus: " + ", ".join(sorted(unknown)))
         if file_errors:
