@@ -21,6 +21,12 @@ VITE_API_KEY=<clé>
 
 Rappel : si l’API tourne en local loopback, la lancer avec `--host 0.0.0.0` pour accès réseau.
 
+## Intégration continue
+
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+
+Ce workflow exécute `npm run lint`, `npm run typecheck`, `npm test -- --run` et `npm run build`.
+
 ## Filtres & pagination
 
 L'API `/runs` accepte les paramètres suivants :

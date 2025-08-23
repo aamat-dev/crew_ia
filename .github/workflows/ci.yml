@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
   pull_request:
 
 jobs:
@@ -57,3 +56,26 @@ jobs:
         continue-on-error: true
       - name: validate
         run: make validate
+
+  dash-mini:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard/mini
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: dashboard/mini/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests
+        run: npm test -- --run
+      - name: Build
+        run: npm run build

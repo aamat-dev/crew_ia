@@ -229,15 +229,22 @@ validate-non-uuid: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
 
 # ---- Mini Dashboard ---------------------------
-.PHONY: dash-mini-install dash-mini-run dash-mini-build
+.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-ci-local
 dash-mini-install:
 	cd dashboard/mini && npm ci
+
 
 dash-mini-run:
 	cd dashboard/mini && npm run dev -- --host 0.0.0.0 --port 5173
 
+
 dash-mini-build:
 	cd dashboard/mini && npm run build && echo "🌐 Preview sur http://localhost:5173" && npm run preview
+
+
+dash-mini-ci-local:
+	cd dashboard/mini && npm run lint && npm run typecheck && npm test -- --run && npm run build
+
 
 # ---- Docker compose (optionnel) -------------------------------
 HAS_COMPOSE := $(shell test -f docker-compose.yml && echo yes || echo no)
