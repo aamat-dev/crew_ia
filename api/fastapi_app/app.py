@@ -115,11 +115,11 @@ app.add_middleware(
 
 # -------- Routes --------
 app.include_router(health.router)
-app.include_router(runs.router)
-app.include_router(nodes.router)
-app.include_router(artifacts.router_nodes)
-app.include_router(artifacts.router_artifacts)
-app.include_router(events.router)
+app.include_router(runs.router, dependencies=[Depends(api_key_auth)])
+app.include_router(nodes.router, dependencies=[Depends(api_key_auth)])
+app.include_router(artifacts.router_nodes, dependencies=[Depends(api_key_auth)])
+app.include_router(artifacts.router_artifacts, dependencies=[Depends(api_key_auth)])
+app.include_router(events.router, dependencies=[Depends(api_key_auth)])
 app.include_router(tasks.router, dependencies=[Depends(api_key_auth)])
 
 # Exposition des métriques Prometheus (optionnelle)
