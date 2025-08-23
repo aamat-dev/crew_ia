@@ -26,6 +26,8 @@ make api-run
 curl -H "X-API-Key: test-key" http://localhost:8000/runs
 ```
 
+> **Note :** Après un `git pull`, lancez `make deps-update` pour installer les nouvelles dépendances.
+
 Pour lister les événements d'un run spécifique :
 
 ```
