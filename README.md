@@ -137,3 +137,55 @@ scrape_configs:
 
 - Variables requises : `SENTRY_DSN`, `SENTRY_ENV`, `RELEASE`.
 - Test rapide : appeler une route qui lève une exception, l'événement apparaît dans Sentry (mock possible côté tests).
+
+## Fil F — Validation sidecars
+
+### Objectifs
+- Qualité des sidecars, observabilité, analytics, coûts.
+- Rétro‑compatibilité assurée par [`_normalize_llm_sidecar`](apps/orchestrator/api_runner.py).
+
+### Fichiers
+- Schéma : [`schemas/llm_sidecar.schema.json`](schemas/llm_sidecar.schema.json)
+- Exemples : [`schemas/examples/llm_sidecar.valid.json`](schemas/examples/llm_sidecar.valid.json), [`schemas/examples/llm_sidecar.invalid.json`](schemas/examples/llm_sidecar.invalid.json)
+- CLI : [`tools/validate_sidecars.py`](tools/validate_sidecars.py)
+
+### Commandes
+```bash
+make validate
+make validate-strict
+python tools/validate_sidecars.py --since <run_id|timestamp>
+```
+
+### CI
+- Job `validate` en amont, qui bloque en cas d'échec.
+
+### Stratégie d’évolution
+- version : "1.0" (actuelle) ; ajouts non‑breaking → "1.1".
+- Ne jamais supprimer un champ sans migration.
+- Champs dépréciés tolérés en mode normal, bloqués en `--strict`.
+- `latency_ms` = latence mur‑à‑mur (demande→réponse).
+
+### Exemple
+Exemple de sidecar valide :
+
+```json
+{
+  "version": "1.0",
+  "provider": "openai",
+  "model": "gpt-4o",
+  "latency_ms": 1200,
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30
+  },
+  "cost": { "estimated": 0.12 },
+  "prompts": { "system": "Vous êtes un assistant IA.", "user": "Bonjour" },
+  "timestamps": {
+    "started_at": "2024-05-21T10:00:00Z",
+    "ended_at": "2024-05-21T10:00:01Z"
+  },
+  "run_id": "123e4567-e89b-42d3-a456-426614174000",
+  "node_id": "123e4567-e89b-42d3-a456-426614174001"
+}
+```
