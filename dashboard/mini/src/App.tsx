@@ -1,5 +1,6 @@
-import ApiKeyBanner from "./components/ApiKeyBanner";
-import { ApiKeyProvider } from "./state/ApiKeyContext";
+import type { JSX } from 'react';
+import ApiKeyBanner from './components/ApiKeyBanner';
+import { ApiKeyProvider } from './state/ApiKeyContext';
 
 export const App = (): JSX.Element => (
   <ApiKeyProvider>

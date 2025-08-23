@@ -1,15 +1,16 @@
-import { FormEvent, useState } from "react";
-import { useApiKey } from "../state/ApiKeyContext";
-import { DEMO_API_KEY } from "../config/env";
+import type { JSX } from 'react';
+import { FormEvent, useState } from 'react';
+import { useApiKey } from '../state/ApiKeyContext';
+import { DEMO_API_KEY } from '../config/env';
 
 export const ApiKeyBanner = (): JSX.Element => {
   const { setApiKey, useEnvKey, setUseEnvKey } = useApiKey();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     setApiKey(input.trim());
-    setInput("");
+    setInput('');
   };
 
   const envKeyDefined = Boolean(DEMO_API_KEY);
