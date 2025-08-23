@@ -73,9 +73,9 @@ async def agent_runner_legacy(node: PlanNodeModel, storage: CompositeAdapter) ->
             )
 
     path = f"artifact_{node.id}.md"
-    Path(path).write_text(md, encoding="utf-8")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(md)
     if meta:
-        Path(path.replace(".md", ".llm.json")).write_text(
-            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        with open(path.replace(".md", ".llm.json"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(meta, ensure_ascii=False, indent=2))
     return path

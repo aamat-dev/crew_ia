@@ -11,12 +11,10 @@ from core.llm.runner import run_llm
 
 
 async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
-
     try:
         spec: AgentSpec = resolve_agent("Manager_Generic")
     except KeyError:
         spec = recruit("Manager_Generic")
-
     system_prompt = spec.system_prompt
 
     payload = [
@@ -30,22 +28,25 @@ async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
         }
         for n in subplan
     ]
-
-    task_json = json.dumps(payload, ensure_ascii=False)
-    user_msg = task_json
+    base_prompt = json.dumps(payload, ensure_ascii=False)
+    ids = {n.id for n in subplan}
+    prompt = base_prompt
     last_err: Exception | None = None
     for _ in range(3):
-        req = LLMRequest(system=system_prompt, prompt=user_msg, model=spec.model, provider=spec.provider)
+        req = LLMRequest(system=system_prompt, prompt=prompt, model=spec.model, provider=spec.provider)
         resp = await run_llm(req)
         try:
             out = parse_manager_json(resp.text)
-            ids = {n.id for n in subplan}
             for a in out.assignments:
                 if a.node_id not in ids:
                     raise ValueError(f"Unknown node_id {a.node_id} in assignment")
+            if not out.quality_checks:
+                out.quality_checks.append("Vérifier conformité aux critères d'acceptation.")
             return out
         except (ValidationError, ValueError) as err:
             last_err = err
-            user_msg = task_json + "\nLa réponse précédente n'était pas un JSON valide. Réponds uniquement avec un JSON valide conforme au schéma."
-    raise last_err if last_err else RuntimeError("Unexpected manager failure")
-
+            prompt = (
+                base_prompt
+                + f"\n\nLa réponse précédente était invalide ({err}). Merci de fournir uniquement un JSON conforme au schéma ManagerOutput."
+            )
+    raise last_err or RuntimeError("Manager output invalid")
