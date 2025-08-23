@@ -35,11 +35,12 @@ curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 The server always returns timestamps in UTC. Clients may supply `X-Timezone`
 header to ask for conversion to a specific zone.
 
-## Fil D – Hiérarchie
+## Hiérarchie
 
 ### Variables `.env`
 
-Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.env.example) pour la liste complète). Les principales :
+Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.env.example) pour la liste complète). Les principales :
+
 
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
@@ -47,6 +48,7 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 
 ### Presets dev / prod
+
 
 Dans `.env.example` se trouvent deux profils commentés :
 
@@ -64,6 +66,7 @@ Dans `.env.example` se trouvent deux profils commentés :
 Décommentez le bloc correspondant à votre contexte pour obtenir une configuration de base.
 
 ### Comment lancer
+
 
 - API : `make api-run` (dev) ou `make api-run-prod` (prod).
 - CLI : `python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
