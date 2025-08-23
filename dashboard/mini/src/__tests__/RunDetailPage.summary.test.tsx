@@ -32,6 +32,21 @@ vi.mock('../api/hooks', () => ({
     isError: true,
     error: new Error('nope'),
   }),
+  useRunNodes: () => ({
+    data: { items: [], meta: { page: 1, page_size: 20, total: 0 } },
+    isLoading: false,
+    isError: false,
+  }),
+  useRunEvents: () => ({
+    data: { items: [], meta: { page: 1, page_size: 20, total: 0 } },
+    isLoading: false,
+    isError: false,
+  }),
+  useNodeArtifacts: () => ({
+    data: { items: [], meta: { page: 1, page_size: 50, total: 0 } },
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 import RunDetailPage from '../pages/RunDetailPage';
