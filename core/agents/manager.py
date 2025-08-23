@@ -9,12 +9,16 @@ from .recruiter import recruit
 from core.llm.providers.base import LLMRequest
 from core.llm.runner import run_llm
 
+
 async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
+
     try:
         spec: AgentSpec = resolve_agent("Manager_Generic")
     except KeyError:
         spec = recruit("Manager_Generic")
+
     system_prompt = spec.system_prompt
+
     payload = [
         {
             "id": n.id,
@@ -26,6 +30,7 @@ async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
         }
         for n in subplan
     ]
+
     task_json = json.dumps(payload, ensure_ascii=False)
     user_msg = task_json
     last_err: Exception | None = None
@@ -43,3 +48,4 @@ async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
             last_err = err
             user_msg = task_json + "\nLa réponse précédente n'était pas un JSON valide. Réponds uniquement avec un JSON valide conforme au schéma."
     raise last_err if last_err else RuntimeError("Unexpected manager failure")
+

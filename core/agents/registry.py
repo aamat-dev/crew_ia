@@ -72,5 +72,7 @@ def resolve_agent(role: str) -> AgentSpec:
 
 
 def load_default_registry() -> Dict[str, AgentSpec]:
+
     """Compat: construit un registre pour les rôles connus."""
     return {r: resolve_agent(r) for r in _AGENT_MATRIX}
+
