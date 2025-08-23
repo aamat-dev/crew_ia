@@ -65,6 +65,8 @@ def normalize_llm_sidecar(data: Dict[str, Any] | None, *, run_id: str | None = N
 
     # provider (défaut 'other')
     provider = out.get("provider") or "other"
+    if provider not in {"openai", "anthropic", "ollama", "azure_openai", "other"}:
+        provider = "other"
     out["provider"] = provider
 
     # run_id / node_id

@@ -15,7 +15,7 @@ def _write_sidecar(base: Path, run_id: str, node_key: str, data: dict) -> None:
 def test_read_llm_sidecar_fs_with_runs_root(tmp_path: Path) -> None:
     _write_sidecar(tmp_path, "run1", "n1", {"provider": "p"})
     out = _read_llm_sidecar_fs("run1", "n1", runs_root=str(tmp_path))
-    assert out["provider"] == "p"
+    assert out["provider"] == "other"
 
 
 def test_read_llm_sidecar_fs_with_env(tmp_path: Path, monkeypatch) -> None:

@@ -33,7 +33,7 @@ async def test_agent_routing_writer(monkeypatch, tmp_path):
     content = res["markdown"]
     assert content.startswith("# ")
     side = res["llm"]
-    assert side["provider"] == "p"
+    assert side["provider"] == "other"
     assert side["model_used"] == "m"
     assert set(side["prompts"].keys()) == {"system", "user", "final"}
 
@@ -105,7 +105,7 @@ async def test_agent_routing_researcher(monkeypatch, tmp_path):
     assert "## Limites" in content
     assert "## Sources" in content
     side = res["llm"]
-    assert side["provider"] == "p"
+    assert side["provider"] == "other"
     assert side["model_used"] == "m"
     md_path = Path(tmp_path, "runR", "nodes", "r1", "artifact_r1.md")
     side_path = Path(tmp_path, "runR", "nodes", "r1", "artifact_r1.llm.json")
@@ -137,7 +137,7 @@ async def test_agent_routing_reviewer(monkeypatch, tmp_path):
     assert "### Corrections proposées" in content
     assert "### Risques résiduels" in content
     side = res["llm"]
-    assert side["provider"] == "p"
+    assert side["provider"] == "other"
     assert side["model_used"] == "m"
     md_path = Path(tmp_path, "runV", "nodes", "rv1", "artifact_rv1.md")
     side_path = Path(tmp_path, "runV", "nodes", "rv1", "artifact_rv1.llm.json")
