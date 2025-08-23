@@ -9,7 +9,7 @@ describe('fetchJson', () => {
     setCurrentApiKey(undefined);
   });
 
-  it('ajoute les bons headers', async () => {
+  it('ajoute uniquement la clé API', async () => {
     setCurrentApiKey('secret');
     const mock = vi
       .fn()
@@ -31,15 +31,10 @@ describe('fetchJson', () => {
       string,
       string
     >;
-    expect(headers1['Accept']).toBe('application/json');
     expect(headers1['X-API-Key']).toBe('secret');
-    expect(headers1['X-Request-ID']).toBe(id1);
+    expect(headers1['Accept']).toBeUndefined();
+    expect(headers1['X-Request-ID']).toBeUndefined();
     const { requestId: id2 } = await fetchJson<{ ok: boolean }>('/runs');
-    const headers2 = (mock.mock.calls[1][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(headers2['X-Request-ID']).not.toBe(headers1['X-Request-ID']);
     expect(id2).not.toBe(id1);
   });
 

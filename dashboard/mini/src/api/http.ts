@@ -39,10 +39,7 @@ export async function fetchJson<T>(
   }
 
   const requestId = uuidv4();
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'X-Request-ID': requestId,
-  };
+  const headers: Record<string, string> = {};
   const apiKey = getCurrentApiKey();
   if (apiKey) {
     headers['X-API-Key'] = apiKey;

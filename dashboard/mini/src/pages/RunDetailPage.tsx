@@ -26,12 +26,12 @@ const RunDetailPage = (): JSX.Element => {
     return <div>Veuillez saisir une clé API pour continuer.</div>;
   }
 
-  if (runQuery.isLoading || summaryQuery.isLoading) {
+  if (runQuery.isLoading) {
     return <div className="skeleton">Chargement...</div>;
   }
 
-  if (runQuery.isError || summaryQuery.isError) {
-    const err = (runQuery.error ?? summaryQuery.error) as unknown;
+  if (runQuery.isError) {
+    const err = runQuery.error as unknown;
     return (
       <div>
         <p>Une erreur est survenue.</p>
@@ -46,13 +46,21 @@ const RunDetailPage = (): JSX.Element => {
     return <p>Aucune donnée.</p>;
   }
 
+  let summary = summaryQuery.data;
+  if (summaryQuery.isError) {
+    console.warn('run summary unavailable', summaryQuery.error);
+    summary = undefined;
+  }
+
   return (
     <div>
       <h2>{run.title ?? run.id}</h2>
-      <RunSummary run={run} summary={summaryQuery.data} />
-      <section>
-        <DagView dag={run.dag} />
-      </section>
+      {summary && <RunSummary run={run} summary={summary} />}
+      {run.dag && (
+        <section>
+          <DagView dag={run.dag} />
+        </section>
+      )}
       <section>Nodes (placeholder)</section>
       <section>Events (placeholder)</section>
       <section>Artifacts (placeholder)</section>

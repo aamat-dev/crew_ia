@@ -1,10 +1,14 @@
-export type Status =
+export type UiStatus =
   | 'queued'
   | 'running'
   | 'succeeded'
   | 'failed'
   | 'canceled'
   | 'partial';
+
+export type ApiStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export type Status = UiStatus | ApiStatus;
 
 export interface PageMeta {
   page: number;
@@ -67,4 +71,13 @@ export interface ArtifactItem {
   kind: 'file' | 'llm_sidecar' | 'log' | 'other';
   size_bytes?: number;
   url: string;
+}
+
+export type BackendRun = Omit<Run, 'status'> & { status: ApiStatus };
+
+export interface BackendRunsList {
+  items: BackendRun[];
+  total: number;
+  limit: number;
+  offset: number;
 }
