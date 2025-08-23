@@ -44,7 +44,7 @@ async def agent_runner(node: PlanNodeModel, storage: CompositeAdapter | None = N
 
     meta = {
         "provider": getattr(resp, "provider", None),
-        "model": getattr(resp, "model_used", getattr(resp, "model", None)),
+        "model_used": getattr(resp, "model_used", getattr(resp, "model", None)),
         "latency_ms": getattr(resp, "latency_ms", getattr(resp, "duration_ms", None)),
         "usage": getattr(resp, "usage", None),
         "prompts": {

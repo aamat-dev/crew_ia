@@ -43,7 +43,7 @@ async def test_mini_flow(tmp_path, monkeypatch):
     for nid in ["R1","R2","W1"]:
         assert Path(f"artifact_{nid}.md").exists()
         side = json.loads(Path(f"artifact_{nid}.llm.json").read_text())
-        assert side["provider"] == "p" and side["model"] == "m"
+        assert side["provider"] == "p" and side["model_used"] == "m"
 
     await run_graph(dag, DummyStorage(), "run1")
     summary = json.loads(Path(".runs/run1/summary.json").read_text())

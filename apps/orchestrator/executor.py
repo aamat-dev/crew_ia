@@ -138,7 +138,7 @@ def _norm_dep_ids(node) -> list[str]:
 def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
     """
     Rend un dict normalisé pour le sidecar:
-      {provider, model, latency_ms, usage, prompts?}
+      {provider, model_used, latency_ms, usage, prompts?}
     On est tolérant: artifact peut être dict imbriqué, etc.
     """
     if not isinstance(artifact, dict):
@@ -163,7 +163,7 @@ def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
         if prov or model or lat or usage or prompts:
             out = {
                 "provider": prov,
-                "model": model,
+                "model_used": model,
                 "latency_ms": lat,
                 "usage": usage,
             }
@@ -332,7 +332,7 @@ async def _execute_node(
         node_key,
         role,
         sidecar.get("provider") if sidecar else None,
-        sidecar.get("model") if sidecar else None,
+        (sidecar.get("model") or sidecar.get("model_used")) if sidecar else None,
         sidecar.get("latency_ms") if sidecar else None,
     )
 
