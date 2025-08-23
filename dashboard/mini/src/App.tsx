@@ -5,6 +5,7 @@ export const App = (): JSX.Element => (
   <ApiKeyProvider>
     <div>
       <ApiKeyBanner />
+      <h1>Mini Dashboard (read-only) — Fil G</h1>
     </div>
   </ApiKeyProvider>
 );
