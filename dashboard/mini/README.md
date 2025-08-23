@@ -1,5 +1,11 @@
 # Fil G – Mini Dashboard (read only)
 
-## TODO
+## Démarrage rapide
 
-- [ ] Compléter cette section.
+Node.js 20 LTS minimum est recommandé.
+
+```bash
+make dash-mini-install
+make dash-mini-run
+make dash-mini-build
+```
