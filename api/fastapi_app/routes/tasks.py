@@ -45,7 +45,6 @@ async def create_task(
     payload: Dict[str, Any],
     request: Request,
     x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
-    _auth: bool = Depends(strict_api_key_auth),
 ):
     """Lance l'orchestrateur en arrière-plan, répond 202 + run_id."""
 

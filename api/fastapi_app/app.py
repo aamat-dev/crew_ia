@@ -1,7 +1,7 @@
 # api/fastapi_app/app.py
 from __future__ import annotations
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -31,7 +31,7 @@ if SENTRY_DSN:
                 sentry_sdk.set_tag("request_id", rid)
             return await call_next(request)
 
-from .deps import settings, strict_api_key_auth
+from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
 from .middleware.metrics import MetricsMiddleware
@@ -40,7 +40,6 @@ from core.storage.postgres_adapter import PostgresAdapter
 from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
 from core.events.publisher import EventPublisher
-from core.telemetry.metrics import metrics_enabled, generate_latest
 
 TAGS_METADATA = [
     {"name": "health", "description": "Healthcheck et disponibilité DB."},
@@ -114,23 +113,14 @@ app.add_middleware(
 )
 
 # -------- Routes --------
+# Auth: all routes require API key except /health
 app.include_router(health.router)
-app.include_router(runs.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(nodes.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(artifacts.router_nodes, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(artifacts.router_artifacts, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(events.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(tasks.router, dependencies=[Depends(strict_api_key_auth)])
-
-# Exposition des métriques Prometheus (optionnelle)
-if metrics_enabled():
-    @app.get("/metrics", include_in_schema=False)
-    async def metrics():
-        payload = generate_latest()
-        return Response(
-            content=payload,
-            media_type="text/plain; version=0.0.4; charset=utf-8",
-        )
+app.include_router(runs.router)
+app.include_router(nodes.router)
+app.include_router(artifacts.router_nodes)
+app.include_router(artifacts.router_artifacts)
+app.include_router(events.router)
+app.include_router(tasks.router)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)

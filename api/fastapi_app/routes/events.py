@@ -8,13 +8,11 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session
+from ..deps import get_session, strict_api_key_auth
 from ..schemas import Page, EventOut
 from core.storage.db_models import Event  # type: ignore
 
-from ..deps import api_key_auth
-
-router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(api_key_auth)])
+router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(strict_api_key_auth)])
 _deprecated_warned = False
 log = logging.getLogger("api.events")
 

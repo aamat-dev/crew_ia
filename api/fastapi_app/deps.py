@@ -102,8 +102,7 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 get_db = get_session
 
 
-# Auth par clé API
-def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+def _check_api_key(x_api_key: str | None) -> bool:
     if settings.api_key and x_api_key == settings.api_key:
         return True
     raise HTTPException(
@@ -111,26 +110,20 @@ def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
         detail="Invalid or missing API key",
         headers={"WWW-Authenticate": "ApiKey"},
     )
+
+
+def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> bool:
+    """Ancienne dépendance conservée pour compatibilité tests."""
+    return _check_api_key(x_api_key)
 
 
 def strict_api_key_auth(
     request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
 ) -> bool:
-    """Vérifie la clé API sauf si l'appli a explicitement désactivé l'auth."""
+    """Vérifie la clé API sauf si un override explicite est défini."""
     if api_key_auth in request.app.dependency_overrides:
         return True
-    if settings.api_key and x_api_key == settings.api_key:
-        return True
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or missing API key",
-        headers={"WWW-Authenticate": "ApiKey"},
-    )
-
-
-# alias pour compatibilité
-require_api_key = api_key_auth
-require_auth = api_key_auth
+    return _check_api_key(x_api_key)
 
 
 # Timezone optionnelle pour formatage
