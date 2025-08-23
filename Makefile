@@ -32,6 +32,7 @@ help:
 	@echo "  install             -> crée venv + installe deps"
 	@echo "  venv                -> (re)crée le venv"
 	@echo "  clean-venv          -> supprime le venv"
+	@echo "  deps-update        -> met à jour les dépendances"
 	@echo "  test                -> pytest (rapide)"
 	@echo "  test-extra          -> pytest tests_extra (si présents)"
 	@echo "  test-all            -> pytest tests + tests_extra (si présents)"
@@ -81,6 +82,10 @@ install: init-env venv
 clean-venv:
 	@rm -rf $(VENV_DIR)
 	@echo "🧹 Venv supprimé"
+.PHONY: deps-update
+deps-update: ensure-venv
+	@$(ACTIVATE) && $(PIP) install -r $(REQ_FILE)
+	@echo "✅ Dépendances mises à jour"
 
 # ---- Qualité -------------------------------------------------
 .PHONY: fmt
