@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import logging
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
@@ -21,7 +20,6 @@ from datetime import timezone, datetime
 from core.telemetry.metrics import metrics_enabled, get_db_pool_in_use
 
 logger = logging.getLogger(__name__)
-
 _db_pool_hooks_attached = False
 
 
@@ -30,23 +28,16 @@ def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
     if _db_pool_hooks_attached or not metrics_enabled():
         return
 
-    pool = None
-    try:
-        pool = getattr(engine.sync_engine, "pool", None)
-        if pool is None:
-            pool = getattr(engine, "pool", None)
-    except Exception:
-        pool = None
-
+    pool = getattr(getattr(engine, "sync_engine", engine), "pool", None)
     if pool is None:
         logger.debug("db_pool_in_use: aucun pool disponible, instrumentation ignorée")
         return
 
-    def _checkout(dbapi_connection, connection_record, connection_proxy):
+    def _checkout(*_, **__):
         if metrics_enabled():
             get_db_pool_in_use().labels(db="primary").inc()
 
-    def _checkin(dbapi_connection, connection_record):
+    def _checkin(*_, **__):
         if metrics_enabled():
             get_db_pool_in_use().labels(db="primary").dec()
 
@@ -57,6 +48,7 @@ def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
         logger.debug("db_pool_in_use hooks attached")
     except Exception:
         logger.debug("db_pool_in_use: échec de l'attachement des hooks", exc_info=True)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -79,29 +71,36 @@ class Settings(BaseSettings):
         raw = self.cors_origins_raw or ""
         return [o.strip() for o in raw.split(",") if o.strip()]
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()
 
 # SQLAlchemy async engine/session (lecture seule côté API)
 engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)
 _setup_db_pool_metrics(engine)
+
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, expire_on_commit=False, class_=AsyncSession
 )
+
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
         yield session
 
+
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return SessionLocal
+
 
 # Backwards compatibility: the tests expect a ``get_db`` dependency
 # providing a database session.
 get_db = get_session
+
 
 # Auth par clé API
 def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
@@ -113,9 +112,11 @@ def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
         headers={"WWW-Authenticate": "ApiKey"},
     )
 
+
 # alias pour compatibilité
 require_api_key = api_key_auth
 require_auth = api_key_auth
+
 
 # Timezone optionnelle pour formatage
 async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-Timezone")) -> ZoneInfo | None:
@@ -126,6 +127,7 @@ async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-T
     except Exception:
         # On ignore une TZ invalide : la réponse reste en UTC
         return None
+
 
 # Helpers temps
 def to_tz(dt: datetime | None, tz: ZoneInfo | None) -> datetime | None:
