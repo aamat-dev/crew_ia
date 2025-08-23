@@ -54,3 +54,11 @@ def load_default_registry() -> Dict[str, AgentSpec]:
             [],
         ),
     }
+
+
+def resolve_agent(role: str) -> AgentSpec:
+    """Résout un agent par rôle à partir du registre par défaut."""
+    registry = load_default_registry()
+    if role in registry:
+        return registry[role]
+    raise KeyError(role)
