@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRun, useRunSummary } from '../api/hooks';
 import { ApiError } from '../api/http';
 import { useApiKey } from '../state/ApiKeyContext';
+import RunSummary from '../components/RunSummary';
+import DagView from '../components/DagView';
 
 const RunDetailPage = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
@@ -47,8 +49,10 @@ const RunDetailPage = (): JSX.Element => {
   return (
     <div>
       <h2>{run.title ?? run.id}</h2>
-      <p>{summaryQuery.data?.summary ?? ''}</p>
-      <section>DagView (placeholder)</section>
+      <RunSummary run={run} summary={summaryQuery.data} />
+      <section>
+        <DagView dag={run.dag} />
+      </section>
       <section>Nodes (placeholder)</section>
       <section>Events (placeholder)</section>
       <section>Artifacts (placeholder)</section>

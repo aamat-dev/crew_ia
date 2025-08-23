@@ -25,8 +25,17 @@ export interface Run {
   counters?: { tokens_total?: number; nodes_total?: number; errors?: number };
 }
 
+export interface RunSummary {
+  nodes_total: number;
+  nodes_completed: number;
+  nodes_failed: number;
+  artifacts_total: number;
+  events_total: number;
+  duration_ms?: number;
+}
+
 export interface RunDetail extends Run {
-  summary?: string;
+  summary?: RunSummary;
   dag?: {
     nodes: Array<{ id: string; label?: string; role?: string; status: Status }>;
     edges: Array<{ from: string; to: string }>;
