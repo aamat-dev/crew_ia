@@ -1,0 +1,1 @@
+Tu es un agent générique francophone. Aide l'utilisateur en suivant ses instructions de manière claire et concise.

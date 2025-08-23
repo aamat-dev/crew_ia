@@ -1,8 +1,7 @@
 PROMPT_TRUNC = 800
-from pathlib import Path
 import json
 
-from .registry import load_default_registry
+from .registry import resolve_agent
 from .recruiter import recruit
 from .schemas import PlanNodeModel
 from core.llm.providers.base import LLMRequest
@@ -12,10 +11,12 @@ from core.storage.composite_adapter import CompositeAdapter
 
 async def agent_runner(node: PlanNodeModel, storage: CompositeAdapter | None = None) -> dict:
     role = node.suggested_agent_role
-    spec = load_default_registry().get(role) or recruit(role)
+    try:
+        spec = resolve_agent(role)
+    except KeyError:
+        spec = recruit(role)
 
-    root = Path(__file__).resolve().parents[2]
-    system_prompt = (root / spec.system_prompt_path).read_text(encoding="utf-8")
+    system_prompt = spec.system_prompt
 
     brief = [f"Titre: {node.title}"]
     if node.acceptance:
@@ -71,9 +72,9 @@ async def agent_runner_legacy(node: PlanNodeModel, storage: CompositeAdapter) ->
             )
 
     path = f"artifact_{node.id}.md"
-    Path(path).write_text(md, encoding="utf-8")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(md)
     if meta:
-        Path(path.replace(".md", ".llm.json")).write_text(
-            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        with open(path.replace(".md", ".llm.json"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(meta, ensure_ascii=False, indent=2))
     return path
