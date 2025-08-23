@@ -1,6 +1,6 @@
 from __future__ import annotations
+
 import json
-from pathlib import Path
 from typing import Any, Dict
 
 from pydantic import ValidationError
@@ -13,12 +13,12 @@ from core.llm import runner as llm_runner
 
 
 async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
-
     """
     Execute the Supervisor role once and return a validated SupervisorPlan.
     """
 
     try:
+        spec = resolve_agent("Supervisor")
     except KeyError:
         spec = recruit("Supervisor")
 
@@ -39,4 +39,6 @@ async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
                 task_json
                 + "\nLa réponse précédente n'était pas un JSON valide. Réponds uniquement avec un JSON valide conforme au schéma."
             )
+
     raise last_err or RuntimeError("Supervisor output invalid")
+
