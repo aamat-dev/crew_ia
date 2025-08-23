@@ -114,3 +114,24 @@ make db-upgrade
 - `make api-test` – run API tests.
 - `make db-revision msg="..."` – create a new Alembic revision.
 - `make db-upgrade` – apply migrations to the database.
+
+## Observabilité
+
+### Metrics Prometheus
+
+- Activer avec la variable `METRICS_ENABLED=1` (ex : `make api-run-metrics`).
+- Les métriques sont exposées sur `/metrics`.
+- Exemple minimal de configuration pour Prometheus :
+
+```yaml
+scrape_configs:
+  - job_name: 'crew_ia_api'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: /metrics
+```
+
+### Sentry
+
+- Variables requises : `SENTRY_DSN`, `SENTRY_ENV`, `RELEASE`.
+- Test rapide : appeler une route qui lève une exception, l'événement apparaît dans Sentry (mock possible côté tests).
