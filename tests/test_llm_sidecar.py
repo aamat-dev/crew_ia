@@ -36,5 +36,5 @@ def test_normalize_llm_sidecar_idempotent() -> None:
     second = _normalize_llm_sidecar(first)
     assert first == second
     assert first["model"] == "a"
-    assert "model_used" not in first
+    assert first["model_used"] == "a"
     assert src == {"model": "a", "usage": {"prompt_tokens": 1}}
