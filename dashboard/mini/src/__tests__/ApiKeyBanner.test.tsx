@@ -18,7 +18,7 @@ describe('ApiKeyBanner', () => {
     render(
       <Wrapper>
         <ApiKeyBanner />
-      </Wrapper>
+      </Wrapper>,
     );
     const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
     const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
@@ -33,7 +33,7 @@ describe('ApiKeyBanner', () => {
       <Wrapper>
         <ApiKeyBanner />
         <Display />
-      </Wrapper>
+      </Wrapper>,
     );
     const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'secret' } });
@@ -45,21 +45,23 @@ describe('ApiKeyBanner', () => {
     render(
       <Wrapper>
         <ApiKeyBanner />
-      </Wrapper>
+      </Wrapper>,
     );
     const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
     const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
     fireEvent.click(toggle);
     expect(toggle.checked).toBe(true);
     expect(input.disabled).toBe(true);
-    expect(screen.getByTestId('envActiveBadge').textContent).toContain('active');
+    expect(screen.getByTestId('envActiveBadge').textContent).toContain(
+      'active',
+    );
   });
 
   it('toggle désactivé rend le champ éditable', () => {
     render(
       <Wrapper>
         <ApiKeyBanner />
-      </Wrapper>
+      </Wrapper>,
     );
     const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
     const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
@@ -74,7 +76,7 @@ describe('ApiKeyBanner', () => {
       <Wrapper>
         <ApiKeyBanner />
         <Display />
-      </Wrapper>
+      </Wrapper>,
     );
     const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'temp' } });
@@ -85,7 +87,7 @@ describe('ApiKeyBanner', () => {
       <Wrapper>
         <ApiKeyBanner />
         <Display />
-      </Wrapper>
+      </Wrapper>,
     );
     expect(screen.getByTestId('currentKey').textContent).toBe('');
   });
