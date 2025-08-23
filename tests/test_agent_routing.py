@@ -34,7 +34,7 @@ async def test_agent_routing_writer(monkeypatch, tmp_path):
     assert content.startswith("# ")
     side = res["llm"]
     assert side["provider"] == "p"
-    assert side["model"] == "m"
+    assert side["model_used"] == "m"
     assert set(side["prompts"].keys()) == {"system", "user", "final"}
 
     # Vérifie la persistance FS
@@ -77,3 +77,69 @@ async def test_agent_routing_skip_db_without_uuid(monkeypatch, tmp_path):
     assert md_path.exists()
     assert side_path.exists()
     assert storage.calls == []
+
+
+@pytest.mark.asyncio
+async def test_agent_routing_researcher(monkeypatch, tmp_path):
+    async def fake_run_llm(req, primary=None, fallback_order=None):
+        return LLMResponse(text="résumé", provider="p", model_used="m")
+
+    monkeypatch.setattr(exec_mod, "run_llm", fake_run_llm)
+    monkeypatch.setenv("ARTIFACTS_DIR", str(tmp_path))
+    monkeypatch.setenv("RUNS_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    class DummyStorage:
+        async def save_artifact(self, node_id, content, *, ext):
+            pass
+
+    node = PlanNode(id="r1", title="Sujet", type="execute", suggested_agent_role="Researcher")
+    dag = TaskGraph([node])
+    storage = DummyStorage()
+    res = await _execute_node(node, storage, dag, run_id="runR", node_key="r1")
+
+    content = res["markdown"]
+    assert "## Objectif" in content
+    assert "## Méthode" in content
+    assert "## Faits clés" in content
+    assert "## Limites" in content
+    assert "## Sources" in content
+    side = res["llm"]
+    assert side["provider"] == "p"
+    assert side["model_used"] == "m"
+    md_path = Path(tmp_path, "runR", "nodes", "r1", "artifact_r1.md")
+    side_path = Path(tmp_path, "runR", "nodes", "r1", "artifact_r1.llm.json")
+    assert md_path.exists()
+    assert side_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_agent_routing_reviewer(monkeypatch, tmp_path):
+    async def fake_run_llm(req, primary=None, fallback_order=None):
+        return LLMResponse(text="ok", provider="p", model_used="m")
+
+    monkeypatch.setattr(exec_mod, "run_llm", fake_run_llm)
+    monkeypatch.setenv("ARTIFACTS_DIR", str(tmp_path))
+    monkeypatch.setenv("RUNS_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    class DummyStorage:
+        async def save_artifact(self, node_id, content, *, ext):
+            pass
+
+    node = PlanNode(id="rv1", title="Sujet", type="execute", suggested_agent_role="Reviewer")
+    dag = TaskGraph([node])
+    storage = DummyStorage()
+    res = await _execute_node(node, storage, dag, run_id="runV", node_key="rv1")
+
+    content = res["markdown"]
+    assert content.startswith("### Checklist cochée")
+    assert "### Corrections proposées" in content
+    assert "### Risques résiduels" in content
+    side = res["llm"]
+    assert side["provider"] == "p"
+    assert side["model_used"] == "m"
+    md_path = Path(tmp_path, "runV", "nodes", "rv1", "artifact_rv1.md")
+    side_path = Path(tmp_path, "runV", "nodes", "rv1", "artifact_rv1.llm.json")
+    assert md_path.exists()
+    assert side_path.exists()
