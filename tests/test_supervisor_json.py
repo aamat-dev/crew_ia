@@ -150,3 +150,18 @@ async def test_supervisor_reprompt(monkeypatch):
     assert calls["n"] == 2
     assert isinstance(sup, SupervisorPlan)
     assert sup.plan[0].id == "a"
+
+
+@pytest.mark.asyncio
+async def test_supervisor_reprompt_fail(monkeypatch):
+    calls = {"n": 0}
+
+    async def fake_run_llm(req, primary=None, fallback_order=None):
+        calls["n"] += 1
+        return LLMResponse(text="oops")
+
+    monkeypatch.setattr(supervisor_mod.llm_runner, "run_llm", fake_run_llm)
+
+    with pytest.raises(ValidationError):
+        await supervisor_run({"title": "demo"})
+    assert calls["n"] == 3
