@@ -17,6 +17,7 @@
     "@tanstack/react-query": "^5.62.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2",
     "uuid": "^9.0.1",
     "zod": "^3.23.8"
   },

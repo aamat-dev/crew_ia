@@ -1,13 +1,26 @@
 import type { JSX } from 'react';
-import ApiKeyBanner from './components/ApiKeyBanner';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import AppLayout from './layouts/AppLayout';
+import RunsPage from './pages/RunsPage';
+import RunDetailPage from './pages/RunDetailPage';
 import { ApiKeyProvider } from './state/ApiKeyContext';
+
+const queryClient = new QueryClient();
 
 export const App = (): JSX.Element => (
   <ApiKeyProvider>
-    <div>
-      <ApiKeyBanner />
-      <h1>Mini Dashboard (read-only) — Fil G</h1>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppLayout>
+          <Routes>
+            <Route path="/runs" element={<RunsPage />} />
+            <Route path="/runs/:id" element={<RunDetailPage />} />
+            <Route path="*" element={<Navigate to="/runs" replace />} />
+          </Routes>
+        </AppLayout>
+      </BrowserRouter>
+    </QueryClientProvider>
   </ApiKeyProvider>
 );
 
