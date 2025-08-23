@@ -36,6 +36,7 @@ def main() -> None:
     parser.add_argument("--since", help="run_id (UUID v4) ou timestamp RFC3339")
     parser.add_argument("--strict", action="store_true", help="mode strict")
     parser.add_argument("--all", action="store_true", help="valider tous les fichiers")
+    parser.add_argument("--include-non-uuid", action="store_true", help="inclure les runs dont le dossier n'est pas un UUID v4 (ex: run-reco-1)")
     args = parser.parse_args()
 
     since_kind: tuple[str, Any] | None = None
@@ -57,11 +58,22 @@ def main() -> None:
 
     ok = 0
     skipped = 0
+    non_uuid_skipped = 0
     errors: Dict[Path, List[str]] = {}
     warnings: Dict[Path, List[str]] = {}
 
     for path in files:
         if since_kind and since_kind[0] == "run_id" and since_kind[1] not in str(path):
+            continue
+        try:
+            # Déduire le dossier de run: .runs/<run_id>/nodes/<node>/file
+            # parents[0] = dossier du node, parents[1] = "nodes", parents[2] = dossier run
+            run_dir = path.parents[2].name if len(path.parents) >= 3 else ""
+        except Exception:
+            run_dir = ""
+        # Ignorer par défaut les runs dont le nom n'est pas un UUID v4 (ex: "run-reco-1")
+        if not args.include_non_uuid and not UUID4_RE.match(run_dir):
+            skipped += 1
             continue
         try:
             with path.open("r", encoding="utf-8") as fh:
