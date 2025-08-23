@@ -32,7 +32,14 @@ module.exports = {
     {
       files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
       env: { jest: false, node: true },
-      globals: { vi: 'readonly', describe: 'readonly', it: 'readonly', expect: 'readonly', beforeEach: 'readonly', afterEach: 'readonly' },
+      globals: {
+        vi: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
     },
   ],
 };
