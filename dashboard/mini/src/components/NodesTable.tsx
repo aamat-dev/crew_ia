@@ -7,6 +7,8 @@ export type NodesTableProps = {
   runId: string;
   page: number;
   pageSize: number;
+  selectedNodeId?: string;
+  onSelectNode?: (nodeId: string) => void;
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (size: number) => void;
 };
@@ -21,6 +23,8 @@ const NodesTable = ({
   runId,
   page,
   pageSize,
+  selectedNodeId,
+  onSelectNode,
   onPageChange,
   onPageSizeChange,
 }: NodesTableProps): JSX.Element => {
@@ -117,7 +121,15 @@ const NodesTable = ({
         </thead>
         <tbody>
           {items.map((node) => (
-            <tr key={node.id}>
+            <tr
+              key={node.id}
+              data-testid={`node-row-${node.id}`}
+              onClick={onSelectNode ? () => onSelectNode(node.id) : undefined}
+              style={{
+                background: node.id === selectedNodeId ? '#eef' : undefined,
+              }}
+              aria-selected={node.id === selectedNodeId}
+            >
               <td>{node.id}</td>
               <td>{node.role ?? '-'}</td>
               <td>

@@ -25,6 +25,13 @@ const RunDetailPage = (): JSX.Element => {
   const [nodesPageSize, setNodesPageSize] = useState(20);
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(20);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(
+    undefined,
+  );
+  const [eventsLevel, setEventsLevel] = useState<
+    'debug' | 'info' | 'warn' | 'error' | undefined
+  >(undefined);
+  const [eventsText, setEventsText] = useState('');
 
   const retry = (): void => {
     queryClient.invalidateQueries({ queryKey: ['run', id] });
@@ -76,6 +83,8 @@ const RunDetailPage = (): JSX.Element => {
           runId={run.id}
           page={nodesPage}
           pageSize={nodesPageSize}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={setSelectedNodeId}
           onPageChange={setNodesPage}
           onPageSizeChange={(s) => {
             setNodesPageSize(s);
@@ -89,6 +98,16 @@ const RunDetailPage = (): JSX.Element => {
           runId={run.id}
           page={eventsPage}
           pageSize={eventsPageSize}
+          level={eventsLevel}
+          text={eventsText}
+          onLevelChange={(lvl) => {
+            setEventsLevel(lvl);
+            setEventsPage(1);
+          }}
+          onTextChange={(t) => {
+            setEventsText(t);
+            setEventsPage(1);
+          }}
           onPageChange={setEventsPage}
           onPageSizeChange={(s) => {
             setEventsPageSize(s);
@@ -98,7 +117,7 @@ const RunDetailPage = (): JSX.Element => {
       </section>
       <section>
         <h3>Artifacts</h3>
-        <ArtifactsList runId={run.id} />
+        <ArtifactsList runId={run.id} nodeId={selectedNodeId} />
       </section>
     </div>
   );

@@ -77,6 +77,16 @@ describe('ArtifactsList', () => {
     expect(screen.getByText('Aucun artefact.')).toBeInTheDocument();
   });
 
+  it("affiche le message lorsqu'aucun nœud n'est sélectionné", () => {
+    (useNodeArtifacts as unknown as Mock).mockReturnValue({
+      data: { items: [], meta: { page: 1, page_size: 50, total: 0 } },
+      isLoading: false,
+      isError: false,
+    });
+    setup({ nodeId: undefined });
+    expect(screen.getByText('Aucun nœud sélectionné.')).toBeInTheDocument();
+  });
+
   it("affiche l'erreur et relance sur retry", () => {
     (useNodeArtifacts as unknown as Mock).mockReturnValue({
       data: undefined,

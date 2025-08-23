@@ -1,7 +1,9 @@
 import type { JSX } from 'react';
+import { useState, useEffect } from 'react';
 import { useRunEvents } from '../api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/http';
+import useDebouncedValue from '../hooks/useDebouncedValue';
 
 export type EventsTableProps = {
   runId: string;
@@ -9,6 +11,8 @@ export type EventsTableProps = {
   pageSize: number;
   level?: 'info' | 'warn' | 'error' | 'debug';
   text?: string;
+  onLevelChange?: (level?: 'info' | 'warn' | 'error' | 'debug') => void;
+  onTextChange?: (text: string) => void;
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (size: number) => void;
 };
@@ -22,6 +26,8 @@ const EventsTable = ({
   pageSize,
   level,
   text,
+  onLevelChange,
+  onTextChange,
   onPageChange,
   onPageSizeChange,
 }: EventsTableProps): JSX.Element => {
@@ -30,6 +36,17 @@ const EventsTable = ({
   const eventsQuery = useRunEvents(runId, params, {
     enabled: Boolean(runId),
   });
+
+  const [textInput, setTextInput] = useState(text ?? '');
+  const debouncedText = useDebouncedValue(textInput, 300);
+  useEffect(() => {
+    setTextInput(text ?? '');
+  }, [text]);
+  useEffect(() => {
+    if (onTextChange && debouncedText !== (text ?? '')) {
+      onTextChange(debouncedText);
+    }
+  }, [debouncedText, onTextChange, text]);
 
   const retry = (): void => {
     queryClient.invalidateQueries({
@@ -87,6 +104,34 @@ const EventsTable = ({
 
   return (
     <div>
+      <div style={{ marginBottom: '8px' }}>
+        <select
+          aria-label="level-filter"
+          data-testid="events-level-filter"
+          value={level ?? ''}
+          onChange={(e) =>
+            onLevelChange?.(
+              e.target.value
+                ? (e.target.value as 'debug' | 'info' | 'warn' | 'error')
+                : undefined,
+            )
+          }
+        >
+          <option value="">Tous</option>
+          <option value="debug">debug</option>
+          <option value="info">info</option>
+          <option value="warn">warn</option>
+          <option value="error">error</option>
+        </select>
+        <input
+          aria-label="text-filter"
+          data-testid="events-text-filter"
+          placeholder="Filtrer le message"
+          value={textInput}
+          onChange={(e) => setTextInput(e.target.value)}
+          style={{ marginLeft: '8px' }}
+        />
+      </div>
       <table>
         <caption>Events</caption>
         <thead>

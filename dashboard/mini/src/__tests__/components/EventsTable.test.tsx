@@ -54,7 +54,7 @@ describe('EventsTable', () => {
     });
     setup();
     expect(screen.getByText('hello')).toBeInTheDocument();
-    expect(screen.getByText('info')).toBeInTheDocument();
+    expect(screen.getAllByText('info')[1]).toBeInTheDocument();
   });
 
   it("affiche l'état loading", () => {
