@@ -234,7 +234,7 @@ dash-mini-install:
 	cd dashboard/mini && npm ci
 
 dash-mini-run:
-	cd dashboard/mini && npm run dev
+	cd dashboard/mini && npm run dev -- --host 0.0.0.0 --port 5173
 
 dash-mini-build:
 	cd dashboard/mini && npm run build && echo "🌐 Preview sur http://localhost:5173" && npm run preview
