@@ -35,6 +35,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--since", help="run_id (UUID v4) ou timestamp RFC3339")
     parser.add_argument("--strict", action="store_true", help="mode strict")
+    parser.add_argument("--all", action="store_true", help="valider tous les fichiers")
     args = parser.parse_args()
 
     since_kind: tuple[str, Any] | None = None
@@ -55,6 +56,7 @@ def main() -> None:
     files = sorted(runs_root.rglob("*.llm.json")) if runs_root.exists() else []
 
     ok = 0
+    skipped = 0
     errors: Dict[Path, List[str]] = {}
     warnings: Dict[Path, List[str]] = {}
 
@@ -77,6 +79,9 @@ def main() -> None:
                 started_dt = None
             if started_dt is None or started_dt < since_kind[1]:
                 continue
+        if not args.all and "version" not in data:
+            skipped += 1
+            continue
         file_errors: List[str] = []
         file_warnings: List[str] = []
         for err in validator.iter_errors(data):
@@ -101,7 +106,7 @@ def main() -> None:
             warnings[path] = file_warnings
 
     ko = len(errors)
-    print(f"OK: {ok} KO: {ko}")
+    print(f"OK: {ok} KO: {ko} SKIP: {skipped}")
     for path in errors:
         print(path)
         for msg in errors[path]:
