@@ -61,6 +61,29 @@ def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
     return {}
 
 
+def _normalize_llm_sidecar(data: dict) -> dict:
+    """Normalise un sidecar LLM sans modifier l'original.
+
+    - si ``model`` est absent mais ``model_used`` présent, copie la valeur
+      vers ``model`` ;
+    - si ``model_used`` est absent mais ``model`` présent, copie la valeur
+      vers ``model_used`` ;
+    - n'altère pas les autres champs ;
+    - idempotent : appeler plusieurs fois ne change pas le résultat.
+    """
+
+    out = dict(data or {})
+    model = out.get("model")
+    model_used = out.get("model_used")
+
+    if not model and model_used:
+        out["model"] = model_used
+    if not model_used and model:
+        out["model_used"] = model
+
+    return out
+
+
 def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> dict:
     base = runs_root or os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs"
     node_dir = Path(base) / run_id / "nodes" / node_key
@@ -83,7 +106,7 @@ def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> d
                 }
                 if obj.get("prompts") is not None:
                     out["prompts"] = obj.get("prompts")
-                return out
+                return _normalize_llm_sidecar(out)
         except Exception:
             continue
     return {}
