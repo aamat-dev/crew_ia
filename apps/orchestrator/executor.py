@@ -40,6 +40,7 @@ from core.io.artifacts_fs import (
     write_md,
     node_dir as fs_node_dir,
 )
+from apps.orchestrator.sidecars import normalize_llm_sidecar
 
 log = logging.getLogger("crew.executor")
 
@@ -313,18 +314,26 @@ async def _execute_node(
         if md:
             sidecar["markdown"] = md
     if sidecar:
-        write_llm_sidecar(run_id, node_key, sidecar)
+        node_uuid_str = None
         if node_dbid:
             try:
-                node_uuid = UUID(str(node_dbid))
-                await _save_artifact_db(
-                    storage,
-                    node_id=node_uuid,
-                    content=json.dumps(sidecar, ensure_ascii=False, indent=2),
-                    ext=".llm.json",
-                )
+                node_uuid_str = str(UUID(str(node_dbid)))
             except Exception:
-                log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+                node_uuid_str = None
+        sidecar = normalize_llm_sidecar(sidecar, run_id=run_id, node_id=node_uuid_str)
+        write_llm_sidecar(run_id, node_key, sidecar)
+        if node_dbid:
+            if node_uuid_str:
+                try:
+                    node_uuid = UUID(node_uuid_str)
+                    await _save_artifact_db(
+                        storage,
+                        node_id=node_uuid,
+                        content=json.dumps(sidecar, ensure_ascii=False, indent=2),
+                        ext=".llm.json",
+                    )
+                except Exception:
+                    log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
             # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
             if _is_pytest_tmp_cwd():

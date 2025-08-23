@@ -91,6 +91,6 @@ async def test_llm_meta_fallback_fs(tmp_path, monkeypatch):
     assert payload["provider"] == "openai"
     assert payload["model"] == "gpt4"
     assert payload["latency_ms"] == 123
-    assert payload["usage"] == {"prompt_tokens": 1}
-    assert payload["prompts"] == {"user": "hello"}
+    assert payload["usage"] == {"prompt_tokens": 1, "completion_tokens": 0}
+    assert payload["prompts"] == {"system": "", "user": "hello"}
     assert payload["request_id"] == "req-1"

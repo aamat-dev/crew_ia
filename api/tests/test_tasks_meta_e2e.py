@@ -54,5 +54,5 @@ async def test_events_include_llm_metadata(async_client, monkeypatch, tmp_path):
     assert meta.get("provider") == "openai"
     assert meta.get("model") == "gpt4"
     assert meta.get("latency_ms") == 123
-    assert meta.get("usage") == {"prompt_tokens": 1}
+    assert meta.get("usage") == {"prompt_tokens": 1, "completion_tokens": 0}
     assert meta.get("request_id") == "req-456"
