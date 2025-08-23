@@ -1,40 +1,69 @@
 # Fil G – Mini Dashboard (read‑only)
 
-## Démarrage rapide
+## Introduction
+Mini interface web permettant de visualiser l'exécution des runs orchestrés.
+Le tableau de bord est **en lecture seule** et vise principalement les
+équipes de développement, d'exploitation et de test souhaitant consulter
+l'état des runs.
 
-Node.js 20 LTS minimum est recommandé.
+## Installation locale
+Node.js 20 LTS ou supérieur est requis.
 
+1. **Installer les dépendances** :
+   ```bash
+   make dash-mini-install
+   ```
+2. **Configurer l'API** : créer un fichier `.env.local` dans `dashboard/mini`
+   contenant les variables suivantes :
+   ```env
+   VITE_API_BASE_URL=http://localhost:8000
+   VITE_API_TIMEOUT_MS=15000
+   # optionnel
+   VITE_API_KEY=<cle>
+   ```
+3. **Démarrer l'API FastAPI** (répertoire racine du projet) :
+   ```bash
+   uvicorn api.fastapi_app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+   Si l'API tourne en local loopback, l'option `--host 0.0.0.0` permet l'accès
+   depuis un autre appareil du réseau.
+4. **Lancer le dashboard** :
+   ```bash
+   make dash-mini-run
+   ```
+   Pour générer une version de production et la prévisualiser :
+   ```bash
+   make dash-mini-build
+   ```
+
+## Utilisation
+- **Runs** : liste paginée des runs avec statut et dates.
+- **Run Detail** : détail d'un run avec plusieurs onglets :
+  - **Résumé** : synthèse du run.
+  - **DAG** : visualisation du graphe des nœuds.
+  - **Nodes** : tableau des nœuds ; sélectionner un nœud charge ses artifacts.
+  - **Events** : chronologie filtrable par type, niveau et nœud.
+  - **Artifacts** : fichiers générés par le nœud sélectionné.
+
+## Captures d’écran
+![Runs](docs/img/runs.png)
+
+![Run Detail](docs/img/run-detail.png)
+
+## CI/CD
+Une GitHub Action exécute lint, typage, tests et build. Pour lancer ces
+vérifications en local :
 ```bash
-make dash-mini-install
-make dash-mini-run
-make dash-mini-build
+make dash-mini-ci-local
 ```
 
-Variables `.env.local` utiles :
+## Limites connues
+- Fonctionnement uniquement en lecture ; aucune création/édition de runs.
+- Nécessite une API accessible protégée par clé.
+- Dépend de la disponibilité de l'orchestrateur.
 
-```bash
-VITE_API_BASE_URL=http://192.168.1.50:8000
-VITE_API_TIMEOUT_MS=15000
-# optionnel
-VITE_API_KEY=<clé>
-```
-
-Rappel : si l’API tourne en local loopback, la lancer avec `--host 0.0.0.0` pour accès réseau.
-
-## Intégration continue
-
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-
-Ce workflow exécute `npm run lint`, `npm run typecheck`, `npm test -- --run` et `npm run build`.
-
-## Filtres & pagination
-
-L'API `/runs` accepte les paramètres suivants :
-
-- `page` — numéro de page (>=1)
-- `page_size` — taille de page (`10`, `20` ou `50`)
-- `status` — liste de statuts séparés par des virgules (`queued`, `running`, `succeeded`, `failed`, `canceled`, `partial`)
-- `date_from`, `date_to` — bornes de date (`YYYY-MM-DD`)
-- `title` — filtre texte sur le titre
-
-Chaque modification de filtre remet la page à `1`.
+## Améliorations futures
+- Pagination avancée.
+- Recherche en temps réel.
+- Mode sombre.
+- Édition des runs.
