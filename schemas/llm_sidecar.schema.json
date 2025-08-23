@@ -64,8 +64,16 @@
     "timestamps": {
       "type": "object",
       "properties": {
-        "started_at": { "type": "string", "format": "date-time" },
-        "ended_at": { "type": "string", "format": "date-time" }
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)(Z|[+-]\\d{2}:\\d{2})$"
+        }
       },
       "required": ["started_at", "ended_at"]
     },
@@ -122,7 +130,7 @@
   "required": ["version", "provider", "latency_ms", "usage", "cost", "prompts", "timestamps", "run_id", "node_id"],
   "allOf": [
     {
-      "oneOf": [
+      "anyOf": [
         { "required": ["model"] },
         { "required": ["model_used"] }
       ]
