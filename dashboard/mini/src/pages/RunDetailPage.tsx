@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRun, useRunSummary } from '../api/hooks';
@@ -6,6 +7,9 @@ import { ApiError } from '../api/http';
 import { useApiKey } from '../state/ApiKeyContext';
 import RunSummary from '../components/RunSummary';
 import DagView from '../components/DagView';
+import NodesTable from '../components/NodesTable';
+import EventsTable from '../components/EventsTable';
+import ArtifactsList from '../components/ArtifactsList';
 
 const RunDetailPage = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
@@ -16,6 +20,11 @@ const RunDetailPage = (): JSX.Element => {
   const summaryQuery = useRunSummary(id ?? '', {
     enabled: hasKey && Boolean(id),
   });
+
+  const [nodesPage, setNodesPage] = useState(1);
+  const [nodesPageSize, setNodesPageSize] = useState(20);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsPageSize, setEventsPageSize] = useState(20);
 
   const retry = (): void => {
     queryClient.invalidateQueries({ queryKey: ['run', id] });
@@ -61,9 +70,36 @@ const RunDetailPage = (): JSX.Element => {
           <DagView dag={run.dag} />
         </section>
       )}
-      <section>Nodes (placeholder)</section>
-      <section>Events (placeholder)</section>
-      <section>Artifacts (placeholder)</section>
+      <section>
+        <h3>Nodes</h3>
+        <NodesTable
+          runId={run.id}
+          page={nodesPage}
+          pageSize={nodesPageSize}
+          onPageChange={setNodesPage}
+          onPageSizeChange={(s) => {
+            setNodesPageSize(s);
+            setNodesPage(1);
+          }}
+        />
+      </section>
+      <section>
+        <h3>Events</h3>
+        <EventsTable
+          runId={run.id}
+          page={eventsPage}
+          pageSize={eventsPageSize}
+          onPageChange={setEventsPage}
+          onPageSizeChange={(s) => {
+            setEventsPageSize(s);
+            setEventsPage(1);
+          }}
+        />
+      </section>
+      <section>
+        <h3>Artifacts</h3>
+        <ArtifactsList runId={run.id} />
+      </section>
     </div>
   );
 };
