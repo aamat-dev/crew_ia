@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "provider": "openai",
+  "model": "gpt-4o",
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20
+  },
+  "cost": {
+    "estimated": 0.12
+  },
+  "prompts": {
+    "system": "Vous êtes un assistant IA.",
+    "user": "Bonjour"
+  },
+  "timestamps": {
+    "started_at": "2024-05-21T10:00:00Z",
+    "ended_at": "2024-05-21T10:00:01Z"
+  },
+  "run_id": "not-a-uuid",
+  "node_id": "123e4567-e89b-42d3-a456-426614174001"
+}
