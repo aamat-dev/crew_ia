@@ -1,6 +1,7 @@
 python-dotenv
 aiohttp
 openai
+jsonschema[format]
 
 # API and testing dependencies
 fastapi

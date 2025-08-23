@@ -48,9 +48,8 @@ help:
 	@echo "  api-test            -> teste l’API (si tests présents)"
 	@echo "  db-up / db-down     -> docker compose (postgres/pgadmin) si docker-compose.yml existe"
 	@echo "  db-logs / db-reset  -> idem"
-	@echo "  validate            -> scripts de validation (si script fourni)"
-
-# ---- Environnement -------------------------------------------
+	@echo "  validate            -> valide les sidecars .llm.json"
+	@echo "  validate-strict     -> validation stricte des sidecars"
 .PHONY: init-env
 init-env:
 	@if [ -f $(ENV_FILE) ]; then \
@@ -215,14 +214,13 @@ api-e2e-happy: ensure-venv
 api-e2e-meta: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
 
-# ---- Validation (optionnel) ----------------------------------
-.PHONY: validate
-validate:
-	@if [ -f scripts/validate_tasks_integration.sh ]; then \
-		bash scripts/validate_tasks_integration.sh; \
-	else \
-		echo "⏭️  Pas de scripts/validate_tasks_integration.sh — skip"; \
-	fi
+# ---- Validation ----------------------------------
+.PHONY: validate validate-strict
+validate: ensure-venv
+	@$(ACTIVATE) && python tools/validate_sidecars.py
+
+validate-strict: ensure-venv
+	@$(ACTIVATE) && python tools/validate_sidecars.py --strict
 
 # ---- Docker compose (optionnel) -------------------------------
 HAS_COMPOSE := $(shell test -f docker-compose.yml && echo yes || echo no)
