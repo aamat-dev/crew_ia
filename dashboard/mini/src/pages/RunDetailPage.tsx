@@ -21,6 +21,9 @@ const RunDetailPage = (): JSX.Element => {
     enabled: hasKey && Boolean(id),
   });
 
+  const [activeTab, setActiveTab] = useState<
+    'summary' | 'dag' | 'nodes' | 'events' | 'artifacts'
+  >('summary');
   const [nodesPage, setNodesPage] = useState(1);
   const [nodesPageSize, setNodesPageSize] = useState(20);
   const [eventsPage, setEventsPage] = useState(1);
@@ -71,54 +74,96 @@ const RunDetailPage = (): JSX.Element => {
   return (
     <div>
       <h2>{run.title ?? run.id}</h2>
-      {summary && <RunSummary run={run} summary={summary} />}
-      {run.dag && (
+      <nav role="tablist">
+        <button
+          role="tab"
+          aria-selected={activeTab === 'summary'}
+          onClick={() => setActiveTab('summary')}
+        >
+          Résumé
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'dag'}
+          onClick={() => setActiveTab('dag')}
+        >
+          DAG
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'nodes'}
+          onClick={() => setActiveTab('nodes')}
+        >
+          Nodes
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'events'}
+          onClick={() => setActiveTab('events')}
+        >
+          Events
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'artifacts'}
+          onClick={() => setActiveTab('artifacts')}
+        >
+          Artifacts
+        </button>
+      </nav>
+      {activeTab === 'summary' && summary && (
+        <RunSummary run={run} summary={summary} />
+      )}
+      {activeTab === 'dag' && run.dag && (
         <section>
           <DagView dag={run.dag} />
         </section>
       )}
-      <section>
-        <h3>Nodes</h3>
-        <NodesTable
-          runId={run.id}
-          page={nodesPage}
-          pageSize={nodesPageSize}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={setSelectedNodeId}
-          onPageChange={setNodesPage}
-          onPageSizeChange={(s) => {
-            setNodesPageSize(s);
-            setNodesPage(1);
-          }}
-        />
-      </section>
-      <section>
-        <h3>Events</h3>
-        <EventsTable
-          runId={run.id}
-          page={eventsPage}
-          pageSize={eventsPageSize}
-          level={eventsLevel}
-          text={eventsText}
-          onLevelChange={(lvl) => {
-            setEventsLevel(lvl);
-            setEventsPage(1);
-          }}
-          onTextChange={(t) => {
-            setEventsText(t);
-            setEventsPage(1);
-          }}
-          onPageChange={setEventsPage}
-          onPageSizeChange={(s) => {
-            setEventsPageSize(s);
-            setEventsPage(1);
-          }}
-        />
-      </section>
-      <section>
-        <h3>Artifacts</h3>
-        <ArtifactsList runId={run.id} nodeId={selectedNodeId} />
-      </section>
+      {activeTab === 'nodes' && (
+        <section>
+          <NodesTable
+            runId={run.id}
+            page={nodesPage}
+            pageSize={nodesPageSize}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={setSelectedNodeId}
+            onPageChange={setNodesPage}
+            onPageSizeChange={(s) => {
+              setNodesPageSize(s);
+              setNodesPage(1);
+            }}
+          />
+        </section>
+      )}
+      {activeTab === 'events' && (
+        <section>
+          <EventsTable
+            runId={run.id}
+            page={eventsPage}
+            pageSize={eventsPageSize}
+            level={eventsLevel}
+            text={eventsText}
+            onLevelChange={(lvl) => {
+              setEventsLevel(lvl);
+              setEventsPage(1);
+            }}
+            onTextChange={(t) => {
+              setEventsText(t);
+              setEventsPage(1);
+            }}
+            onPageChange={setEventsPage}
+            onPageSizeChange={(s) => {
+              setEventsPageSize(s);
+              setEventsPage(1);
+            }}
+          />
+        </section>
+      )}
+      {activeTab === 'artifacts' && (
+        <section>
+          <ArtifactsList runId={run.id} nodeId={selectedNodeId} />
+        </section>
+      )}
     </div>
   );
 };
