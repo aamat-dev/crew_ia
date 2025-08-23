@@ -179,11 +179,16 @@ env-check: ensure-venv
 # ---- API (FastAPI) -------------------------------------------
 .PHONY: api-run
 api-run: ensure-venv
-	@$(ACTIVATE) && uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT) --env-file $(ENV_FILE)
+        @$(ACTIVATE) && uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT) --env-file $(ENV_FILE)
+
+.PHONY: api-run-metrics
+api-run-metrics: ensure-venv
+	@export METRICS_ENABLED=1; \
+	$(ACTIVATE) && uvicorn $(API_MODULE) --reload --port $(API_PORT)
 
 .PHONY: api-run-prod
 api-run-prod: ensure-venv
-	@$(ACTIVATE) && uvicorn $(API_MODULE) --host 0.0.0.0 --port $(API_PORT) --workers 2
+        @$(ACTIVATE) && uvicorn $(API_MODULE) --host 0.0.0.0 --port $(API_PORT) --workers 2
 
 .PHONY: api-test
 api-test: ensure-venv
