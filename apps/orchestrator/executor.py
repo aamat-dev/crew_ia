@@ -25,7 +25,7 @@ from core.storage.db_models import NodeStatus
 from core.storage.composite_adapter import CompositeAdapter
 from core.agents.executor_llm import agent_runner
 from core.agents.manager import run_manager
-from core.agents.registry import load_default_registry
+from core.agents.registry import resolve_agent
 from core.agents.recruiter import recruit
 from core.agents.schemas import PlanNodeModel
 
@@ -232,8 +232,10 @@ async def _execute_node(
     node_key: str,
 ) -> Dict[str, Any]:
     role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
-    registry = load_default_registry()
-    spec = registry.get(role) or recruit(role)
+    try:
+        spec = resolve_agent(role)
+    except KeyError:
+        spec = recruit(role)
     log.debug("node=%s role=%s provider=%s model=%s", node_key, role, spec.provider, spec.model)
 
     # Assure le dossier FS du nœud
@@ -241,18 +243,32 @@ async def _execute_node(
     ndir.mkdir(parents=True, exist_ok=True)
 
     if node.type == "manage":
+        nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
+        children = [n for n in nodes_iter if node.id in getattr(n, "deps", [])]
+        if not children:
+            # Pas d'enfants à manager : on évite un appel LLM inutile.
+            minimal = {
+                "assignments": [],
+                "quality_checks": ["Aucun enfant à gérer pour ce nœud manage."],
+                "integration_notes": "No-op manage node; no downstream tasks.",
+            }
+            (ndir / f"manager_{node_key}.json").write_text(
+                json.dumps(minimal, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            return minimal
         subplan = [
             PlanNodeModel(
-                id=node.id,
-                title=node.title,
-                type=node.type,
-                suggested_agent_role=node.suggested_agent_role,
-                acceptance=node.acceptance,
-                deps=node.deps,
-                risks=node.risks,
-                assumptions=node.assumptions,
-                notes=node.notes,
+                id=n.id,
+                title=n.title,
+                type=n.type,
+                suggested_agent_role=n.suggested_agent_role,
+                acceptance=n.acceptance,
+                deps=n.deps,
+                risks=n.risks,
+                assumptions=n.assumptions,
+                notes=n.notes,
             )
+            for n in children
         ]
         output = await run_manager(subplan)
 
