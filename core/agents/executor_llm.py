@@ -8,6 +8,7 @@ from .schemas import PlanNodeModel
 from core.llm.providers.base import LLMRequest
 from core.llm.runner import run_llm
 from core.storage.composite_adapter import CompositeAdapter
+from apps.orchestrator.sidecars import normalize_llm_sidecar
 
 
 async def agent_runner(node: PlanNodeModel, storage: CompositeAdapter | None = None) -> dict:
@@ -63,6 +64,8 @@ async def agent_runner_legacy(node: PlanNodeModel, storage: CompositeAdapter) ->
     meta = res.get("llm", {})
 
     node_dbid = getattr(node, "db_id", None)
+    if meta:
+        meta = normalize_llm_sidecar(meta, node_id=str(node_dbid) if node_dbid else None)
     if node_dbid:
         await storage.save_artifact(node_id=str(node_dbid), content=md, ext=".md")
         if meta:

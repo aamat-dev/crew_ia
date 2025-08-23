@@ -4,6 +4,7 @@ from __future__ import annotations
 import os, json
 from pathlib import Path
 from typing import Optional, Dict, Any
+from apps.orchestrator.sidecars import normalize_llm_sidecar
 
 def runs_root() -> Path:
     return Path(os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs")
@@ -28,13 +29,12 @@ def write_md(run_id: str, node_key: str, content_md: str) -> Path:
     p.write_text(content_md, encoding="utf-8")
     return p
 
-def write_llm_sidecar(run_id: str, node_key: str, meta: Dict[str, Any]) -> Path:
-    """
-    meta attendu: { provider, model or model_used, latency_ms, usage, prompts? }
-    """
+def write_llm_sidecar(run_id: str, node_key: str, meta: Dict[str, Any], node_id: str | None = None) -> Path:
+    """Écrit un sidecar LLM normalisé."""
     ensure_dirs(run_id, node_key)
     p = llm_sidecar_path(run_id, node_key)
-    p.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta_norm = normalize_llm_sidecar(meta, run_id=run_id, node_id=node_id)
+    p.write_text(json.dumps(meta_norm, ensure_ascii=False, indent=2), encoding="utf-8")
     return p
 
 def read_first_llm_meta(run_id: str, node_key: str) -> Dict[str, Any]:
