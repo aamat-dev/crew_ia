@@ -5,7 +5,6 @@ import {
   fireEvent,
   waitFor,
   act,
-  within,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -106,18 +105,17 @@ describe('RunDetailPage events and artifacts', () => {
       </QueryClientProvider>,
     );
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Nodes' }));
     fireEvent.click(await screen.findByTestId('node-row-n1'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Artifacts' }));
     await waitFor(() => {
       const calls = (useNodeArtifacts as unknown as Mock).mock.calls;
       const last = calls[calls.length - 1];
       expect(last?.[0]).toBe('n1');
     });
 
-    const eventsSection = screen
-      .getByRole('heading', { name: 'Events' })
-      .closest('section');
-    if (!eventsSection) throw new Error('section not found');
-    fireEvent.click(within(eventsSection).getByText('Suivant'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
+    fireEvent.click(screen.getByText('Suivant'));
     await waitFor(() => {
       const calls = (useRunEvents as unknown as Mock).mock.calls;
       const last = calls[calls.length - 1];
