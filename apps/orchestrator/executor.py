@@ -18,6 +18,7 @@ from typing import Optional, Set, Callable, Awaitable, Dict, Any
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
+from time import perf_counter
 
 from core.config import get_var
 from core.planning.task_graph import TaskGraph, PlanNode
@@ -28,6 +29,10 @@ from core.agents.manager import run_manager
 from core.agents.registry import resolve_agent
 from core.agents.recruiter import recruit
 from core.agents.schemas import PlanNodeModel
+from core.telemetry.metrics import (
+    metrics_enabled,
+    get_orchestrator_node_duration_seconds,
+)
 
 # <<< AJOUT >>> helpers FS unifiés (option B)
 from core.io.artifacts_fs import (
@@ -417,7 +422,10 @@ async def run_graph(
 
         status = "failed"
         result: Dict[str, Any] | None = None
+        t0 = None
         try:
+            if metrics_enabled():
+                t0 = perf_counter()
             result = await _execute_node(node, storage, dag, run_id, node_id_txt)
             status = "completed"
             replayed_count += 1
@@ -442,6 +450,25 @@ async def run_graph(
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))
             status = "failed"
             any_failed = True
+        finally:
+            if t0 is not None:
+                dt = perf_counter() - t0
+                role = node.suggested_agent_role or "unknown"
+                provider = (
+                    getattr(node, "provider", None)
+                    or getattr(getattr(node, "meta", None), "provider", None)
+                    or "na"
+                )
+                model = (
+                    getattr(node, "model", None)
+                    or getattr(getattr(node, "meta", None), "model", None)
+                    or "na"
+                )
+                get_orchestrator_node_duration_seconds().labels(
+                    role,
+                    provider,
+                    model,
+                ).observe(dt)
 
         out = {
             "run_id": run_id,
