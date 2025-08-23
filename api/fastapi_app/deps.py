@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
@@ -6,6 +7,7 @@ from typing import AsyncGenerator, Sequence
 from fastapi import Header, HTTPException, status
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -25,6 +27,7 @@ def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
     global _db_pool_hooks_attached
     if _db_pool_hooks_attached or not metrics_enabled():
         return
+
     pool = getattr(getattr(engine, "sync_engine", engine), "pool", None)
     if pool is None:
         logger.debug("db_pool_in_use: aucun pool disponible, instrumentation ignorée")
@@ -39,13 +42,13 @@ def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
             get_db_pool_in_use().labels(db="primary").dec()
 
     try:
-        from sqlalchemy import event
         event.listen(pool, "checkout", _checkout)
         event.listen(pool, "checkin", _checkin)
         _db_pool_hooks_attached = True
         logger.debug("db_pool_in_use hooks attached")
     except Exception:
         logger.debug("db_pool_in_use: échec de l'attachement des hooks", exc_info=True)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -68,9 +71,11 @@ class Settings(BaseSettings):
         raw = self.cors_origins_raw or ""
         return [o.strip() for o in raw.split(",") if o.strip()]
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()
 
@@ -82,16 +87,20 @@ SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, expire_on_commit=False, class_=AsyncSession
 )
 
+
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
         yield session
 
+
 def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return SessionLocal
+
 
 # Backwards compatibility: the tests expect a ``get_db`` dependency
 # providing a database session.
 get_db = get_session
+
 
 # Auth par clé API
 def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
@@ -103,9 +112,11 @@ def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")
         headers={"WWW-Authenticate": "ApiKey"},
     )
 
+
 # alias pour compatibilité
 require_api_key = api_key_auth
 require_auth = api_key_auth
+
 
 # Timezone optionnelle pour formatage
 async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-Timezone")) -> ZoneInfo | None:
@@ -116,6 +127,7 @@ async def read_timezone(x_timezone: str | None = Header(default=None, alias="X-T
     except Exception:
         # On ignore une TZ invalide : la réponse reste en UTC
         return None
+
 
 # Helpers temps
 def to_tz(dt: datetime | None, tz: ZoneInfo | None) -> datetime | None:

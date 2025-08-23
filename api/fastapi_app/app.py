@@ -17,6 +17,8 @@ load_dotenv()
 from .deps import settings, api_key_auth
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
+from .middleware.metrics import MetricsMiddleware
+from core.telemetry.metrics import metrics_enabled, generate_latest
 from core.storage.postgres_adapter import PostgresAdapter
 from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
@@ -71,7 +73,17 @@ app = FastAPI(
 
 # -------- Middlewares --------
 app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagation
+app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
 app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
+
+if metrics_enabled():
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics():
+        payload = generate_latest()
+        return Response(
+            content=payload,
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+        )
 
 # CORS (une seule source de vérité : settings.cors_origins)
 app.add_middleware(
