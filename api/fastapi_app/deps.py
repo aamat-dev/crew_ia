@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import os
+import logging
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
 
 from fastapi import Header, HTTPException, status
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,6 +17,46 @@ from sqlalchemy.ext.asyncio import (
 )
 from zoneinfo import ZoneInfo
 from datetime import timezone, datetime
+
+from core.telemetry.metrics import metrics_enabled, get_db_pool_in_use
+
+logger = logging.getLogger(__name__)
+
+_db_pool_hooks_attached = False
+
+
+def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
+    global _db_pool_hooks_attached
+    if _db_pool_hooks_attached or not metrics_enabled():
+        return
+
+    pool = None
+    try:
+        pool = getattr(engine.sync_engine, "pool", None)
+        if pool is None:
+            pool = getattr(engine, "pool", None)
+    except Exception:
+        pool = None
+
+    if pool is None:
+        logger.debug("db_pool_in_use: aucun pool disponible, instrumentation ignorée")
+        return
+
+    def _checkout(dbapi_connection, connection_record, connection_proxy):
+        if metrics_enabled():
+            get_db_pool_in_use().labels(db="primary").inc()
+
+    def _checkin(dbapi_connection, connection_record):
+        if metrics_enabled():
+            get_db_pool_in_use().labels(db="primary").dec()
+
+    try:
+        event.listen(pool, "checkout", _checkout)
+        event.listen(pool, "checkin", _checkin)
+        _db_pool_hooks_attached = True
+        logger.debug("db_pool_in_use hooks attached")
+    except Exception:
+        logger.debug("db_pool_in_use: échec de l'attachement des hooks", exc_info=True)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -44,6 +87,7 @@ settings = get_settings()
 
 # SQLAlchemy async engine/session (lecture seule côté API)
 engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)
+_setup_db_pool_metrics(engine)
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, expire_on_commit=False, class_=AsyncSession
 )
