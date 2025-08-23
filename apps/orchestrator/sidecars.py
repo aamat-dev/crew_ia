@@ -84,7 +84,7 @@ def normalize_llm_sidecar(data: Dict[str, Any] | None, *, run_id: str | None = N
     final_model = model_used or model
     if final_model:
         out["model"] = final_model
-    out.pop("model_used", None)
+        out["model_used"] = final_model
 
     if warnings:
         out["warnings"] = warnings

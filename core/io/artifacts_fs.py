@@ -29,13 +29,15 @@ def write_md(run_id: str, node_key: str, content_md: str) -> Path:
     p.write_text(content_md, encoding="utf-8")
     return p
 
-def write_llm_sidecar(run_id: str, node_key: str, meta: Dict[str, Any], node_id: str | None = None) -> Path:
-    """Écrit un sidecar LLM normalisé."""
+def write_llm_sidecar(
+    run_id: str, node_key: str, meta: Dict[str, Any], node_id: str | None = None
+) -> Dict[str, Any]:
+    """Écrit un sidecar LLM normalisé et le retourne."""
     ensure_dirs(run_id, node_key)
     p = llm_sidecar_path(run_id, node_key)
     meta_norm = normalize_llm_sidecar(meta, run_id=run_id, node_id=node_id)
     p.write_text(json.dumps(meta_norm, ensure_ascii=False, indent=2), encoding="utf-8")
-    return p
+    return meta_norm
 
 def read_first_llm_meta(run_id: str, node_key: str) -> Dict[str, Any]:
     """
