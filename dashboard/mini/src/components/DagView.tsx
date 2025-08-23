@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import type { ComponentType, JSX } from 'react';
 import { useEffect, useState } from 'react';
 import type { RunDetail } from '../api/types';
 
@@ -6,14 +6,17 @@ interface DagViewProps {
   dag?: RunDetail['dag'];
 }
 
+interface ReactFlowModule {
+  default: ComponentType<unknown>;
+}
+
 const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
-  const [rf, setRf] = useState<any>(null);
+  const [rf, setRf] = useState<ReactFlowModule | null>(null);
 
   useEffect(() => {
     const pkg = 'reactflow';
-    // @ts-ignore - résolution dynamique sans dépendance
     import(/* @vite-ignore */ pkg)
-      .then((mod: any) => setRf(mod))
+      .then((mod: ReactFlowModule) => setRf(mod))
       .catch(() => {
         /* ignore, fallback */
       });
@@ -22,7 +25,7 @@ const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
   if (!dag) return null;
 
   if (rf) {
-    const ReactFlow = rf.default;
+    const ReactFlow = rf.default as ComponentType<Record<string, unknown>>;
     const nodes = dag.nodes.map((n, idx) => ({
       id: n.id,
       position: { x: idx * 200, y: 0 },
@@ -77,7 +80,14 @@ const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
         );
       })}
       <defs>
-        <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto">
+        <marker
+          id="arrow"
+          markerWidth="10"
+          markerHeight="10"
+          refX="10"
+          refY="3"
+          orient="auto"
+        >
           <path d="M0,0 L0,6 L9,3 z" fill="black" />
         </marker>
       </defs>
@@ -88,10 +98,22 @@ const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
           data-testid={`dag-node-${n.id}`}
         >
           <rect width="80" height="40" fill="#eee" stroke="#333" rx="4" />
-          <text x="40" y="18" dominantBaseline="middle" textAnchor="middle" fontSize="10">
+          <text
+            x="40"
+            y="18"
+            dominantBaseline="middle"
+            textAnchor="middle"
+            fontSize="10"
+          >
             {n.role ?? n.id}
           </text>
-          <text x="40" y="32" dominantBaseline="middle" textAnchor="middle" fontSize="8">
+          <text
+            x="40"
+            y="32"
+            dominantBaseline="middle"
+            textAnchor="middle"
+            fontSize="8"
+          >
             {n.status}
           </text>
         </g>
