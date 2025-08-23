@@ -91,6 +91,9 @@ def normalize_llm_sidecar(data: Dict[str, Any] | None, *, run_id: str | None = N
     if final_model:
         out["model"] = final_model
         out["model_used"] = final_model
+    else:
+        # Sidecar sans modèle (ex: runs de démo non-LLM) => valeur par défaut
+        out["model"] = out["model_used"] = "other"
 
     if warnings:
         out["warnings"] = warnings
