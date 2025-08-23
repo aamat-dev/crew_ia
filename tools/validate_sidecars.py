@@ -19,6 +19,11 @@ UUID4_RE = re.compile(
 )
 
 
+def is_uuid_like(run_id: str) -> bool:
+    """Retourne True si *run_id* ressemble à un UUID v4."""
+    return bool(UUID4_RE.match(run_id))
+
+
 def parse_rfc3339(value: str) -> datetime:
     if value.endswith("Z"):
         value = value[:-1] + "+00:00"
@@ -36,12 +41,16 @@ def main() -> None:
     parser.add_argument("--since", help="run_id (UUID v4) ou timestamp RFC3339")
     parser.add_argument("--strict", action="store_true", help="mode strict")
     parser.add_argument("--all", action="store_true", help="valider tous les fichiers")
-    parser.add_argument("--include-non-uuid", action="store_true", help="inclure les runs dont le dossier n'est pas un UUID v4 (ex: run-reco-1)")
+    parser.add_argument(
+        "--non-uuid",
+        action="store_true",
+        help="valider aussi les runs dont le dossier n'est pas un UUID v4 (ex: run-reco-1)",
+    )
     args = parser.parse_args()
 
     since_kind: tuple[str, Any] | None = None
     if args.since:
-        if UUID4_RE.match(args.since):
+        if is_uuid_like(args.since):
             since_kind = ("run_id", args.since)
         else:
             try:
@@ -58,21 +67,20 @@ def main() -> None:
 
     ok = 0
     skipped = 0
-    non_uuid_skipped = 0
     errors: Dict[Path, List[str]] = {}
     warnings: Dict[Path, List[str]] = {}
 
     for path in files:
-        if since_kind and since_kind[0] == "run_id" and since_kind[1] not in str(path):
-            continue
         try:
             # Déduire le dossier de run: .runs/<run_id>/nodes/<node>/file
             # parents[0] = dossier du node, parents[1] = "nodes", parents[2] = dossier run
-            run_dir = path.parents[2].name if len(path.parents) >= 3 else ""
+            run_id = path.parents[2].name if len(path.parents) >= 3 else ""
         except Exception:
-            run_dir = ""
+            run_id = ""
+        if since_kind and since_kind[0] == "run_id" and since_kind[1] != run_id:
+            continue
         # Ignorer par défaut les runs dont le nom n'est pas un UUID v4 (ex: "run-reco-1")
-        if not args.include_non_uuid and not UUID4_RE.match(run_dir):
+        if not args.non_uuid and not is_uuid_like(run_id):
             skipped += 1
             continue
         try:
