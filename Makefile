@@ -228,6 +228,16 @@ validate-strict: ensure-venv
 validate-non-uuid: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
 
+# ---- Mini Dashboard (placeholders) ---------------------------
+# dash-mini-install:
+#        @echo "TODO: install mini dashboard"
+
+# dash-mini-run:
+#        @echo "TODO: run mini dashboard"
+
+# dash-mini-build:
+#        @echo "TODO: build mini dashboard"
+
 # ---- Docker compose (optionnel) -------------------------------
 HAS_COMPOSE := $(shell test -f docker-compose.yml && echo yes || echo no)
 
