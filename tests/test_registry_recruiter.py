@@ -26,4 +26,3 @@ def test_recruiter_generic_fallback(monkeypatch):
 
     resolved = registry.resolve_agent("Analyst_EN")
     assert resolved == spec
-

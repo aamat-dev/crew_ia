@@ -1,5 +1,6 @@
 import json
 from typing import List
+
 from pydantic import ValidationError
 
 from .schemas import PlanNodeModel, ManagerOutput, parse_manager_json
@@ -8,12 +9,14 @@ from .recruiter import recruit
 from core.llm.providers.base import LLMRequest
 from core.llm.runner import run_llm
 
+
 async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
     try:
         spec: AgentSpec = resolve_agent("Manager_Generic")
     except KeyError:
         spec = recruit("Manager_Generic")
     system_prompt = spec.system_prompt
+
     payload = [
         {
             "id": n.id,

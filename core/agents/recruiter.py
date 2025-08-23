@@ -3,10 +3,10 @@ from .registry import AgentSpec, register_agent
 from core.config import get_role_config, LLM_DEFAULT_PROVIDER, LLM_DEFAULT_MODEL
 
 
+
 def recruit(role: str) -> AgentSpec:
     r = role.strip()
     root = Path(__file__).resolve().parents[2]
-
     exe_cfg = get_role_config("EXECUTOR")
     provider = (LLM_DEFAULT_PROVIDER or exe_cfg.provider).strip()
     model = (LLM_DEFAULT_MODEL or exe_cfg.model).strip()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from pathlib import Path
 from typing import Any, Dict
 
 from pydantic import ValidationError
@@ -10,12 +11,14 @@ from .schemas import SupervisorPlan, parse_supervisor_json
 from core.llm.providers.base import LLMRequest
 from core.llm import runner as llm_runner
 
+
 async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
+
     """
     Execute the Supervisor role once and return a validated SupervisorPlan.
     """
+
     try:
-        spec = resolve_agent("Supervisor")
     except KeyError:
         spec = recruit("Supervisor")
 
