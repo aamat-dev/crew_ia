@@ -41,6 +41,7 @@ header to ask for conversion to a specific zone.
 
 Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.env.example) pour la liste complète). Les principales :
 
+
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
 - `CORS_ORIGINS` — origines autorisées pour CORS.
@@ -48,7 +49,8 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 
 ### Presets dev / prod
 
-Dans `.env.example` se trouvent deux profils commentés :
+
+Dans `.env.example` se trouvent deux profils commentés :
 
 ```
 # --- DEV : Ollama only ---
@@ -65,12 +67,13 @@ Décommentez le bloc correspondant à votre contexte pour obtenir une configurat
 
 ### Comment lancer
 
-- API : `make api-run` (dev) ou `make api-run-prod` (prod).
-- CLI : `python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
+
+- API : `make api-run` (dev) ou `make api-run-prod` (prod).
+- CLI : `python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
 
 ### Commandes de test
 
-- **API** : déclencher un run ad‑hoc via `POST /tasks` :
+- **API** : déclencher un run ad‑hoc via `POST /tasks` :
 
   ```
   curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
@@ -78,7 +81,7 @@ Décommentez le bloc correspondant à votre contexte pour obtenir une configurat
        http://localhost:8000/tasks
   ```
 
-- **CLI** : lancer l'orchestrateur en générant le plan :
+- **CLI** : lancer l'orchestrateur en générant le plan :
 
   ```
   python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"
