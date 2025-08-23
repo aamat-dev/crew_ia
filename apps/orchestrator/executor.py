@@ -40,7 +40,6 @@ from core.io.artifacts_fs import (
     write_md,
     node_dir as fs_node_dir,
 )
-from apps.orchestrator.sidecars import normalize_llm_sidecar
 
 log = logging.getLogger("crew.executor")
 
@@ -320,8 +319,9 @@ async def _execute_node(
                 node_uuid_str = str(UUID(str(node_dbid)))
             except Exception:
                 node_uuid_str = None
-        sidecar = normalize_llm_sidecar(sidecar, run_id=run_id, node_id=node_uuid_str)
-        write_llm_sidecar(run_id, node_key, sidecar)
+        sidecar = write_llm_sidecar(
+            run_id, node_key, sidecar, node_id=node_uuid_str
+        )
         if node_dbid:
             if node_uuid_str:
                 try:
