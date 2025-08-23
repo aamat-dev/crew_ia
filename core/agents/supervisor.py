@@ -14,46 +14,30 @@ from core.llm import runner as llm_runner
 
 
 async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
-    """Exécute le rôle Supervisor et renvoie un plan validé."""
+
+    """
+    Execute the Supervisor role once and return a validated SupervisorPlan.
+    """
 
     try:
         spec: AgentSpec = resolve_agent("Supervisor")
     except KeyError:
         spec = recruit("Supervisor")
 
-    if getattr(spec, "system_prompt", None):
-        system_prompt = spec.system_prompt
-    elif getattr(spec, "system_prompt_path", None):
-        sp = Path(spec.system_prompt_path)
-        if not sp.is_absolute():
-            repo_root = Path(__file__).resolve().parents[2]
-            sp = repo_root / sp
-        system_prompt = sp.read_text(encoding="utf-8")
-    else:
-        raise ValueError("Prompt système du Supervisor introuvable")
+    system_prompt = spec.system_prompt
 
     task_json = json.dumps(task, ensure_ascii=False)
     user_msg = task_json
     last_err: ValidationError | None = None
 
     for _ in range(3):
-        req = LLMRequest(
-            system=system_prompt,
-            prompt=user_msg,
-            model=spec.model,
-            provider=spec.provider,
-        )
+        req = LLMRequest(system=system_prompt, prompt=user_msg, model=spec.model, provider=spec.provider)
+
         resp = await llm_runner.run_llm(req)
         try:
             return parse_supervisor_json(resp.text)
         except ValidationError as ve:
             last_err = ve
-            user_msg = (
-                task_json
-                + "\nLa réponse précédente n'était pas un JSON valide. "
-                + "Réponds uniquement avec un JSON valide conforme au schéma."
-            )
+            user_msg = task_json + "\nLa réponse précédente n'était pas un JSON valide. Réponds uniquement avec un JSON valide conforme au schéma."
+    raise last_err if last_err else RuntimeError("Unexpected supervisor failure")
 
-    if last_err:
-        raise last_err
-    raise RuntimeError("Unexpected supervisor failure")
