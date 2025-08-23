@@ -163,7 +163,7 @@ def _extract_llm_meta_from_result(artifact: Any) -> Dict[str, Any]:
         if prov or model or lat or usage or prompts:
             out = {
                 "provider": prov,
-                "model": model,
+                "model_used": model,
                 "latency_ms": lat,
                 "usage": usage,
             }
@@ -332,7 +332,7 @@ async def _execute_node(
         node_key,
         role,
         sidecar.get("provider") if sidecar else None,
-        sidecar.get("model") if sidecar else None,
+        (sidecar.get("model") or sidecar.get("model_used")) if sidecar else None,
         sidecar.get("latency_ms") if sidecar else None,
     )
 
@@ -416,11 +416,27 @@ async def run_graph(
                 print(colorize(f"[HOOK-ERR] on_node_start: {e}", RED))
 
         status = "failed"
+        result: Dict[str, Any] | None = None
         try:
-            _ = await _execute_node(node, storage, dag, run_id, node_id_txt)
+            result = await _execute_node(node, storage, dag, run_id, node_id_txt)
             status = "completed"
             replayed_count += 1
             completed_ids.add(node_id_txt)
+
+            if node.type == "manage" and isinstance(result, dict):
+                for assignment in result.get("assignments", []) or []:
+                    node_id = assignment.get("node_id")
+                    role = assignment.get("agent_role") or assignment.get("agent")
+                    tooling = assignment.get("tooling") or []
+                    if not node_id or node_id not in dag.nodes:
+                        continue
+                    target = dag.nodes[node_id]
+                    if role:
+                        target.suggested_agent_role = role
+                    if tooling:
+                        if getattr(target, "llm", None) is None:
+                            target.llm = {}
+                        target.llm["tooling"] = tooling
         except Exception as e:
             traceback.print_exc()
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))

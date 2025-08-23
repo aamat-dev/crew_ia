@@ -34,7 +34,7 @@ async def test_agent_routing_writer(monkeypatch, tmp_path):
     assert content.startswith("# ")
     side = res["llm"]
     assert side["provider"] == "p"
-    assert side["model"] == "m"
+    assert side["model_used"] == "m"
     assert set(side["prompts"].keys()) == {"system", "user", "final"}
 
     # Vérifie la persistance FS
