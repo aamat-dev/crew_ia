@@ -14,6 +14,7 @@ import {
   Page,
   Run,
   RunDetail,
+  RunSummary,
   Status,
 } from './types';
 
@@ -43,7 +44,7 @@ export const useRun = (id: string, opts?: { enabled?: boolean }) =>
   });
 
 export const useRunSummary = (id: string, opts?: { enabled?: boolean }) =>
-  useQuery<{ summary: string }>({
+  useQuery<RunSummary>({
     queryKey: ['run', id, 'summary'],
     queryFn: ({ signal }) => getRunSummary(id, { signal }),
     enabled: opts?.enabled,

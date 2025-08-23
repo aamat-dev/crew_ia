@@ -6,6 +6,7 @@ import {
   Page,
   Run,
   RunDetail,
+  RunSummary,
   Status,
 } from './types';
 
@@ -43,11 +44,8 @@ export const getRun = async (
 export const getRunSummary = async (
   id: string,
   opts: FetchOpts = {},
-): Promise<{ summary: string }> => {
-  const { data } = await fetchJson<{ summary: string }>(
-    `/runs/${id}/summary`,
-    opts,
-  );
+): Promise<RunSummary> => {
+  const { data } = await fetchJson<RunSummary>(`/runs/${id}/summary`, opts);
   return data;
 };
 
