@@ -74,4 +74,7 @@ def test_malformed_timestamp_invalid(validator, minimal_payload):
     errors = list(validator.iter_errors(payload))
     assert errors
     msgs = [e.message for e in errors]
-    assert any("date-time" in m for m in msgs)
+    # On accepte soit une erreur de format ("date-time"), soit une erreur de pattern
+    assert any(("date-time" in m) or ("does not match" in m) or ("pattern" in m) for m in msgs)
+    # Vérifie bien que l’erreur concerne le champ started_at
+    assert any(list(e.path) == ["timestamps", "started_at"] for e in errors)

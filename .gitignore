@@ -35,3 +35,4 @@ Thumbs.db
 # Tests
 test_api*
 .envrc
+test_metrics.db

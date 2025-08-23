@@ -183,7 +183,7 @@ env-check: ensure-venv
 # ---- API (FastAPI) -------------------------------------------
 .PHONY: api-run
 api-run: ensure-venv
-        @$(ACTIVATE) && uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT) --env-file $(ENV_FILE)
+		@$(ACTIVATE) && uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT) --env-file $(ENV_FILE)
 
 .PHONY: api-run-metrics
 api-run-metrics: ensure-venv
