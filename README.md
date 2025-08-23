@@ -35,6 +35,61 @@ curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 The server always returns timestamps in UTC. Clients may supply `X-Timezone`
 header to ask for conversion to a specific zone.
 
+## Fil D – Hiérarchie
+
+### Variables `.env`
+
+Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.env.example) pour la liste complète). Les principales :
+
+- `API_KEY` — clé requise sur toutes les requêtes API.
+- `DATABASE_URL` — URL de connexion asynchrone à la base.
+- `CORS_ORIGINS` — origines autorisées pour CORS.
+- `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
+
+### Presets dev / prod
+
+Dans `.env.example` se trouvent deux profils commentés :
+
+```
+# --- DEV : Ollama only ---
+# LLM_DEFAULT_PROVIDER=ollama
+# LLM_DEFAULT_MODEL=llama3.1:8b
+...
+# --- PROD : OpenAI only ---
+# LLM_DEFAULT_PROVIDER=openai
+# LLM_DEFAULT_MODEL=gpt-4o-mini
+...
+```
+
+Décommentez le bloc correspondant à votre contexte pour obtenir une configuration de base.
+
+### Comment lancer
+
+- API : `make api-run` (dev) ou `make api-run-prod` (prod).
+- CLI : `python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
+
+### Commandes de test
+
+- **API** : déclencher un run ad‑hoc via `POST /tasks` :
+
+  ```
+  curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+       -d '{"title":"Demo","task_spec":{"type":"demo"}}' \
+       http://localhost:8000/tasks
+  ```
+
+- **CLI** : lancer l'orchestrateur en générant le plan :
+
+  ```
+  python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"
+  ```
+
+### Schéma textuel du flux
+
+```
+Supervisor → Manager → Exécutants → sidecars
+```
+
 ## Authentication & CORS
 
 All endpoints except `/health` require the `X-API-Key` header. Origins allowed
