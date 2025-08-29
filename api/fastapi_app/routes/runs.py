@@ -8,7 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, read_timezone, to_tz, strict_api_key_auth
+from ..deps import (
+    get_session,
+    read_timezone,
+    to_tz,
+    strict_api_key_auth,
+    cap_limit,
+    DEFAULT_LIMIT,
+)
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
 
 # Import des modèles ORM existants
@@ -32,7 +39,7 @@ def apply_order(stmt, order_by: str | None):
 async def list_runs(
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     status: Optional[str] = Query(None, description="Filtre par status"),
     title_contains: Optional[str] = Query(None, description="Filtre par sous-chaîne du titre"),
@@ -40,6 +47,7 @@ async def list_runs(
     started_to: Optional[datetime] = Query(None),
     order_by: Optional[str] = Query("-started_at"),
 ):
+    limit = cap_limit(limit)
     where_clauses = []
     if status:
         where_clauses.append(Run.status == status)

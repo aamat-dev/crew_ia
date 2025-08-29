@@ -6,7 +6,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, read_timezone, to_tz, strict_api_key_auth
+from ..deps import (
+    get_session,
+    read_timezone,
+    to_tz,
+    strict_api_key_auth,
+    cap_limit,
+    DEFAULT_LIMIT,
+)
 from ..schemas import Page, NodeOut
 from core.storage.db_models import Node  # type: ignore
 
@@ -33,13 +40,14 @@ async def list_nodes(
     run_id: UUID,
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     status: Optional[str] = Query(None),
     key: Optional[str] = Query(None),
     title_contains: Optional[str] = Query(None),
     order_by: Optional[str] = Query("-created_at"),
 ):
+    limit = cap_limit(limit)
     where = [Node.run_id == run_id]
     if status:
         where.append(Node.status == status)
