@@ -14,6 +14,7 @@ from ..deps import (
     to_tz,
     strict_api_key_auth,
     cap_limit,
+    cap_date_range,
     DEFAULT_LIMIT,
 )
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
@@ -49,6 +50,7 @@ async def list_runs(
     order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
     limit = cap_limit(limit)
+    cap_date_range(started_from, started_to)
     where_clauses = []
     if status:
         where_clauses.append(Run.status == status)

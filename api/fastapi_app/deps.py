@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from zoneinfo import ZoneInfo
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 
 from core.telemetry.metrics import metrics_enabled, get_db_pool_in_use
 
@@ -26,10 +26,29 @@ _db_pool_hooks_attached = False
 MAX_LIMIT = 50
 DEFAULT_LIMIT = 20
 
+# Limite d'intervalle temporel (31 jours)
+MAX_DATE_RANGE_DAYS = 31
+
 
 def cap_limit(limit: int) -> int:
     """Tronque ``limit`` à ``MAX_LIMIT``."""
     return min(limit, MAX_LIMIT)
+
+
+def cap_date_range(
+    start: datetime | None,
+    end: datetime | None,
+    max_days: int = MAX_DATE_RANGE_DAYS,
+) -> None:
+    """Vérifie que l'intervalle [start, end] ne dépasse pas ``max_days`` jours."""
+    if start and end:
+        if end < start:
+            raise HTTPException(status_code=400, detail="bornes temporelles incohérentes")
+        if end - start > timedelta(days=max_days):
+            raise HTTPException(
+                status_code=400,
+                detail=f"intervalle limité à {max_days} jours",
+            )
 
 
 def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
