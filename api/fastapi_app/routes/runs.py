@@ -150,15 +150,22 @@ async def get_run_summary(
     run_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    # même logique que ci-dessus, exposée séparément
+    run = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
     nodes_total = (
         await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id))
     ).scalar_one()
     nodes_completed = (
-        await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "completed"))
+        await session.execute(
+            select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "completed")
+        )
     ).scalar_one()
     nodes_failed = (
-        await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "failed"))
+        await session.execute(
+            select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "failed")
+        )
     ).scalar_one()
     artifacts_total = (
         await session.execute(
@@ -172,10 +179,11 @@ async def get_run_summary(
         await session.execute(select(func.count()).select_from(Event).where(Event.run_id == run_id))
     ).scalar_one()
 
-    run = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
     duration_ms = None
-    if run and getattr(run, "started_at", None) and getattr(run, "ended_at", None):
-        duration_ms = int((run.ended_at - run.started_at).total_seconds() * 1000)
+    started = getattr(run, "started_at", None)
+    ended = getattr(run, "ended_at", None)
+    if started and ended:
+        duration_ms = int((ended - started).total_seconds() * 1000)
 
     return RunSummaryOut(
         nodes_total=nodes_total,
