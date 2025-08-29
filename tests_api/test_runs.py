@@ -24,6 +24,20 @@ async def test_get_run_detail(client, seed_sample):
 
 
 @pytest.mark.asyncio
+async def test_get_run_summary_ok(client, seed_sample):
+    run_id = seed_sample["run_id"]
+    r = await client.get(f"/runs/{run_id}/summary")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["nodes_total"] == 3
+    assert body["nodes_completed"] == 2
+    assert body["nodes_failed"] == 1
+    assert body["artifacts_total"] == 2
+    assert body["events_total"] == 2
+    assert body["duration_ms"] == 300000
+
+
+@pytest.mark.asyncio
 async def test_title_filter(client, seed_sample):
     r = await client.get("/runs?title_contains=sample")
     assert r.status_code == 200
@@ -80,3 +94,9 @@ async def test_runs_ordering(client, db_session, seed_sample):
     finally:
         await db_session.execute(delete(Run).where(Run.id.in_([run1["id"], run2["id"]])))
         await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_get_run_summary_404(client):
+    r = await client.get(f"/runs/{uuid.uuid4()}/summary")
+    assert r.status_code == 404
