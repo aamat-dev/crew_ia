@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { API_BASE_URL, API_TIMEOUT_MS } from '../config/env';
+import { getApiBaseUrl, API_TIMEOUT_MS } from '../config/env';
 import { getCurrentApiKey } from '../state/ApiKeyContext';
 
 export class ApiError extends Error {
@@ -29,7 +29,7 @@ export async function fetchJson<T>(
   path: string,
   opts: FetchOpts = {},
 ): Promise<{ data: T; requestId: string }> {
-  const url = new URL(API_BASE_URL + path);
+  const url = new URL(getApiBaseUrl() + path);
   if (opts.query) {
     for (const [key, value] of Object.entries(opts.query)) {
       if (value !== undefined) {
