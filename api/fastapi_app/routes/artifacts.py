@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, settings, strict_api_key_auth
+from ..deps import get_session, settings, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
 from ..schemas import Page, ArtifactOut
 from core.storage.db_models import Artifact  # type: ignore
 
@@ -29,16 +29,21 @@ def order(stmt, order_by: str | None):
 async def list_artifacts(
     node_id: UUID,
     session: AsyncSession = Depends(get_session),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     type: Optional[str] = Query(None, description="Filtre par type d'artifact"),
     order_by: Optional[str] = Query("-created_at"),
 ):
+    limit = cap_limit(limit)
     base = select(Artifact).where(Artifact.node_id == node_id)
     if type:
         base = base.where(Artifact.type == type)
 
-    total = (await session.execute(select(func.count(Artifact.id)).where(Artifact.node_id == node_id))).scalar_one()
+    total_stmt = select(func.count(Artifact.id)).where(Artifact.node_id == node_id)
+    if type:
+        total_stmt = total_stmt.where(Artifact.type == type)
+
+    total = (await session.execute(total_stmt)).scalar_one()
     stmt = order(base, order_by).limit(limit).offset(offset)
 
     rows = (await session.execute(stmt)).scalars().all()

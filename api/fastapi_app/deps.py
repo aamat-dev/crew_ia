@@ -22,6 +22,15 @@ from core.telemetry.metrics import metrics_enabled, get_db_pool_in_use
 logger = logging.getLogger(__name__)
 _db_pool_hooks_attached = False
 
+# Pagination
+MAX_LIMIT = 50
+DEFAULT_LIMIT = 20
+
+
+def cap_limit(limit: int) -> int:
+    """Tronque ``limit`` à ``MAX_LIMIT``."""
+    return min(limit, MAX_LIMIT)
+
 
 def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
     global _db_pool_hooks_attached

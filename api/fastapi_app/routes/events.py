@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, strict_api_key_auth
+from ..deps import get_session, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
 from ..schemas import Page, EventOut
 from core.storage.db_models import Event  # type: ignore
 
@@ -32,7 +32,7 @@ async def list_events(
     run_id: UUID | None = Query(None),
     run_id_path: UUID | None = None,
     session: AsyncSession = Depends(get_session),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     level: Optional[str] = Query(None),
     q: Optional[str] = Query(None, description="Recherche plein texte (message ILIKE)"),
@@ -41,6 +41,7 @@ async def list_events(
     order_by: Optional[str] = Query("-timestamp"),
 ):
     global _deprecated_warned
+    limit = cap_limit(limit)
     run_id = run_id or run_id_path
     if run_id_path and not _deprecated_warned:
         log.warning("/runs/{run_id}/events est déprécié; utilisez /events?run_id=…")
