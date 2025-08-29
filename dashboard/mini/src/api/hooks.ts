@@ -26,6 +26,8 @@ export const useRuns = (
     dateFrom?: string;
     dateTo?: string;
     title?: string;
+    orderBy?: string;
+    orderDir?: 'asc' | 'desc';
   },
   opts?: { enabled?: boolean },
 ) =>
@@ -52,7 +54,12 @@ export const useRunSummary = (id: string, opts?: { enabled?: boolean }) =>
 
 export const useRunNodes = (
   id: string,
-  params: { page: number; pageSize: number },
+  params: {
+    page: number;
+    pageSize: number;
+    orderBy?: string;
+    orderDir?: 'asc' | 'desc';
+  },
   opts?: { enabled?: boolean },
 ) =>
   useQuery<Page<NodeItem>>({
@@ -68,6 +75,8 @@ export const useRunEvents = (
     pageSize: number;
     level?: 'info' | 'warn' | 'error' | 'debug';
     text?: string;
+    orderBy?: string;
+    orderDir?: 'asc' | 'desc';
   },
   opts?: { enabled?: boolean },
 ) =>

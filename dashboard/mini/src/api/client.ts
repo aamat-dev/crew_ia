@@ -66,6 +66,8 @@ export const listRuns = async (
     started_from: params.dateFrom,
     started_to: params.dateTo,
     title_contains: params.title,
+    order_by: params.orderBy,
+    order_dir: params.orderDir,
   };
   const { data, headers } = await fetchJson<{ items: BackendRun[] }>('/runs', {
     ...opts,
@@ -116,12 +118,22 @@ export const getRunSummary = async (
 
 export const listRunNodes = async (
   id: string,
-  params: { page: number; pageSize: number },
+  params: {
+    page: number;
+    pageSize: number;
+    orderBy?: string;
+    orderDir?: 'asc' | 'desc';
+  },
   opts: FetchOpts = {},
 ): Promise<Page<NodeItem>> => {
   const limit = Math.min(params.pageSize, 50);
   const offset = (params.page - 1) * limit;
-  const query = { limit, offset };
+  const query: Record<string, string | number | boolean | undefined> = {
+    limit,
+    offset,
+    order_by: params.orderBy,
+    order_dir: params.orderDir,
+  };
   type BackendNode = Omit<NodeItem, 'status'> & { status: ApiStatus };
   const { data, headers } = await fetchJson<{ items: BackendNode[] }>(
     `/runs/${id}/nodes`,
@@ -151,6 +163,8 @@ export const listRunEvents = async (
     pageSize: number;
     level?: 'info' | 'warn' | 'error' | 'debug';
     text?: string;
+    orderBy?: string;
+    orderDir?: 'asc' | 'desc';
   },
   opts: FetchOpts = {},
 ): Promise<Page<EventItem>> => {
@@ -161,6 +175,8 @@ export const listRunEvents = async (
     offset,
     level: params.level,
     q: params.text,
+    order_by: params.orderBy,
+    order_dir: params.orderDir,
   };
   const { data, headers } = await fetchJson<{ items: EventItem[] }>(
     `/runs/${id}/events`,

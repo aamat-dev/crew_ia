@@ -21,6 +21,10 @@ const setup = (props: Partial<NodesTableProps> = {}) => {
     pageSize: 20,
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
+    orderBy: 'created_at',
+    orderDir: 'desc',
+    onOrderByChange: vi.fn(),
+    onOrderDirChange: vi.fn(),
   };
   const view = render(
     <QueryClientProvider client={queryClient}>

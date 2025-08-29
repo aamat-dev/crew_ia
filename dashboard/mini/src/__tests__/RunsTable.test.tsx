@@ -15,8 +15,12 @@ const setup = (props: Partial<RunsTableProps> = {}) => {
   const defaultProps: RunsTableProps = {
     page: 1,
     pageSize: 20,
+    orderBy: 'started_at',
+    orderDir: 'desc',
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
+    onOrderByChange: vi.fn(),
+    onOrderDirChange: vi.fn(),
     onOpenRun: vi.fn(),
   };
   const view = render(
@@ -80,8 +84,12 @@ describe('RunsTable', () => {
           page={1}
           pageSize={20}
           status={['running' as Status]}
+          orderBy="started_at"
+          orderDir="desc"
           onPageChange={vi.fn()}
           onPageSizeChange={vi.fn()}
+          onOrderByChange={vi.fn()}
+          onOrderDirChange={vi.fn()}
           onOpenRun={vi.fn()}
         />
       </QueryClientProvider>,
@@ -104,5 +112,23 @@ describe('RunsTable', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const url = new URL(fetchMock.mock.calls[0][0] as string);
     expect(url.searchParams.get('status')).toBe('pending');
+  });
+
+  it('envoie les paramètres de tri', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [], total: 0, limit: 20, offset: 0 }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    setup({ orderBy: 'ended_at', orderDir: 'asc' });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get('order_by')).toBe('ended_at');
+    expect(url.searchParams.get('order_dir')).toBe('asc');
   });
 });

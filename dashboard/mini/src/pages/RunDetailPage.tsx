@@ -26,8 +26,12 @@ const RunDetailPage = (): JSX.Element => {
   >('summary');
   const [nodesPage, setNodesPage] = useState(1);
   const [nodesPageSize, setNodesPageSize] = useState(20);
+  const [nodesOrderBy, setNodesOrderBy] = useState('created_at');
+  const [nodesOrderDir, setNodesOrderDir] = useState<'asc' | 'desc'>('desc');
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(20);
+  const [eventsOrderBy, setEventsOrderBy] = useState('timestamp');
+  const [eventsOrderDir, setEventsOrderDir] = useState<'asc' | 'desc'>('desc');
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(
     undefined,
   );
@@ -132,6 +136,16 @@ const RunDetailPage = (): JSX.Element => {
               setNodesPageSize(s);
               setNodesPage(1);
             }}
+            orderBy={nodesOrderBy}
+            orderDir={nodesOrderDir}
+            onOrderByChange={(f) => {
+              setNodesOrderBy(f);
+              setNodesPage(1);
+            }}
+            onOrderDirChange={(d) => {
+              setNodesOrderDir(d);
+              setNodesPage(1);
+            }}
           />
         </section>
       )}
@@ -154,6 +168,16 @@ const RunDetailPage = (): JSX.Element => {
             onPageChange={setEventsPage}
             onPageSizeChange={(s) => {
               setEventsPageSize(s);
+              setEventsPage(1);
+            }}
+            orderBy={eventsOrderBy}
+            orderDir={eventsOrderDir}
+            onOrderByChange={(f) => {
+              setEventsOrderBy(f);
+              setEventsPage(1);
+            }}
+            onOrderDirChange={(d) => {
+              setEventsOrderDir(d);
               setEventsPage(1);
             }}
           />
