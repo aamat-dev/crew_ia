@@ -11,6 +11,22 @@ async def test_list_nodes_for_run(client, seed_sample):
 
 
 @pytest.mark.asyncio
+async def test_list_nodes_filter_role_checksum(client, seed_sample):
+    run_id = seed_sample["run_id"]
+    r = await client.get(f"/runs/{run_id}/nodes", params={"role": "r1"})
+    assert r.status_code == 200
+    js = r.json()
+    assert js["total"] == 1
+    assert js["items"][0]["role"] == "r1"
+
+    r2 = await client.get(f"/runs/{run_id}/nodes", params={"checksum": "cs2"})
+    assert r2.status_code == 200
+    js2 = r2.json()
+    assert js2["total"] == 1
+    assert js2["items"][0]["checksum"] == "cs2"
+
+
+@pytest.mark.asyncio
 async def test_nodes_ordering(client, seed_sample):
     run_id = seed_sample["run_id"]
     r = await client.get(f"/runs/{run_id}/nodes?order_by=created_at&order_dir=asc")

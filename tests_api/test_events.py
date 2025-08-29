@@ -24,6 +24,16 @@ async def test_list_events_filter_q(client, seed_sample):
 
 
 @pytest.mark.asyncio
+async def test_list_events_filter_request_id(client, seed_sample):
+    run_id = seed_sample["run_id"]
+    r = await client.get("/events", params={"run_id": run_id, "request_id": "req-1"})
+    assert r.status_code == 200
+    js = r.json()
+    assert js["total"] == 1
+    assert js["items"][0]["request_id"] == "req-1"
+
+
+@pytest.mark.asyncio
 async def test_events_old_and_new_routes(client, seed_sample):
     run_id = seed_sample["run_id"]
     r1 = await client.get("/events", params={"run_id": run_id})

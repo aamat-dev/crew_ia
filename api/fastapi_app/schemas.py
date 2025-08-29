@@ -114,6 +114,7 @@ class NodeOut(BaseModel):
     key: Optional[str] = None
     title: str
     status: str
+    role: Optional[str] = None
     checksum: Optional[str] = None
     deps: Optional[List[str]] = None
     created_at: datetime
@@ -136,6 +137,7 @@ class EventOut(BaseModel):
     level: str
     message: str
     timestamp: datetime
+    request_id: Optional[str] = None
 
 __all__ = [
     name

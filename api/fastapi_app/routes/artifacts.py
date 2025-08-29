@@ -28,6 +28,7 @@ async def list_artifacts(
     limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     type: Optional[str] = Query(None, description="Filtre par type d'artifact"),
+    name_contains: Optional[str] = Query(None, description="Filtre nom (path ILIKE)"),
     order_by: Optional[str] = Query("-created_at"),
     order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
@@ -35,10 +36,14 @@ async def list_artifacts(
     base = select(Artifact).where(Artifact.node_id == node_id)
     if type:
         base = base.where(Artifact.type == type)
+    if name_contains:
+        base = base.where(Artifact.path.ilike(f"%{name_contains}%"))
 
     total_stmt = select(func.count(Artifact.id)).where(Artifact.node_id == node_id)
     if type:
         total_stmt = total_stmt.where(Artifact.type == type)
+    if name_contains:
+        total_stmt = total_stmt.where(Artifact.path.ilike(f"%{name_contains}%"))
 
     total = (await session.execute(total_stmt)).scalar_one()
     stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-created_at").limit(limit).offset(offset)
