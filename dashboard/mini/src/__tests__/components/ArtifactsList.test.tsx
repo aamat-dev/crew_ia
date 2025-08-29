@@ -55,6 +55,12 @@ describe('ArtifactsList', () => {
     setup();
     expect(screen.getByText('f1')).toBeInTheDocument();
     expect(screen.getByText('file')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Télécharger' });
+    expect(link).toHaveAttribute(
+      'href',
+      'http://localhost:8000/artifacts/a1/download',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
   });
 
   it("affiche l'état loading", () => {
