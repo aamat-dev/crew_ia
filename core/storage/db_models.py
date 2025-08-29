@@ -65,6 +65,7 @@ class Node(SQLModel, table=True):
     key: Optional[str] = Field(default=None, sa_column=Column(String, index=True))
     title: str = Field(sa_column=Column(String, nullable=False))
     status: NodeStatus = Field(sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False))
+    role: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSON, nullable=True))
     checksum: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     created_at: datetime = Field(
@@ -110,3 +111,4 @@ class Event(SQLModel, table=True):
     )
     level: str = Field(sa_column=Column(String, nullable=False))
     message: str = Field(sa_column=Column(Text, nullable=False))
+    request_id: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True, index=True))

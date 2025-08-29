@@ -41,6 +41,8 @@ async def list_nodes(
     status: Optional[str] = Query(None),
     key: Optional[str] = Query(None),
     title_contains: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    checksum: Optional[str] = Query(None),
     order_by: Optional[str] = Query("-created_at"),
     order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
@@ -52,6 +54,10 @@ async def list_nodes(
         where.append(Node.key == key)
     if title_contains:
         where.append(Node.title.ilike(f"%{title_contains}%"))
+    if role:
+        where.append(Node.role == role)
+    if checksum:
+        where.append(Node.checksum == checksum)
 
     base = select(Node).where(and_(*where))
     total = (
@@ -71,6 +77,7 @@ async def list_nodes(
             key=n.key,
             title=n.title,
             status=n.status,
+            role=n.role,
             checksum=n.checksum,
             created_at=to_tz(n.created_at, tz),
             updated_at=to_tz(n.updated_at, tz),

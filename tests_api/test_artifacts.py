@@ -27,6 +27,17 @@ async def test_get_artifact_ok(client: AsyncClient, seed_sample):
     assert "content" in data  # présent dans le schema
 
 
+async def test_artifacts_filter_name_contains(client: AsyncClient, seed_sample):
+    node_id = seed_sample["node_ids"][0]
+    r = await client.get(
+        f"/nodes/{node_id}/artifacts", params={"name_contains": "a1"}
+    )
+    assert r.status_code == 200
+    js = r.json()
+    assert js["total"] == 1
+    assert js["items"][0]["path"].endswith("a1.md")
+
+
 async def test_artifacts_ordering(client: AsyncClient, db_session, seed_sample):
     node_id = seed_sample["node_ids"][0]
     now = dt.datetime.now(dt.timezone.utc)

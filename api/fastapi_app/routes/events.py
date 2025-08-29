@@ -34,6 +34,7 @@ async def list_events(
     q: Optional[str] = Query(None, description="Recherche plein texte (message ILIKE)"),
     ts_from: Optional[datetime] = Query(None),
     ts_to: Optional[datetime] = Query(None),
+    request_id: Optional[str] = Query(None),
     order_by: Optional[str] = Query("-timestamp"),
     order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
@@ -55,6 +56,8 @@ async def list_events(
         where.append(Event.timestamp >= ts_from)
     if ts_to:
         where.append(Event.timestamp <= ts_to)
+    if request_id:
+        where.append(Event.request_id == request_id)
 
     base = select(Event).where(and_(*where))
     total = (
@@ -73,6 +76,7 @@ async def list_events(
             level=e.level,
             message=e.message,
             timestamp=e.timestamp,
+            request_id=getattr(e, "request_id", None),
         )
         for e in rows
     ]

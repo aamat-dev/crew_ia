@@ -180,9 +180,10 @@ async def seed_sample(db_session: AsyncSession):
                 "key": f"n{i}",
                 "title": f"Node {i}",
                 "status": "completed" if i < 3 else "failed",
+                "role": f"r{i}",
                 "created_at": now - dt.timedelta(minutes=5 - i),
                 "updated_at": now - dt.timedelta(minutes=4 - i),
-                "checksum": None,
+                "checksum": f"cs{i}",
             }
             for i, nid in enumerate(node_ids, start=1)
         ],
@@ -222,6 +223,7 @@ async def seed_sample(db_session: AsyncSession):
                 "level": "INFO",
                 "message": "start",
                 "timestamp": now - dt.timedelta(minutes=5),
+                "request_id": "req-1",
             },
             {
                 "id": uuid.uuid4(),
@@ -230,6 +232,7 @@ async def seed_sample(db_session: AsyncSession):
                 "level": "ERROR",
                 "message": "boom",
                 "timestamp": now - dt.timedelta(minutes=1),
+                "request_id": "req-2",
             },
         ],
     )
