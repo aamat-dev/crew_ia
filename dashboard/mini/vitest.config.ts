@@ -9,6 +9,15 @@ export default defineConfig({
       VITE_API_TIMEOUT_MS: '15000',
       VITE_DEMO_API_KEY: 'demo-key',
     },
+    coverage: {
+      reporter: ['text-summary', 'lcov'],
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
+      },
+    },
   },
   esbuild: {
     jsx: 'automatic',
