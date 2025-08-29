@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
+from ..deps import get_session, strict_api_key_auth, cap_limit, cap_date_range, DEFAULT_LIMIT
 from ..schemas import Page, EventOut
 from ..pagination import set_pagination_headers
 from ..ordering import apply_order
@@ -46,6 +46,7 @@ async def list_events(
         _deprecated_warned = True
     if run_id is None:
         raise HTTPException(status_code=400, detail="run_id requis")
+    cap_date_range(ts_from, ts_to)
 
     where = [Event.run_id == run_id]
     if level:
