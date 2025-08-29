@@ -2,7 +2,6 @@ import { fetchJson, FetchOpts } from './http';
 import {
   ApiStatus,
   ArtifactItem,
-  BackendRunsList,
   EventItem,
   NodeItem,
   Page,
@@ -10,7 +9,9 @@ import {
   RunDetail,
   RunSummary,
   Status,
+  BackendRun,
 } from './types';
+import { parseLinkHeader } from './links';
 
 const apiToUiStatus = (status: ApiStatus | Status): Status => {
   switch (status) {
@@ -56,24 +57,33 @@ export const listRuns = async (
   opts: FetchOpts = {},
 ): Promise<Page<Run>> => {
   const status = mapUiStatusesToApi(params.status).join(',');
+  const limit = Math.min(params.pageSize, 50);
+  const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
-    page: params.page,
-    page_size: params.pageSize,
+    limit,
+    offset,
     status: status || undefined,
-    date_from: params.dateFrom,
-    date_to: params.dateTo,
-    title: params.title,
+    started_from: params.dateFrom,
+    started_to: params.dateTo,
+    title_contains: params.title,
   };
-  const { data } = await fetchJson<BackendRunsList>('/runs', {
+  const { data, headers } = await fetchJson<{ items: BackendRun[] }>('/runs', {
     ...opts,
     query,
   });
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total = totalHeader
+    ? Number(totalHeader)
+    : (data as unknown as { total?: number }).total;
   return {
     items: data.items.map((r) => ({ ...r, status: apiToUiStatus(r.status) })),
     meta: {
-      page: Math.floor(data.offset / data.limit) + 1,
-      page_size: data.limit,
-      total: data.total,
+      page: params.page,
+      page_size: limit,
+      total,
+      next: links.next?.href,
+      prev: links.prev?.href,
     },
   };
 };
@@ -109,14 +119,28 @@ export const listRunNodes = async (
   params: { page: number; pageSize: number },
   opts: FetchOpts = {},
 ): Promise<Page<NodeItem>> => {
-  const query = { page: params.page, page_size: params.pageSize };
-  const { data } = await fetchJson<Page<NodeItem>>(`/runs/${id}/nodes`, {
-    ...opts,
-    query,
-  });
+  const limit = Math.min(params.pageSize, 50);
+  const offset = (params.page - 1) * limit;
+  const query = { limit, offset };
+  type BackendNode = Omit<NodeItem, 'status'> & { status: ApiStatus };
+  const { data, headers } = await fetchJson<{ items: BackendNode[] }>(
+    `/runs/${id}/nodes`,
+    { ...opts, query },
+  );
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total = totalHeader
+    ? Number(totalHeader)
+    : (data as unknown as { meta?: { total?: number } }).meta?.total;
   return {
     items: data.items.map((n) => ({ ...n, status: apiToUiStatus(n.status) })),
-    meta: data.meta,
+    meta: {
+      page: params.page,
+      page_size: limit,
+      total,
+      next: links.next?.href,
+      prev: links.prev?.href,
+    },
   };
 };
 
@@ -130,17 +154,33 @@ export const listRunEvents = async (
   },
   opts: FetchOpts = {},
 ): Promise<Page<EventItem>> => {
+  const limit = Math.min(params.pageSize, 50);
+  const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
-    page: params.page,
-    page_size: params.pageSize,
+    limit,
+    offset,
     level: params.level,
-    text: params.text,
+    q: params.text,
   };
-  const { data } = await fetchJson<Page<EventItem>>(`/runs/${id}/events`, {
-    ...opts,
-    query,
-  });
-  return data;
+  const { data, headers } = await fetchJson<{ items: EventItem[] }>(
+    `/runs/${id}/events`,
+    { ...opts, query },
+  );
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total = totalHeader
+    ? Number(totalHeader)
+    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  return {
+    items: data.items,
+    meta: {
+      page: params.page,
+      page_size: limit,
+      total,
+      next: links.next?.href,
+      prev: links.prev?.href,
+    },
+  };
 };
 
 export const listNodeArtifacts = async (
@@ -148,17 +188,33 @@ export const listNodeArtifacts = async (
   params: { page: number; pageSize: number; kind?: string },
   opts: FetchOpts = {},
 ): Promise<Page<ArtifactItem>> => {
+  const limit = Math.min(params.pageSize, 50);
+  const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
-    page: params.page,
-    page_size: params.pageSize,
-    kind: params.kind,
+    limit,
+    offset,
+    type: params.kind,
   };
-  const { data } = await fetchJson<Page<ArtifactItem>>(
+  const { data, headers } = await fetchJson<{ items: ArtifactItem[] }>(
     `/nodes/${nodeId}/artifacts`,
     {
       ...opts,
       query,
     },
   );
-  return data;
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total = totalHeader
+    ? Number(totalHeader)
+    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  return {
+    items: data.items,
+    meta: {
+      page: params.page,
+      page_size: limit,
+      total,
+      next: links.next?.href,
+      prev: links.prev?.href,
+    },
+  };
 };

@@ -78,13 +78,13 @@ export const RunsTable = ({
     return <p>Aucune donnée.</p>;
   }
 
-  const total = meta?.total ?? 0;
-  const currentPage = meta?.page ?? page;
-  const size = meta?.page_size ?? pageSize;
-  const maxPage = size > 0 ? Math.ceil(total / size) : 1;
+  const total = meta?.total;
+  const currentPage = page;
+  const size = pageSize;
+  const maxPage = total !== undefined ? Math.ceil(total / size) : undefined;
 
-  const hasPrev = currentPage > 1;
-  const hasNext = currentPage < maxPage;
+  const hasPrev = Boolean(meta?.prev);
+  const hasNext = Boolean(meta?.next);
 
   const formatDate = (d?: string): string =>
     d ? new Date(d).toLocaleString() : '-';
@@ -135,8 +135,12 @@ export const RunsTable = ({
           Précédent
         </button>
         <span style={{ margin: '0 8px' }}>
-          Page {currentPage} / {maxPage || 1}
+          Page {currentPage}
+          {maxPage ? ` / ${maxPage}` : ''}
         </span>
+        {total !== undefined && (
+          <span style={{ marginRight: '8px' }}>Total: {total}</span>
+        )}
         <button onClick={() => onPageChange(page + 1)} disabled={!hasNext}>
           Suivant
         </button>

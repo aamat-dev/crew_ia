@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as client from '../../api/client';
 import { ApiError } from '../../api/http';
 
-const okBackend = { items: [], total: 0, limit: 1, offset: 0 };
+const okBackend = { items: [], total: 0, limit: 50, offset: 50 };
 
 describe('client API', () => {
   it('mappe correctement les paramètres de requête', async () => {
@@ -16,19 +16,19 @@ describe('client API', () => {
     global.fetch = mock as unknown as typeof fetch;
     await client.listRuns({
       page: 2,
-      pageSize: 10,
+      pageSize: 50,
       status: ['queued', 'running', 'succeeded'],
       dateFrom: '2024-01-01',
       dateTo: '2024-01-31',
       title: 'test',
     });
     const url = new URL(mock.mock.calls[0][0] as string);
-    expect(url.searchParams.get('page')).toBe('2');
-    expect(url.searchParams.get('page_size')).toBe('10');
+    expect(url.searchParams.get('limit')).toBe('50');
+    expect(url.searchParams.get('offset')).toBe('50');
     expect(url.searchParams.get('status')).toBe('pending,running,completed');
-    expect(url.searchParams.get('date_from')).toBe('2024-01-01');
-    expect(url.searchParams.get('date_to')).toBe('2024-01-31');
-    expect(url.searchParams.get('title')).toBe('test');
+    expect(url.searchParams.get('started_from')).toBe('2024-01-01');
+    expect(url.searchParams.get('started_to')).toBe('2024-01-31');
+    expect(url.searchParams.get('title_contains')).toBe('test');
   });
 
   it('convertit meta backend vers PageMeta', async () => {
@@ -50,13 +50,13 @@ describe('client API', () => {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Total-Count': '80' },
         },
       ),
     );
     global.fetch = mock as unknown as typeof fetch;
     const res = await client.listRuns({ page: 2, pageSize: 50 });
-    expect(res.meta).toEqual({ page: 2, page_size: 50, total: 80 });
+    expect(res.meta).toEqual({ page: 2, page_size: 50, total: 80, next: undefined, prev: undefined });
     expect(res.items[0].status).toBe('queued');
   });
 

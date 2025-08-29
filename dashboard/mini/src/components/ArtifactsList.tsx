@@ -79,14 +79,18 @@ const ArtifactsList = ({
   }
 
   const items = artifactsQuery.data?.items ?? [];
+  const meta = artifactsQuery.data?.meta;
+  const total = meta?.total;
 
   if (items.length === 0) {
     return <p>Aucun artefact.</p>;
   }
 
   return (
-    <table>
-      <caption>Artifacts</caption>
+    <>
+      {total !== undefined && <p>Total: {total}</p>}
+      <table>
+        <caption>Artifacts</caption>
       <thead>
         <tr>
           <th>Nom</th>
@@ -110,6 +114,7 @@ const ArtifactsList = ({
         ))}
       </tbody>
     </table>
+    </>
   );
 };
 

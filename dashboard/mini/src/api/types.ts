@@ -11,13 +11,15 @@ export type ApiStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type Status = UiStatus | ApiStatus;
 
 export interface PageMeta {
-  page: number;
-  page_size: number;
-  total: number;
+  page?: number;
+  page_size?: number;
+  total?: number;
+  next?: string;
+  prev?: string;
 }
 export interface Page<T> {
   items: T[];
-  meta: PageMeta;
+  meta?: PageMeta;
 }
 
 export interface Run {
@@ -73,6 +75,7 @@ export interface ArtifactItem {
   url: string;
 }
 
+// Run type as returned by the backend with API status values
 export type BackendRun = Omit<Run, 'status'> & { status: ApiStatus };
 
 export interface BackendRunsList {

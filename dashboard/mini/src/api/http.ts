@@ -28,7 +28,7 @@ export interface FetchOpts {
 export async function fetchJson<T>(
   path: string,
   opts: FetchOpts = {},
-): Promise<{ data: T; requestId: string }> {
+): Promise<{ data: T; headers: Headers; requestId: string }> {
   const url = new URL(getApiBaseUrl() + path);
   if (opts.query) {
     for (const [key, value] of Object.entries(opts.query)) {
@@ -72,7 +72,7 @@ export async function fetchJson<T>(
       if (res.ok) {
         clearTimeout(timeoutId);
         const data = (await res.json()) as T;
-        return { data, requestId };
+        return { data, headers: res.headers, requestId };
       }
       let body: unknown;
       const ct = res.headers.get('content-type');
