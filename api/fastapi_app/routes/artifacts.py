@@ -3,13 +3,14 @@ from typing import Optional
 from uuid import UUID
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import get_session, settings, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
 from ..schemas import Page, ArtifactOut
+from ..pagination import set_pagination_headers
 from core.storage.db_models import Artifact  # type: ignore
 
 router_nodes = APIRouter(prefix="/nodes", tags=["artifacts"], dependencies=[Depends(strict_api_key_auth)])
@@ -28,6 +29,8 @@ def order(stmt, order_by: str | None):
 @router_nodes.get("/{node_id}/artifacts", response_model=Page[ArtifactOut])
 async def list_artifacts(
     node_id: UUID,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     limit: int = Query(DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
@@ -68,6 +71,7 @@ async def list_artifacts(
         )
         for a in rows
     ]
+    set_pagination_headers(response, request, total, limit, offset)
     return Page[ArtifactOut](items=items, total=total, limit=limit, offset=offset)
 
 # --- NEW: GET /artifacts/{artifact_id} ---
