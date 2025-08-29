@@ -11,8 +11,12 @@ export type RunsTableProps = {
   dateFrom?: string;
   dateTo?: string;
   title?: string;
+  orderBy: string;
+  orderDir: 'asc' | 'desc';
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (size: number) => void;
+  onOrderByChange: (field: string) => void;
+  onOrderDirChange: (dir: 'asc' | 'desc') => void;
   onOpenRun: (id: string) => void;
 };
 
@@ -23,11 +27,24 @@ export const RunsTable = ({
   dateFrom,
   dateTo,
   title,
+  orderBy,
+  orderDir,
   onPageChange,
   onPageSizeChange,
+  onOrderByChange,
+  onOrderDirChange,
   onOpenRun,
 }: RunsTableProps): JSX.Element => {
-  const params = { page, pageSize, status, dateFrom, dateTo, title };
+  const params = {
+    page,
+    pageSize,
+    status,
+    dateFrom,
+    dateTo,
+    title,
+    orderBy,
+    orderDir,
+  };
   const queryClient = useQueryClient();
   const runsQuery = useRuns(params);
 
@@ -155,6 +172,39 @@ export const RunsTable = ({
             </option>
           ))}
         </select>
+        <label style={{ marginLeft: '8px' }}>
+          Trier par
+          <select
+            aria-label="order-by"
+            value={orderBy}
+            onChange={(e) => {
+              onOrderByChange(e.target.value);
+              onPageChange(1);
+            }}
+            style={{ marginLeft: '4px' }}
+          >
+            {['started_at', 'ended_at', 'title', 'status'].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ marginLeft: '8px' }}>
+          Direction
+          <select
+            aria-label="order-dir"
+            value={orderDir}
+            onChange={(e) => {
+              onOrderDirChange(e.target.value as 'asc' | 'desc');
+              onPageChange(1);
+            }}
+            style={{ marginLeft: '4px' }}
+          >
+            <option value="asc">asc</option>
+            <option value="desc">desc</option>
+          </select>
+        </label>
       </div>
     </div>
   );

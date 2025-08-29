@@ -11,6 +11,10 @@ export type NodesTableProps = {
   onSelectNode?: (nodeId: string) => void;
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (size: number) => void;
+  orderBy: string;
+  orderDir: 'asc' | 'desc';
+  onOrderByChange: (field: string) => void;
+  onOrderDirChange: (dir: 'asc' | 'desc') => void;
 };
 
 const formatDate = (d?: string): string =>
@@ -27,8 +31,12 @@ const NodesTable = ({
   onSelectNode,
   onPageChange,
   onPageSizeChange,
+  orderBy,
+  orderDir,
+  onOrderByChange,
+  onOrderDirChange,
 }: NodesTableProps): JSX.Element => {
-  const params = { page, pageSize };
+  const params = { page, pageSize, orderBy, orderDir };
   const queryClient = useQueryClient();
   const nodesQuery = useRunNodes(runId, params, {
     enabled: Boolean(runId),
@@ -172,6 +180,39 @@ const NodesTable = ({
             </option>
           ))}
         </select>
+        <label style={{ marginLeft: '8px' }}>
+          Trier par
+          <select
+            aria-label="order-by"
+            value={orderBy}
+            onChange={(e) => {
+              onOrderByChange(e.target.value);
+              onPageChange(1);
+            }}
+            style={{ marginLeft: '4px' }}
+          >
+            {['created_at', 'updated_at', 'key', 'title', 'status'].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ marginLeft: '8px' }}>
+          Direction
+          <select
+            aria-label="order-dir"
+            value={orderDir}
+            onChange={(e) => {
+              onOrderDirChange(e.target.value as 'asc' | 'desc');
+              onPageChange(1);
+            }}
+            style={{ marginLeft: '4px' }}
+          >
+            <option value="asc">asc</option>
+            <option value="desc">desc</option>
+          </select>
+        </label>
       </div>
     </div>
   );

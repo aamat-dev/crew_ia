@@ -17,6 +17,8 @@ const RunsPage = (): JSX.Element => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [titleInput, setTitleInput] = useState('');
+  const [orderBy, setOrderBy] = useState('started_at');
+  const [orderDir, setOrderDir] = useState<'asc' | 'desc'>('desc');
 
   const title = useDebouncedValue(titleInput, 300);
 
@@ -35,7 +37,7 @@ const RunsPage = (): JSX.Element => {
 
   useEffect(() => {
     setPage(1);
-  }, [status, dateFrom, dateTo, title]);
+  }, [status, dateFrom, dateTo, title, orderBy, orderDir]);
 
   if (!hasKey) {
     return <div>Veuillez saisir une clé API pour continuer.</div>;
@@ -112,11 +114,15 @@ const RunsPage = (): JSX.Element => {
         dateFrom={dateFrom || undefined}
         dateTo={dateTo || undefined}
         title={title || undefined}
+        orderBy={orderBy}
+        orderDir={orderDir}
         onPageChange={setPage}
         onPageSizeChange={(s) => {
           setPageSize(s);
           setPage(1);
         }}
+        onOrderByChange={setOrderBy}
+        onOrderDirChange={setOrderDir}
         onOpenRun={onOpenRun}
       />
     </div>

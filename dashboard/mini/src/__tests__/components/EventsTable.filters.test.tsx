@@ -20,6 +20,10 @@ const setup = (props: Partial<EventsTableProps> = {}) => {
     pageSize: 20,
     onPageChange: vi.fn(),
     onPageSizeChange: vi.fn(),
+    orderBy: 'timestamp',
+    orderDir: 'desc',
+    onOrderByChange: vi.fn(),
+    onOrderDirChange: vi.fn(),
   };
   const view = render(
     <QueryClientProvider client={queryClient}>
