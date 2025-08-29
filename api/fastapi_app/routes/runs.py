@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Literal
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy import join
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from sqlalchemy import select, func, and_, or_, desc, asc
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import (
@@ -18,6 +18,7 @@ from ..deps import (
 )
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
 from ..pagination import set_pagination_headers
+from ..ordering import apply_order
 
 # Import des modèles ORM existants
 from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
@@ -25,16 +26,12 @@ from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
 router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(strict_api_key_auth)])
 
 # Helpers
-ORDERABLE_FIELDS = {"started_at": Run.started_at, "ended_at": Run.ended_at, "title": Run.title, "status": Run.status}
-
-def apply_order(stmt, order_by: str | None):
-    if not order_by:
-        return stmt.order_by(desc(Run.started_at))
-    field = order_by.strip()
-    direction = desc if field.startswith("-") else asc
-    key = field[1:] if field.startswith("-") else field
-    col = ORDERABLE_FIELDS.get(key, Run.started_at)
-    return stmt.order_by(direction(col))
+ORDERABLE_FIELDS = {
+    "started_at": Run.started_at,
+    "ended_at": Run.ended_at,
+    "title": Run.title,
+    "status": Run.status,
+}
 
 @router.get("", response_model=Page[RunListItemOut])
 async def list_runs(
@@ -49,6 +46,7 @@ async def list_runs(
     started_from: Optional[datetime] = Query(None),
     started_to: Optional[datetime] = Query(None),
     order_by: Optional[str] = Query("-started_at"),
+    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
     limit = cap_limit(limit)
     where_clauses = []
@@ -73,7 +71,7 @@ async def list_runs(
         )
     ).scalar_one()
 
-    stmt = apply_order(base, order_by).limit(limit).offset(offset)
+    stmt = apply_order(base, order_by, order_dir, ORDERABLE_FIELDS, "-started_at").limit(limit).offset(offset)
     runs = (await session.execute(stmt)).scalars().all()
 
     items = [

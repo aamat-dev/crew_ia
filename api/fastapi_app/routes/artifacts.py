@@ -1,30 +1,23 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Literal
 from uuid import UUID
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, desc, asc
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import get_session, settings, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
 from ..schemas import Page, ArtifactOut
 from ..pagination import set_pagination_headers
+from ..ordering import apply_order
 from core.storage.db_models import Artifact  # type: ignore
 
 router_nodes = APIRouter(prefix="/nodes", tags=["artifacts"], dependencies=[Depends(strict_api_key_auth)])
 router_artifacts = APIRouter(prefix="/artifacts", tags=["artifacts"], dependencies=[Depends(strict_api_key_auth)])
 
 ORDERABLE = {"created_at": Artifact.created_at, "type": Artifact.type}
-
-def order(stmt, order_by: str | None):
-    if not order_by:
-        return stmt.order_by(desc(Artifact.created_at))
-    key = order_by.lstrip("-")
-    direction = desc if order_by.startswith("-") else asc
-    col = ORDERABLE.get(key, Artifact.created_at)
-    return stmt.order_by(direction(col))
 
 @router_nodes.get("/{node_id}/artifacts", response_model=Page[ArtifactOut])
 async def list_artifacts(
@@ -36,6 +29,7 @@ async def list_artifacts(
     offset: int = Query(0, ge=0),
     type: Optional[str] = Query(None, description="Filtre par type d'artifact"),
     order_by: Optional[str] = Query("-created_at"),
+    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
     limit = cap_limit(limit)
     base = select(Artifact).where(Artifact.node_id == node_id)
@@ -47,7 +41,7 @@ async def list_artifacts(
         total_stmt = total_stmt.where(Artifact.type == type)
 
     total = (await session.execute(total_stmt)).scalar_one()
-    stmt = order(base, order_by).limit(limit).offset(offset)
+    stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-created_at").limit(limit).offset(offset)
 
     rows = (await session.execute(stmt)).scalars().all()
 

@@ -31,3 +31,26 @@ async def test_events_old_and_new_routes(client, seed_sample):
     assert r1.status_code == 200
     assert r2.status_code == 200
     assert r1.json() == r2.json()
+
+
+@pytest.mark.asyncio
+async def test_events_ordering(client, seed_sample):
+    run_id = seed_sample["run_id"]
+    r = await client.get(f"/events?run_id={run_id}&order_by=timestamp&order_dir=asc")
+    items = r.json()["items"]
+    ts = [it["timestamp"] for it in items]
+    assert ts == sorted(ts)
+
+    r = await client.get(f"/events?run_id={run_id}&order_by=-timestamp")
+    items = r.json()["items"]
+    ts = [it["timestamp"] for it in items]
+    assert ts == sorted(ts, reverse=True)
+
+    r = await client.get(f"/events?run_id={run_id}&order_by=foo")
+    assert r.status_code == 422
+
+    r = await client.get(
+        f"/events?run_id={run_id}&order_by=timestamp&order_dir=asc&offset=1"
+    )
+    items = r.json()["items"]
+    assert len(items) == 1

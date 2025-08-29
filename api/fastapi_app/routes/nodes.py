@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from sqlalchemy import select, func, and_, desc, asc
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import (
@@ -16,6 +16,7 @@ from ..deps import (
 )
 from ..schemas import Page, NodeOut
 from ..pagination import set_pagination_headers
+from ..ordering import apply_order
 from core.storage.db_models import Node  # type: ignore
 
 router = APIRouter(prefix="/runs", tags=["nodes"], dependencies=[Depends(strict_api_key_auth)])
@@ -27,14 +28,6 @@ ORDERABLE = {
     "title": Node.title,
     "status": Node.status,
 }
-
-def order(stmt, order_by: str | None):
-    if not order_by:
-        return stmt.order_by(desc(Node.created_at))
-    key = order_by.lstrip("-")
-    direction = desc if order_by.startswith("-") else asc
-    col = ORDERABLE.get(key, Node.created_at)
-    return stmt.order_by(direction(col))
 
 @router.get("/{run_id}/nodes", response_model=Page[NodeOut])
 async def list_nodes(
@@ -49,6 +42,7 @@ async def list_nodes(
     key: Optional[str] = Query(None),
     title_contains: Optional[str] = Query(None),
     order_by: Optional[str] = Query("-created_at"),
+    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
     limit = cap_limit(limit)
     where = [Node.run_id == run_id]
@@ -67,7 +61,7 @@ async def list_nodes(
             .where(and_(*where))
         )
     ).scalar_one()
-    stmt = order(base, order_by).limit(limit).offset(offset)
+    stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-created_at").limit(limit).offset(offset)
 
     rows = (await session.execute(stmt)).scalars().all()
     items = [
