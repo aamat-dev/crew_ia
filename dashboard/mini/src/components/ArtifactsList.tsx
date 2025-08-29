@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { useNodeArtifacts } from '../api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/http';
+import { getApiBaseUrl } from '../config/env';
 
 export type ArtifactsListProps = {
   runId: string;
@@ -106,7 +107,11 @@ const ArtifactsList = ({
             <td>{a.kind}</td>
             <td>{formatSize(a.size_bytes)}</td>
             <td>
-              <a href={a.url} target="_blank" rel="noreferrer">
+              <a
+                href={`${getApiBaseUrl()}/artifacts/${a.id}/download`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Télécharger
               </a>
             </td>
