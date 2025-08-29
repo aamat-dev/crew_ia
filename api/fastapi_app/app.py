@@ -104,13 +104,17 @@ if metrics_enabled():
         )
 
 # CORS
-# Permettre l'accès depuis le frontend de développement
+# Origines autorisées via variable d'env ALLOWED_ORIGINS (CSV)
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://192.168.1.50:5173"],  # origine du frontend
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 # -------- Routes --------
