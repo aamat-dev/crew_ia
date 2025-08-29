@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime
 from sqlalchemy import join
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ from ..deps import (
     DEFAULT_LIMIT,
 )
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
+from ..pagination import set_pagination_headers
 
 # Import des modèles ORM existants
 from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
@@ -37,6 +38,8 @@ def apply_order(stmt, order_by: str | None):
 
 @router.get("", response_model=Page[RunListItemOut])
 async def list_runs(
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
     limit: int = Query(DEFAULT_LIMIT, ge=1),
@@ -84,6 +87,7 @@ async def list_runs(
         for r in runs
     ]
 
+    set_pagination_headers(response, request, total, limit, offset)
     return Page[RunListItemOut](items=items, total=total, limit=limit, offset=offset)
 
 @router.get("/{run_id}", response_model=RunOut)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from ..deps import (
     DEFAULT_LIMIT,
 )
 from ..schemas import Page, NodeOut
+from ..pagination import set_pagination_headers
 from core.storage.db_models import Node  # type: ignore
 
 router = APIRouter(prefix="/runs", tags=["nodes"], dependencies=[Depends(strict_api_key_auth)])
@@ -38,6 +39,8 @@ def order(stmt, order_by: str | None):
 @router.get("/{run_id}/nodes", response_model=Page[NodeOut])
 async def list_nodes(
     run_id: UUID,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
     limit: int = Query(DEFAULT_LIMIT, ge=1),
@@ -80,4 +83,5 @@ async def list_nodes(
         )
         for n in rows
     ]
+    set_pagination_headers(response, request, total, limit, offset)
     return Page[NodeOut](items=items, total=total, limit=limit, offset=offset)

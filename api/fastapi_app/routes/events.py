@@ -4,12 +4,13 @@ from uuid import UUID
 from datetime import datetime
 
 import logging
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import get_session, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
 from ..schemas import Page, EventOut
+from ..pagination import set_pagination_headers
 from core.storage.db_models import Event  # type: ignore
 
 router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(strict_api_key_auth)])
@@ -29,6 +30,8 @@ def order(stmt, order_by: str | None):
 @router.get("/events", response_model=Page[EventOut])
 @router.get("/runs/{run_id_path}/events", response_model=Page[EventOut])
 async def list_events(
+    request: Request,
+    response: Response,
     run_id: UUID | None = Query(None),
     run_id_path: UUID | None = None,
     session: AsyncSession = Depends(get_session),
@@ -79,4 +82,5 @@ async def list_events(
         )
         for e in rows
     ]
+    set_pagination_headers(response, request, total, limit, offset)
     return Page[EventOut](items=items, total=total, limit=limit, offset=offset)
