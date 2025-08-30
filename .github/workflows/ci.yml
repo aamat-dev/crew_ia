@@ -69,19 +69,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
-
       - name: Check Alembic heads
         run: |
           alembic heads
@@ -96,54 +93,11 @@ jobs:
           pattern: coverage-*
           path: coverage
           merge-multiple: true
-
       - name: Upload combined coverage
         uses: codecov/codecov-action@v4
         with:
           files: "coverage/**/coverage.xml,coverage/**/lcov.info"
           fail_ci_if_error: false
-
-  deploy-pages:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: dashboard/mini/package-lock.json
-
-      - name: Install dependencies
-        working-directory: dashboard/mini
-        run: npm ci
-
-      - name: Build
-        working-directory: dashboard/mini
-        run: npm run build
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dashboard/mini/dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
 
   vercel-deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -153,22 +107,18 @@ jobs:
       preview-url: ${{ steps.deploy.outputs.preview-url }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: dashboard/mini/package-lock.json
-
       - name: Install dependencies
         working-directory: dashboard/mini
         run: npm ci
-
       - name: Build
         working-directory: dashboard/mini
         run: npm run build
-
       - name: Deploy to Vercel
         id: deploy
         uses: amondnet/vercel-action@v25
@@ -178,41 +128,32 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: dashboard/mini
           vercel-args: '--prebuilt --prod'
-
       - name: Afficher l’URL publique
         run: echo "URL de déploiement: ${{ steps.deploy.outputs.preview-url }}"
 
   e2e-preview:
-    needs:
-      - vercel-deploy
-      - deploy-pages
-    if: >-
-      (needs.vercel-deploy.result == 'success' || needs.deploy-pages.result == 'success')
+    needs: [vercel-deploy]
+    if: needs.vercel-deploy.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: dashboard/mini/package-lock.json
-
       - name: Install dependencies
         working-directory: dashboard/mini
         run: npm ci
-
       - name: Install Playwright
         working-directory: dashboard/mini
         run: npx playwright install --with-deps
-
-      - name: Run E2E tests
+      - name: Run E2E tests (preview)
         working-directory: dashboard/mini
         env:
-          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url || needs.deploy-pages.outputs.page_url || secrets.PREVIEW_URL }}
+          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url }}
         run: npm run e2e:ci
-
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
