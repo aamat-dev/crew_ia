@@ -10,7 +10,7 @@ l'état des runs.
 URL publique : https://preview.example.com
 
 1. Ouvrir la preview dans le navigateur.
-2. Renseigner `API Base URL` dans le panneau de configuration (ex : `https://api.<domaine>/`).
+2. Renseigner `API Base URL` dans le panneau de configuration (ex : `https://api.<domaine>/`).
 3. Saisir l'API Key dans le champ dédié puis cliquer sur `Enregistrer`.
 4. Vérifier que la bannière ⚠ disparaît.
 5. Ouvrir "Runs" et consulter la liste (pagination, etc.).
@@ -20,7 +20,7 @@ URL publique : https://preview.example.com
 - La pagination est bornée (limite maximale 50) et les en-têtes `Link` sont disponibles.
 
 ### Troubleshooting
-En cas d'erreurs CORS, 401 ou 403 : vérifier la variable `ALLOWED_ORIGINS` du backend et la validité de la clé API.
+En cas d'erreurs CORS, 401 ou 403 : vérifier la variable `ALLOWED_ORIGINS` du backend et la validité de la clé API.
 
 ## Installation locale
 Node.js 20 LTS ou supérieur est requis.
