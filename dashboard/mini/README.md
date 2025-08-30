@@ -6,21 +6,31 @@ Le tableau de bord est **en lecture seule** et vise principalement les
 équipes de développement, d'exploitation et de test souhaitant consulter
 l'état des runs.
 
-## Comment tester la preview
-URL publique : https://preview.example.com
+## Preview
 
+### Vercel
+Les déploiements sur la branche `main` sont publiés automatiquement sur Vercel.
+L'URL de la preview est affichée dans les logs du job `vercel-deploy`.
+Définir les variables d'environnement du projet :
+- `VITE_API_BASE_URL`
+- `VITE_API_KEY` (facultatif)
+
+### GitHub Pages
+Une version statique est disponible à l'adresse `https://<user>.github.io/<repo>/`.
+La gestion des routes se fait via un fichier `404.html` qui redirige vers `index.html`.
+L'URL de l'API et la clé peuvent être configurées via le panneau de configuration de l'interface.
+
+### Comment tester la preview
 1. Ouvrir la preview dans le navigateur.
-2. Renseigner `API Base URL` dans le panneau de configuration (ex : `https://api.<domaine>/`).
-3. Saisir l'API Key dans le champ dédié puis cliquer sur `Enregistrer`.
+2. Saisir `API Base URL` dans le panneau de configuration.
+3. Entrer l'`API Key` puis cliquer sur `Enregistrer`.
 4. Vérifier que la bannière ⚠ disparaît.
-5. Ouvrir "Runs" et consulter la liste (pagination, etc.).
-
-### Rappels
-- Les requêtes incluent l'en-tête `X-API-Key`.
-- La pagination est bornée (limite maximale 50) et les en-têtes `Link` sont disponibles.
+5. Ouvrir **Runs** et vérifier la pagination (limite 50) et les en-têtes `Link`.
 
 ### Troubleshooting
-En cas d'erreurs CORS, 401 ou 403 : vérifier la variable `ALLOWED_ORIGINS` du backend et la validité de la clé API.
+- **CORS** : vérifier la variable `ALLOWED_ORIGINS` du backend.
+- **401 / 403** : vérifier la validité de la clé API.
+- **Pagination** : limite à 50 éléments avec en-têtes `Link` pour la navigation.
 
 ## Installation locale
 Node.js 20 LTS ou supérieur est requis.
@@ -72,19 +82,6 @@ vérifications en local :
 ```bash
 make dash-mini-ci-local
 ```
-
-## Tester la preview Vercel
-Les déploiements sur la branche `main` sont publiés automatiquement sur Vercel.
-L'URL de la preview est affichée dans les logs du job `vercel-deploy`.
-
-Pour pointer le dashboard vers votre API :
-
-1. Ouvrir **Project → Settings → Environment Variables** dans Vercel.
-2. Ajouter `VITE_API_BASE_URL` avec l'URL publique de l'API.
-3. (Facultatif) Ajouter `VITE_API_KEY` pour préremplir la clé.
-4. Relancer un déploiement.
-
-Lors de l'ouverture de la preview, la clé API peut aussi être saisie dans le champ dédié si elle n'est pas définie dans les variables d'environnement.
 
 ## Limites connues
 - Fonctionnement uniquement en lecture ; aucune création/édition de runs.
