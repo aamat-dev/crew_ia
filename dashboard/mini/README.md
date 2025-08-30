@@ -6,6 +6,19 @@ Le tableau de bord est **en lecture seule** et vise principalement les
 équipes de développement, d'exploitation et de test souhaitant consulter
 l'état des runs.
 
+## Preview
+
+Une version de production est déployée sur GitHub Pages :
+`https://<utilisateur>.github.io/crew_ia/`.
+
+### Comment tester la preview
+
+1. Ouvrir l'URL ci-dessus.
+2. Dans le panneau **API URL**, saisir l'adresse de l'API (`VITE_API_BASE_URL`),
+   par exemple `https://api.example.com`.
+3. Renseigner la clé API dans le champ **api-key** de la bannière.
+4. Les paramètres sont sauvegardés dans le navigateur et utilisés par toutes les requêtes.
+
 ## Installation locale
 Node.js 20 LTS ou supérieur est requis.
 
