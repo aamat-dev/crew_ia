@@ -17,7 +17,9 @@ const RunsPage = (): JSX.Element => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [titleInput, setTitleInput] = useState('');
-  const [orderBy, setOrderBy] = useState('started_at');
+  const [orderBy, setOrderBy] = useState<
+    'started_at' | 'ended_at' | 'title' | 'status'
+  >('started_at');
   const [orderDir, setOrderDir] = useState<'asc' | 'desc'>('desc');
 
   const title = useDebouncedValue(titleInput, 300);

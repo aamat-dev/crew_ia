@@ -26,7 +26,7 @@ export const useRuns = (
     dateFrom?: string;
     dateTo?: string;
     title?: string;
-    orderBy?: string;
+    orderBy?: 'started_at' | 'ended_at' | 'title' | 'status';
     orderDir?: 'asc' | 'desc';
   },
   opts?: { enabled?: boolean },

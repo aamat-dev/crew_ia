@@ -53,6 +53,10 @@ export const listRuns = async (
     dateFrom?: string;
     dateTo?: string;
     title?: string;
+    /** colonne de tri côté API (ex: 'started_at' | 'ended_at' | 'title' | 'status') */
+    orderBy?: 'started_at' | 'ended_at' | 'title' | 'status';
+    /** sens du tri */
+    orderDir?: 'asc' | 'desc';
   },
   opts: FetchOpts = {},
 ): Promise<Page<Run>> => {
@@ -66,8 +70,8 @@ export const listRuns = async (
     started_from: params.dateFrom,
     started_to: params.dateTo,
     title_contains: params.title,
-    order_by: params.orderBy,
-    order_dir: params.orderDir,
+    ...(params.orderBy ? { order_by: params.orderBy } : {}),
+    ...(params.orderDir ? { order_dir: params.orderDir } : {}),
   };
   const { data, headers } = await fetchJson<{ items: BackendRun[] }>('/runs', {
     ...opts,

@@ -108,7 +108,9 @@ describe('RunsTable navigation', () => {
       };
     });
     const Wrapper = () => {
-      const [orderBy, setOrderBy] = React.useState('started_at');
+      const [orderBy, setOrderBy] = React.useState<
+        'started_at' | 'ended_at' | 'title' | 'status'
+      >('started_at');
       return (
         <RunsTable
           page={1}

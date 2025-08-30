@@ -11,11 +11,13 @@ export type RunsTableProps = {
   dateFrom?: string;
   dateTo?: string;
   title?: string;
-  orderBy: string;
+  orderBy: 'started_at' | 'ended_at' | 'title' | 'status';
   orderDir: 'asc' | 'desc';
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (size: number) => void;
-  onOrderByChange: (field: string) => void;
+  onOrderByChange: (
+    field: 'started_at' | 'ended_at' | 'title' | 'status',
+  ) => void;
   onOrderDirChange: (dir: 'asc' | 'desc') => void;
   onOpenRun: (id: string) => void;
 };
@@ -172,19 +174,21 @@ export const RunsTable = ({
             </option>
           ))}
         </select>
-        <label style={{ marginLeft: '8px' }}>
-          Trier par
-          <select
-            aria-label="order-by"
-            value={orderBy}
-            onChange={(e) => {
-              onOrderByChange(e.target.value);
-              onPageChange(1);
-            }}
-            style={{ marginLeft: '4px' }}
-          >
-            {['started_at', 'ended_at', 'title', 'status'].map((f) => (
-              <option key={f} value={f}>
+          <label style={{ marginLeft: '8px' }}>
+            Trier par
+            <select
+              aria-label="order-by"
+              value={orderBy}
+              onChange={(e) => {
+                onOrderByChange(
+                  e.target.value as 'started_at' | 'ended_at' | 'title' | 'status',
+                );
+                onPageChange(1);
+              }}
+              style={{ marginLeft: '4px' }}
+            >
+              {['started_at', 'ended_at', 'title', 'status'].map((f) => (
+                <option key={f} value={f}>
                 {f}
               </option>
             ))}
