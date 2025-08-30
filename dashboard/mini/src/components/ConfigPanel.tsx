@@ -1,69 +1,40 @@
-import type { JSX } from 'react';
-import { FormEvent, useState } from 'react';
-import { getApiBaseUrl, setApiBaseUrl, DEFAULT_API_BASE_URL } from '../config/env';
-import { pingApi } from '../api/ping';
+import type { JSX, FormEvent } from 'react';
+import { useState } from 'react';
 
-export const ConfigPanel = (): JSX.Element => {
-  const [input, setInput] = useState<string>(getApiBaseUrl());
-  const [message, setMessage] = useState<string>('');
+export default function ConfigPanel(): JSX.Element {
+  const [url, setUrl] = useState<string>(
+    localStorage.getItem('apiBaseUrl') || '',
+  );
+  const [message, setMessage] = useState('');
 
-  const isValidUrl = (url: string): boolean => /^https?:\/\//.test(url);
+  const isValidUrl = (value: string): boolean => /^https?:\/\//.test(value);
 
-  const onSave = (e: FormEvent) => {
+  const onSave = (e: FormEvent): void => {
     e.preventDefault();
-    if (!isValidUrl(input)) {
+    const trimmed = url.trim();
+    if (!isValidUrl(trimmed)) {
       setMessage('URL invalide');
+      setTimeout(() => setMessage(''), 2000);
       return;
     }
-    setApiBaseUrl(input);
+    localStorage.setItem('apiBaseUrl', trimmed);
     setMessage('Enregistré');
-  };
-
-  const onTest = async (): Promise<void> => {
-    if (!isValidUrl(input)) {
-      setMessage('URL invalide');
-      return;
-    }
-    setMessage('Test...');
-    const res = await pingApi(input);
-    if (res.ok) {
-      setMessage('Connexion OK');
-    } else if (res.status === 401 || res.status === 403) {
-      setMessage('Clé API requise — à renseigner dans la bannière');
-    } else {
-      setMessage('Échec de connexion');
-    }
-  };
-
-  const onReset = (): void => {
-    setInput(DEFAULT_API_BASE_URL);
-    setApiBaseUrl(DEFAULT_API_BASE_URL);
-    setMessage('Réinitialisé');
+    setTimeout(() => setMessage(''), 2000);
   };
 
   return (
-    <div>
-      <form onSubmit={onSave}>
-        <label>
-          API URL
-          <input
-            data-testid="apiUrlInput"
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-          />
-        </label>
-        <button type="submit">Enregistrer</button>
-        <button type="button" onClick={onTest}>
-          Tester
-        </button>
-        <button type="button" onClick={onReset}>
-          Réinitialiser
-        </button>
-      </form>
+    <form onSubmit={onSave}>
+      <label>
+        API URL
+        <input
+          data-testid="apiUrlInput"
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+      </label>
+      <button type="submit">Enregistrer</button>
       {message && <p data-testid="apiUrlMessage">{message}</p>}
-    </div>
+    </form>
   );
-};
-
-export default ConfigPanel;
+}

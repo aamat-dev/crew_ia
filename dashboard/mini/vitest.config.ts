@@ -26,6 +26,12 @@ export default defineConfig({
       },
     },
   },
+  resolve: {
+    alias: {
+      'node-websocket': false,
+      ws: false,
+    },
+  },
   esbuild: {
     jsx: 'automatic',
   },
