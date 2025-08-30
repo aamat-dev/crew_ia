@@ -57,6 +57,19 @@ vérifications en local :
 make dash-mini-ci-local
 ```
 
+## Tester la preview Vercel
+Les déploiements sur la branche `main` sont publiés automatiquement sur Vercel.
+L'URL de la preview est affichée dans les logs du job `vercel-deploy`.
+
+Pour pointer le dashboard vers votre API :
+
+1. Ouvrir **Project → Settings → Environment Variables** dans Vercel.
+2. Ajouter `VITE_API_BASE_URL` avec l'URL publique de l'API.
+3. (Facultatif) Ajouter `VITE_API_KEY` pour préremplir la clé.
+4. Relancer un déploiement.
+
+Lors de l'ouverture de la preview, la clé API peut aussi être saisie dans le champ dédié si elle n'est pas définie dans les variables d'environnement.
+
 ## Limites connues
 - Fonctionnement uniquement en lecture ; aucune création/édition de runs.
 - Nécessite une API accessible protégée par clé.
