@@ -12,7 +12,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
 
 vi.mock('../../state/ApiKeyContext', () => ({
-  useApiKey: () => ({ apiKey: 'k', useEnvKey: false }),
+  useApiKey: () => ({ apiKey: 'k', useEnvKey: false, setApiKey: vi.fn() }),
 }));
 
 vi.mock('../../api/hooks', () => ({

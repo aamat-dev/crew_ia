@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { pingApi } from '../../api/ping';
-import { setCurrentApiKey } from '../../state/ApiKeyContext';
 
 describe('pingApi', () => {
   it('retourne ok=true et le status quand la connexion réussit', async () => {
@@ -13,8 +12,8 @@ describe('pingApi', () => {
     await expect(pingApi('http://fail')).resolves.toEqual({ ok: false });
   });
 
-  it('ajoute l\'en-tête X-API-Key si une clé est définie', async () => {
-    setCurrentApiKey('key');
+  it("ajoute l'en-tête X-API-Key si une clé est définie", async () => {
+    localStorage.setItem('apiKey', 'key');
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('ok', { status: 200 }));
@@ -23,6 +22,6 @@ describe('pingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith('http://test/runs?limit=1', {
       headers: { 'X-API-Key': 'key' },
     });
-    setCurrentApiKey(undefined);
+    localStorage.clear();
   });
 });

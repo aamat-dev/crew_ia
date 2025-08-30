@@ -1,59 +1,52 @@
 import type { JSX, ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { DEMO_API_KEY } from '../config/env';
+import { createContext, useContext, useMemo, useState } from 'react';
 
-let currentApiKey: string | undefined;
-
-export const getCurrentApiKey = (): string | undefined => currentApiKey;
-export const setCurrentApiKey = (k?: string): void => {
-  currentApiKey = k;
-};
-
-export type ApiKeyState = {
+export type ApiKeyContextValue = {
   apiKey: string;
+  setApiKey: (k: string) => void;
   useEnvKey: boolean;
 };
-export type ApiKeyActions = {
-  setApiKey: (k: string) => void;
-  setUseEnvKey: (v: boolean) => void;
-  reset: () => void;
-};
-export type ApiKeyContextValue = ApiKeyState & ApiKeyActions;
-
-const defaultState: ApiKeyState = { apiKey: '', useEnvKey: false };
 
 const ApiKeyContext = createContext<ApiKeyContextValue | null>(null);
 
-export const ApiKeyProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}): JSX.Element => {
-  const [apiKey, setApiKey] = useState<string>(defaultState.apiKey);
-  const [useEnvKey, setUseEnvKey] = useState<boolean>(defaultState.useEnvKey);
+export function ApiKeyProvider({ children }: { children: ReactNode }): JSX.Element {
+  const envKey = (
+    (import.meta.env.VITE_API_KEY as string | undefined) ||
+    (import.meta.env.VITE_DEMO_API_KEY as string | undefined) ||
+    ''
+  ).trim();
+  const stored = localStorage.getItem('apiKey') || '';
+  const [apiKey, setApiKeyState] = useState<string>(stored || envKey);
+  const [useEnvKey, setUseEnvKey] = useState<boolean>(!stored && !!envKey);
 
-  useEffect(() => {
-    setCurrentApiKey(useEnvKey ? DEMO_API_KEY : apiKey || undefined);
-  }, [apiKey, useEnvKey]);
-
-  const reset = (): void => {
-    setApiKey(defaultState.apiKey);
-    setUseEnvKey(defaultState.useEnvKey);
+  const setApiKey = (k: string): void => {
+    const value = k.trim();
+    if (value) {
+      localStorage.setItem('apiKey', value);
+      setApiKeyState(value);
+      setUseEnvKey(false);
+    } else {
+      localStorage.removeItem('apiKey');
+      const fallback = (
+        (import.meta.env.VITE_API_KEY as string | undefined) ||
+        (import.meta.env.VITE_DEMO_API_KEY as string | undefined) ||
+        ''
+      ).trim();
+      setApiKeyState(fallback);
+      setUseEnvKey(!!fallback);
+    }
   };
 
-  return (
-    <ApiKeyContext.Provider
-      value={{ apiKey, useEnvKey, setApiKey, setUseEnvKey, reset }}
-    >
-      {children}
-    </ApiKeyContext.Provider>
+  const value = useMemo(
+    () => ({ apiKey, setApiKey, useEnvKey }),
+    [apiKey, useEnvKey],
   );
-};
 
-export const useApiKey = (): ApiKeyContextValue => {
+  return <ApiKeyContext.Provider value={value}>{children}</ApiKeyContext.Provider>;
+}
+
+export function useApiKey(): ApiKeyContextValue {
   const ctx = useContext(ApiKeyContext);
-  if (!ctx) {
-    throw new Error('useApiKey must be used within an ApiKeyProvider');
-  }
+  if (!ctx) throw new Error('useApiKey must be used within an ApiKeyProvider');
   return ctx;
-};
+}

@@ -1,94 +1,51 @@
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
-import { ApiKeyProvider, useApiKey } from '../state/ApiKeyContext';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiKeyProvider } from '../state/ApiKeyContext';
 import ApiKeyBanner from '../components/ApiKeyBanner';
-
-const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <ApiKeyProvider>{children}</ApiKeyProvider>
-);
-
-const Display = () => {
-  const { apiKey } = useApiKey();
-  return <div data-testid="currentKey">{apiKey}</div>;
-};
+import ApiKeyInput from '../components/ApiKeyInput';
 
 describe('ApiKeyBanner', () => {
-  it('rendu initial', () => {
-    render(
-      <Wrapper>
-        <ApiKeyBanner />
-      </Wrapper>,
-    );
-    const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
-    const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
-    expect(input.value).toBe('');
-    expect(input.disabled).toBe(false);
-    expect(toggle.checked).toBe(false);
-    expect(screen.getByTestId('useButton')).toBeInTheDocument();
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubEnv('VITE_API_KEY', '');
+    vi.stubEnv('VITE_DEMO_API_KEY', '');
   });
 
-  it("saisie et utilisation d'une clé", () => {
-    render(
-      <Wrapper>
-        <ApiKeyBanner />
-        <Display />
-      </Wrapper>,
-    );
-    const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'secret' } });
-    fireEvent.click(screen.getByTestId('useButton'));
-    expect(screen.getByTestId('currentKey').textContent).toBe('secret');
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it('toggle clé .env active', () => {
+  it('affiche la bannière si aucune clé', () => {
     render(
-      <Wrapper>
+      <ApiKeyProvider>
         <ApiKeyBanner />
-      </Wrapper>,
+      </ApiKeyProvider>,
     );
-    const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
-    const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
-    fireEvent.click(toggle);
-    expect(toggle.checked).toBe(true);
-    expect(input.disabled).toBe(true);
-    expect(screen.getByTestId('envActiveBadge').textContent).toContain(
-      'active',
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent('API Key requise');
   });
 
-  it('toggle désactivé rend le champ éditable', () => {
+  it('cache la bannière après saisie', () => {
     render(
-      <Wrapper>
+      <ApiKeyProvider>
+        <ApiKeyInput />
         <ApiKeyBanner />
-      </Wrapper>,
+      </ApiKeyProvider>,
     );
-    const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
-    const toggle = screen.getByTestId('useEnvToggle') as HTMLInputElement;
-    fireEvent.click(toggle);
-    fireEvent.click(toggle);
-    expect(toggle.checked).toBe(false);
-    expect(input.disabled).toBe(false);
+    fireEvent.change(screen.getByLabelText('api-key'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.click(screen.getByText('Enregistrer'));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('pas de persistance après remount', () => {
-    const view = render(
-      <Wrapper>
-        <ApiKeyBanner />
-        <Display />
-      </Wrapper>,
-    );
-    const input = screen.getByTestId('apiKeyInput') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'temp' } });
-    fireEvent.click(screen.getByTestId('useButton'));
-    expect(screen.getByTestId('currentKey').textContent).toBe('temp');
-    view.unmount();
+  it('ne montre pas la bannière si une clé .env est définie', () => {
+    vi.stubEnv('VITE_API_KEY', 'env-key');
     render(
-      <Wrapper>
+      <ApiKeyProvider>
         <ApiKeyBanner />
-        <Display />
-      </Wrapper>,
+      </ApiKeyProvider>,
     );
-    expect(screen.getByTestId('currentKey').textContent).toBe('');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
