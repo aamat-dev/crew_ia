@@ -15,10 +15,6 @@ Définir les variables d'environnement du projet :
 - `VITE_API_BASE_URL`
 - `VITE_API_KEY` (facultatif)
 
-### GitHub Pages
-Une version statique est disponible à l'adresse `https://<user>.github.io/<repo>/`.
-La gestion des routes se fait via un fichier `404.html` qui redirige vers `index.html`.
-L'URL de l'API et la clé peuvent être configurées via le panneau de configuration de l'interface.
 
 ### Comment tester la preview
 1. Ouvrir la preview dans le navigateur.
