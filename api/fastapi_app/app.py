@@ -110,11 +110,13 @@ ALLOWED_ORIGINS = [
     for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
+CORS_ALLOW_METHODS = ["GET", "OPTIONS"]
+CORS_ALLOW_HEADERS = ["Content-Type", "X-API-Key"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_methods=CORS_ALLOW_METHODS,
+    allow_headers=CORS_ALLOW_HEADERS,
 )
 
 # -------- Routes --------
