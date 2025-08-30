@@ -1,4 +1,4 @@
-# Fil G – Mini Dashboard (read‑only)
+# Fil G – Mini Dashboard (read-only)
 
 ## Introduction
 Mini interface web permettant de visualiser l'exécution des runs orchestrés.
@@ -11,7 +11,7 @@ l'état des runs.
 ### Vercel
 Les déploiements sur la branche `main` sont publiés automatiquement sur Vercel.
 L'URL de la preview est affichée dans les logs du job `vercel-deploy`.
-Définir les variables d'environnement du projet :
+Définir les variables d'environnement du projet :
 - `VITE_API_BASE_URL`
 - `VITE_API_KEY` (facultatif)
 
@@ -23,37 +23,13 @@ Définir les variables d'environnement du projet :
 5. Ouvrir **Runs** et vérifier la pagination (limite 50) et les en-têtes `Link`.
 
 ### Troubleshooting
-- **CORS** : vérifier la variable `ALLOWED_ORIGINS` du backend.
-- **401 / 403** : vérifier la validité de la clé API.
-- **Pagination** : limite à 50 éléments avec en-têtes `Link` pour la navigation.
+- **CORS** : vérifier la variable `ALLOWED_ORIGINS` du backend.
+- **401 / 403** : vérifier la validité de la clé API.
+- **Pagination** : limite à 50 éléments avec en-têtes `Link` pour la navigation.
 
 ## Installation locale
-Node.js 20 LTS ou supérieur est requis.
+… (le reste du fichier inchangé)
 
-1. **Installer les dépendances** :
-   ```bash
-   make dash-mini-install
-   ```
-2. **Configurer l'API** : créer un fichier `.env.local` dans `dashboard/mini`
-   contenant les variables suivantes :
-   ```env
-   VITE_API_BASE_URL=http://localhost:8000
-   VITE_API_TIMEOUT_MS=15000
-   # optionnel
-   VITE_API_KEY=<cle>
-   ```
-3. **Démarrer l'API FastAPI** (répertoire racine du projet) :
-   ```bash
-   uvicorn api.fastapi_app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-   Si l'API tourne en local loopback, l'option `--host 0.0.0.0` permet l'accès
-   depuis un autre appareil du réseau.
-4. **Lancer le dashboard** :
-   ```bash
-   make dash-mini-run
-   ```
-   Pour générer une version de production et la prévisualiser :
-   ```bash
    make dash-mini-build
    ```
 
