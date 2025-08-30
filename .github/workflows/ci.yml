@@ -103,6 +103,46 @@ jobs:
           files: "coverage/**/coverage.xml,coverage/**/lcov.info"
           fail_ci_if_error: false
 
+  deploy-pages:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: dashboard/mini/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard/mini
+        run: npm ci
+
+      - name: Build
+        working-directory: dashboard/mini
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/mini/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   vercel-deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: lint-and-test
