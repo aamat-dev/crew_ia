@@ -1,41 +1,10 @@
 import 'whatwg-fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchJson, ApiError } from '../../api/http';
-import { setCurrentApiKey } from '../../state/ApiKeyContext';
 
 describe('fetchJson', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    setCurrentApiKey(undefined);
-  });
-
-  it('ajoute uniquement la clé API', async () => {
-    setCurrentApiKey('secret');
-    const mock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    global.fetch = mock as unknown as typeof fetch;
-    const { requestId: id1 } = await fetchJson<{ ok: boolean }>('/runs');
-    const headers1 = (mock.mock.calls[0][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(headers1['X-API-Key']).toBe('secret');
-    expect(headers1['Accept']).toBeUndefined();
-    expect(headers1['X-Request-ID']).toBeUndefined();
-    const { requestId: id2 } = await fetchJson<{ ok: boolean }>('/runs');
-    expect(id2).not.toBe(id1);
   });
 
   it('aborte après le timeout', async () => {

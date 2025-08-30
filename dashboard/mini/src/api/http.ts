@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getApiBaseUrl, API_TIMEOUT_MS } from '../config/env';
-import { getCurrentApiKey } from '../state/ApiKeyContext';
+import { getCurrentApiKey } from '../state/getApiKey';
 
 export class ApiError extends Error {
   status: number;

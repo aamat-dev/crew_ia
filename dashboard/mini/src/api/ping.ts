@@ -1,4 +1,4 @@
-import { getCurrentApiKey } from '../state/ApiKeyContext';
+import { getCurrentApiKey } from '../state/getApiKey';
 
 export async function pingApi(
   baseUrl: string,

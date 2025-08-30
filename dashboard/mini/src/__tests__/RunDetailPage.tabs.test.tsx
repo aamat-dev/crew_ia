@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../state/ApiKeyContext', () => ({
-  useApiKey: () => ({ apiKey: 'k', useEnvKey: false }),
+  useApiKey: () => ({ apiKey: 'k', useEnvKey: false, setApiKey: vi.fn() }),
 }));
 
 const run = { id: '1', title: 'r1', status: 'queued' as const };

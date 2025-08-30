@@ -6,13 +6,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Status } from '../api/types';
 
 vi.mock('../state/ApiKeyContext', () => ({
-  useApiKey: () => ({
-    apiKey: 'k',
-    useEnvKey: false,
-    setApiKey: vi.fn(),
-    setUseEnvKey: vi.fn(),
-    reset: vi.fn(),
-  }),
+  useApiKey: () => ({ apiKey: 'k', useEnvKey: false, setApiKey: vi.fn() }),
 }));
 
 const useRunsMock = vi.fn(
