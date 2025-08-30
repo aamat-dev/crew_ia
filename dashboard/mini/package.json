@@ -11,7 +11,8 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "postbuild": "node scripts/copy-404.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.8",
