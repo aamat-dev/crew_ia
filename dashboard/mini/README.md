@@ -6,18 +6,21 @@ Le tableau de bord est **en lecture seule** et vise principalement les
 équipes de développement, d'exploitation et de test souhaitant consulter
 l'état des runs.
 
-## Preview
+## Comment tester la preview
+URL publique : https://preview.example.com
 
-Une version de production est déployée sur GitHub Pages :
-`https://<utilisateur>.github.io/crew_ia/`.
+1. Ouvrir la preview dans le navigateur.
+2. Renseigner `API Base URL` dans le panneau de configuration (ex : `https://api.<domaine>/`).
+3. Saisir l'API Key dans le champ dédié puis cliquer sur `Enregistrer`.
+4. Vérifier que la bannière ⚠ disparaît.
+5. Ouvrir "Runs" et consulter la liste (pagination, etc.).
 
-### Comment tester la preview
+### Rappels
+- Les requêtes incluent l'en-tête `X-API-Key`.
+- La pagination est bornée (limite maximale 50) et les en-têtes `Link` sont disponibles.
 
-1. Ouvrir l'URL ci-dessus.
-2. Dans le panneau **API URL**, saisir l'adresse de l'API (`VITE_API_BASE_URL`),
-   par exemple `https://api.example.com`.
-3. Renseigner la clé API dans le champ **api-key** de la bannière.
-4. Les paramètres sont sauvegardés dans le navigateur et utilisés par toutes les requêtes.
+### Troubleshooting
+En cas d'erreurs CORS, 401 ou 403 : vérifier la variable `ALLOWED_ORIGINS` du backend et la validité de la clé API.
 
 ## Installation locale
 Node.js 20 LTS ou supérieur est requis.
