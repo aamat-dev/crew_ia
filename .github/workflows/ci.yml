@@ -152,7 +152,7 @@ jobs:
       - name: Run E2E tests (preview)
         working-directory: dashboard/mini
         env:
-          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url }}
+          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url || secrets.PREVIEW_URL }}
         run: npm run e2e:ci
       - name: Upload Playwright report
         if: always()
