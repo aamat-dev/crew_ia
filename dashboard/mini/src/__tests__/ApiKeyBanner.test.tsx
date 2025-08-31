@@ -16,26 +16,21 @@ describe('ApiKeyBanner', () => {
     vi.unstubAllEnvs();
   });
 
-  it('affiche la bannière si aucune clé', () => {
-    render(
-      <ApiKeyProvider>
-        <ApiKeyBanner />
-      </ApiKeyProvider>,
-    );
-    expect(screen.getByRole('alert')).toHaveTextContent('API Key requise');
-  });
-
-  it('cache la bannière après saisie', () => {
+  it("affiche l'alerte puis la cache après enregistrement", () => {
     render(
       <ApiKeyProvider>
         <ApiKeyInput />
         <ApiKeyBanner />
       </ApiKeyProvider>,
     );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('API Key requise');
+
     fireEvent.change(screen.getByLabelText('api-key'), {
       target: { value: 'abc' },
     });
     fireEvent.click(screen.getByText('Enregistrer'));
+
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
