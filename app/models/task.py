@@ -38,7 +38,7 @@ class Task(SQLModel, table=True):
             ForeignKey("plans.id", ondelete="SET NULL"),
             nullable=True,
         ),
-    )
+    )  # FK vers plans
     run_id: Optional[uuid.UUID] = Field(
         default=None,
         sa_column=Column(
