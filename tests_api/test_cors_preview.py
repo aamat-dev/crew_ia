@@ -24,17 +24,19 @@ async def test_cors_preview(monkeypatch):
                 "/health",
                 headers={
                     "Origin": origin,
-                    "Access-Control-Request-Method": "GET",
-                    "Access-Control-Request-Headers": "Content-Type,X-API-Key",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "Content-Type,Authorization,X-API-Key,X-Request-ID",
                 },
             )
 
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == origin
     allow_methods = response.headers.get("access-control-allow-methods", "")
-    assert "GET" in allow_methods and "OPTIONS" in allow_methods
+    for method in ("GET", "POST", "PATCH", "OPTIONS"):
+        assert method in allow_methods
     allow_headers = response.headers.get("access-control-allow-headers", "").lower()
-    assert "content-type" in allow_headers and "x-api-key" in allow_headers
+    for header in ("content-type", "authorization", "x-api-key", "x-request-id"):
+        assert header in allow_headers
 
     if original is not None:
         monkeypatch.setenv("ALLOWED_ORIGINS", original)

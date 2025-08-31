@@ -18,6 +18,7 @@ _runs_total: Optional[Counter] = None
 _run_duration_seconds: Optional[Histogram] = None
 _llm_tokens_total: Optional[Counter] = None
 _llm_cost_total: Optional[Counter] = None
+_http_requests_total_family: Optional[Counter] = None
 
 
 def metrics_enabled() -> bool:
@@ -40,6 +41,18 @@ def get_http_requests_total() -> Counter:
             registry=registry,
         )
     return _http_requests_total
+
+
+def get_http_requests_total_family() -> Counter:
+    global _http_requests_total_family
+    if _http_requests_total_family is None:
+        _http_requests_total_family = Counter(
+            "http_requests_total_family",
+            "Total des requêtes HTTP par famille",
+            ["route", "method", "status_family"],
+            registry=registry,
+        )
+    return _http_requests_total_family
 
 
 def get_http_request_duration_seconds() -> Histogram:
