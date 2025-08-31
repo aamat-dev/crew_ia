@@ -81,8 +81,12 @@ jobs:
           pip install -e .
       - name: Check Alembic heads
         run: |
-          alembic heads
-          test $(alembic heads | wc -l) -eq 1
+          HEADS=$(alembic heads | tee /tmp/heads | wc -l)
+          if [ "$HEADS" -ne 1 ]; then
+            echo "Multiple Alembic heads detected:"
+            cat /tmp/heads
+            exit 1
+          fi
 
   coverage-merge:
     needs: lint-and-test
