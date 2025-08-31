@@ -130,6 +130,11 @@ jobs:
       - name: Install dependencies
         working-directory: dashboard/mini
         run: npm ci
+      - name: Cache Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('dashboard/mini/package-lock.json') }}
       - name: Install Playwright
         working-directory: dashboard/mini
         run: npx playwright install --with-deps
