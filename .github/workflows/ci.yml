@@ -240,3 +240,11 @@ jobs:
         with:
           name: playwright-report
           path: dashboard/mini/playwright-report
+      - name: Publish job summary
+        if: always()
+        env:
+          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url || secrets.PREVIEW_URL }}
+        run: |
+          echo "### E2E Preview" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: $PREVIEW_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- Rapport: voir artifact \`playwright-report\`" >> $GITHUB_STEP_SUMMARY
