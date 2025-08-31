@@ -8,10 +8,12 @@ under ``api.database.models`` so we re-export them here.
 from sqlmodel import SQLModel
 
 from core.storage.db_models import Artifact, Event, Node, Run
+from app.models.task import Task  # avoids importing Assignment
+from app.models.plan import Plan
 
 # FastAPI tests expect a ``Base`` object with a ``metadata`` attribute
 # similar to the SQLAlchemy declarative base. ``SQLModel`` already
 # exposes the metadata via ``SQLModel.metadata`` so we simply alias it.
 Base = SQLModel
 
-__all__ = ["Base", "Run", "Node", "Artifact", "Event"]
+__all__ = ["Base", "Run", "Node", "Artifact", "Event", "Task", "Plan"]

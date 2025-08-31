@@ -1,23 +1,32 @@
 # api/fastapi_app/routes/tasks.py
 from __future__ import annotations
 
+import logging
+import os
+import time
+from typing import Optional, Any, Dict
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi import Header
 from pydantic import ValidationError
-from typing import Optional, Any, Dict
-from uuid import UUID
-import os
-import time
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import strict_api_key_auth
+from ..deps import strict_api_key_auth, get_session
 from ..schemas import TaskRequest, TaskAcceptedResponse
 from core.services.orchestrator_service import schedule_run
+from app.models.task import Task
+from app.models.plan import Plan, PlanStatus
+from app.schemas.plan import PlanCreateResponse
+from app.services.supervisor import generate_plan
 
 router = APIRouter(
     prefix="/tasks",
     tags=["tasks"],
     dependencies=[Depends(strict_api_key_auth)],  # 🔒 vérifie la valeur de la clé
 )
+
+log = logging.getLogger("api.tasks")
 
 # ---------- Rate limit config ----------
 RATE_LIMIT = 3
@@ -86,3 +95,33 @@ async def create_task(
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return TaskAcceptedResponse(run_id=str(run_id), location=f"/runs/{run_id}")
+
+
+@router.post("/{task_id}/plan", response_model=PlanCreateResponse, status_code=status.HTTP_201_CREATED)
+async def generate_task_plan(
+    task_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+):
+    """Génère et persiste un plan pour une tâche donnée."""
+
+    task = await session.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    result = await generate_plan(task)
+    plan = Plan(task_id=task.id, status=result.status, graph=result.graph.model_dump())
+    session.add(plan)
+    await session.flush()
+    if result.status == PlanStatus.ready:
+        task.plan_id = plan.id
+    await session.commit()
+
+    req_id = x_request_id or getattr(request.state, "request_id", None)
+    log.info(
+        "plan generated",
+        extra={"request_id": req_id, "task_id": str(task.id), "plan_id": str(plan.id), "status": result.status.value},
+    )
+
+    return PlanCreateResponse(plan_id=plan.id, status=plan.status, graph=result.graph)
