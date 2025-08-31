@@ -52,4 +52,14 @@ test('preview UI fonctionne avec API mockée', async ({ page }) => {
   // Navigue vers Runs et attend l'affichage d'au moins un item
   await page.goto(`${PREVIEW_URL}/runs`);
   await expect(page.getByRole('row', { name: /run-1/ })).toBeVisible();
+
+  // Contrôles de tri visibles
+  const orderBySelect = page.locator('[aria-label="order-by"]');
+  const orderDirSelect = page.locator('[aria-label="order-dir"]');
+  await expect(orderBySelect).toBeVisible();
+  await expect(orderDirSelect).toBeVisible();
+
+  // Change l'ordre et vérifie la pagination
+  await orderBySelect.selectOption('ended_at');
+  await expect(page.getByRole('button', { name: 'Suivant' })).toBeEnabled();
 });
