@@ -1,9 +1,12 @@
 import asyncio
 import json
 import pytest
+import uuid
+from sqlalchemy import delete, select
+from api.database.models import Run, Node, Artifact, Event
 
 @pytest.mark.asyncio
-async def test_events_include_llm_metadata(client):
+async def test_events_include_llm_metadata(client, db_session):
     payload = {
         "title": "LLMMeta",
         "task": {"title": "LLMMeta", "plan": [{"id": "n1", "title": "T1"}]},
@@ -12,6 +15,7 @@ async def test_events_include_llm_metadata(client):
     r = await client.post("/tasks", json=payload, headers={"X-API-Key": "test-key"})
     assert r.status_code == 202
     rid = r.json()["run_id"]
+    run_uuid = uuid.UUID(rid)
 
     # poll
     for _ in range(120):
@@ -32,3 +36,14 @@ async def test_events_include_llm_metadata(client):
     # payload est dans e["message"] (JSON string)
     msg = json.loads(node_completed[0]["message"])
     assert isinstance(msg, dict)
+
+    # nettoyage des données créées pendant le test
+    await db_session.execute(delete(Event).where(Event.run_id == run_uuid))
+    await db_session.execute(
+        delete(Artifact).where(
+            Artifact.node_id.in_(select(Node.id).where(Node.run_id == run_uuid))
+        )
+    )
+    await db_session.execute(delete(Node).where(Node.run_id == run_uuid))
+    await db_session.execute(delete(Run).where(Run.id == run_uuid))
+    await db_session.commit()
