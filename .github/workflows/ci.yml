@@ -157,6 +157,13 @@ jobs:
       - name: Install Playwright
         working-directory: dashboard/mini
         run: npx playwright install --with-deps
+      - name: Echo PREVIEW_URL
+        run: |
+          if [ -n "${{ needs.vercel-deploy.outputs.preview-url }}" ]; then
+            echo "Using Vercel preview URL"
+          else
+            echo "Using PREVIEW_URL secret"
+          fi
       - name: Run E2E tests (preview)
         working-directory: dashboard/mini
         env:
