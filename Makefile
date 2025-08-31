@@ -229,7 +229,7 @@ validate-non-uuid: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
 
 # ---- Mini Dashboard ---------------------------
-.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-ci-local
+.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-test dash-mini-e2e dash-mini-e2e-ci dash-mini-ci-local
 dash-mini-install:
 	cd dashboard/mini && npm ci
 
@@ -240,6 +240,18 @@ dash-mini-run:
 
 dash-mini-build:
 	cd dashboard/mini && npm run build && echo "🌐 Preview sur http://localhost:5173" && npm run preview
+
+
+dash-mini-test:
+	cd dashboard/mini && npm test -- --run
+
+
+dash-mini-e2e:
+	cd dashboard/mini && PREVIEW_URL=http://localhost:5173 npm run e2e
+
+
+dash-mini-e2e-ci:
+	cd dashboard/mini && npm run e2e:ci
 
 
 dash-mini-ci-local:
