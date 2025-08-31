@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Literal
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
@@ -8,9 +8,13 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, strict_api_key_auth, cap_limit, cap_date_range, DEFAULT_LIMIT
+from ..deps import get_session, strict_api_key_auth, cap_date_range
 from ..schemas import Page, EventOut
-from ..pagination import set_pagination_headers
+from app.utils.pagination import (
+    PaginationParams,
+    pagination_params,
+    set_pagination_headers,
+)
 from ..ordering import apply_order
 from core.storage.db_models import Event  # type: ignore
 
@@ -28,18 +32,14 @@ async def list_events(
     run_id: UUID | None = Query(None),
     run_id_path: UUID | None = None,
     session: AsyncSession = Depends(get_session),
-    limit: int = Query(DEFAULT_LIMIT, ge=1),
-    offset: int = Query(0, ge=0),
+    pagination: PaginationParams = Depends(pagination_params),
     level: Optional[str] = Query(None),
     q: Optional[str] = Query(None, description="Recherche plein texte (message ILIKE)"),
     ts_from: Optional[datetime] = Query(None),
     ts_to: Optional[datetime] = Query(None),
     request_id: Optional[str] = Query(None),
-    order_by: Optional[str] = Query("-timestamp"),
-    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
     global _deprecated_warned
-    limit = cap_limit(limit)
     run_id = run_id or run_id_path
     if run_id_path and not _deprecated_warned:
         log.warning("/runs/{run_id}/events est déprécié; utilisez /events?run_id=…")
@@ -66,7 +66,9 @@ async def list_events(
             select(func.count(Event.id)).select_from(Event).where(and_(*where))
         )
     ).scalar_one()
-    stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-timestamp").limit(limit).offset(offset)
+    stmt = apply_order(
+        base, pagination.order_by, pagination.order_dir, ORDERABLE, "-timestamp"
+    ).limit(pagination.limit).offset(pagination.offset)
 
     rows = (await session.execute(stmt)).scalars().all()
     items = [
@@ -81,5 +83,12 @@ async def list_events(
         )
         for e in rows
     ]
-    set_pagination_headers(response, request, total, limit, offset)
-    return Page[EventOut](items=items, total=total, limit=limit, offset=offset)
+    set_pagination_headers(
+        response, request, total, pagination.limit, pagination.offset
+    )
+    return Page[EventOut](
+        items=items,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )

@@ -61,7 +61,7 @@ export const listRuns = async (
   opts: FetchOpts = {},
 ): Promise<Page<Run>> => {
   const status = mapUiStatusesToApi(params.status).join(',');
-  const limit = Math.min(params.pageSize, 50);
+  const limit = Math.min(params.pageSize, 200);
   const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
     limit,
@@ -130,7 +130,7 @@ export const listRunNodes = async (
   },
   opts: FetchOpts = {},
 ): Promise<Page<NodeItem>> => {
-  const limit = Math.min(params.pageSize, 50);
+  const limit = Math.min(params.pageSize, 200);
   const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
     limit,
@@ -172,7 +172,7 @@ export const listRunEvents = async (
   },
   opts: FetchOpts = {},
 ): Promise<Page<EventItem>> => {
-  const limit = Math.min(params.pageSize, 50);
+  const limit = Math.min(params.pageSize, 200);
   const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
     limit,
@@ -208,7 +208,7 @@ export const listNodeArtifacts = async (
   params: { page: number; pageSize: number; kind?: string },
   opts: FetchOpts = {},
 ): Promise<Page<ArtifactItem>> => {
-  const limit = Math.min(params.pageSize, 50);
+  const limit = Math.min(params.pageSize, 200);
   const offset = (params.page - 1) * limit;
   const query: Record<string, string | number | boolean | undefined> = {
     limit,

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Literal
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -11,11 +11,13 @@ from ..deps import (
     read_timezone,
     to_tz,
     strict_api_key_auth,
-    cap_limit,
-    DEFAULT_LIMIT,
 )
 from ..schemas import Page, NodeOut
-from ..pagination import set_pagination_headers
+from app.utils.pagination import (
+    PaginationParams,
+    pagination_params,
+    set_pagination_headers,
+)
 from ..ordering import apply_order
 from core.storage.db_models import Node  # type: ignore
 
@@ -36,17 +38,13 @@ async def list_nodes(
     response: Response,
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
-    limit: int = Query(DEFAULT_LIMIT, ge=1),
-    offset: int = Query(0, ge=0),
+    pagination: PaginationParams = Depends(pagination_params),
     status: Optional[str] = Query(None),
     key: Optional[str] = Query(None),
     title_contains: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     checksum: Optional[str] = Query(None),
-    order_by: Optional[str] = Query("-created_at"),
-    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
-    limit = cap_limit(limit)
     where = [Node.run_id == run_id]
     if status:
         where.append(Node.status == status)
@@ -67,7 +65,9 @@ async def list_nodes(
             .where(and_(*where))
         )
     ).scalar_one()
-    stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-created_at").limit(limit).offset(offset)
+    stmt = apply_order(
+        base, pagination.order_by, pagination.order_dir, ORDERABLE, "-created_at"
+    ).limit(pagination.limit).offset(pagination.offset)
 
     rows = (await session.execute(stmt)).scalars().all()
     items = [
@@ -84,5 +84,12 @@ async def list_nodes(
         )
         for n in rows
     ]
-    set_pagination_headers(response, request, total, limit, offset)
-    return Page[NodeOut](items=items, total=total, limit=limit, offset=offset)
+    set_pagination_headers(
+        response, request, total, pagination.limit, pagination.offset
+    )
+    return Page[NodeOut](
+        items=items,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )

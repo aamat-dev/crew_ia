@@ -30,10 +30,11 @@ class SentryContextMiddleware(BaseHTTPMiddleware):
             sentry_sdk.set_tag("request_id", rid)
         try:
             response = await call_next(request)
-        except Exception:
+        except Exception as exc:
             sentry_sdk.set_tag("route", request.url.path)
-            sentry_sdk.set_tag("status", 500)
+            sentry_sdk.set_tag("status", "500")
+            sentry_sdk.capture_exception(exc)
             raise
         sentry_sdk.set_tag("route", request.url.path)
-        sentry_sdk.set_tag("status", response.status_code)
+        sentry_sdk.set_tag("status", str(response.status_code))
         return response

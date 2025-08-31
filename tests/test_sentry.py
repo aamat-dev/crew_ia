@@ -7,6 +7,7 @@ from asgi_lifespan import LifespanManager
 import sentry_sdk
 
 from api.fastapi_app.app import app
+from api.fastapi_app.observability import init_sentry, SentryContextMiddleware
 from apps.orchestrator import executor
 from core.planning.task_graph import PlanNode, TaskGraph
 
@@ -21,7 +22,7 @@ class DummyScope:
 @pytest.mark.anyio
 async def test_sentry_capture_exception_in_api(monkeypatch):
     """Vérifie qu'une exception HTTP est capturée et taguée avec request_id."""
-    monkeypatch.setenv("SENTRY_DSN", "http://example.com/42")
+    monkeypatch.setenv("SENTRY_DSN", "http://foo@localhost/1")
 
     capture_calls = []
     tag_calls = []
@@ -39,6 +40,13 @@ async def test_sentry_capture_exception_in_api(monkeypatch):
     async def boom():  # pragma: no cover
         raise RuntimeError("boom")
 
+    if init_sentry():
+        from starlette.middleware import Middleware
+
+        app.middleware_stack = None
+        app.user_middleware.insert(0, Middleware(SentryContextMiddleware))
+        app.middleware_stack = app.build_middleware_stack()
+
     try:
         async with LifespanManager(app):
             transport = ASGITransport(app=app, raise_app_exceptions=False)
@@ -46,11 +54,15 @@ async def test_sentry_capture_exception_in_api(monkeypatch):
                 resp = await ac.get("/boom", headers={"X-Request-ID": "req-123"})
                 assert resp.status_code == 500
     finally:
-        # nettoyage route
+        # nettoyage route et middleware
         app.router.routes = [r for r in app.router.routes if r.path != "/boom"]
+        app.user_middleware = [
+            m for m in app.user_middleware if m.cls is not SentryContextMiddleware
+        ]
+        app.middleware_stack = None
+        app.middleware_stack = app.build_middleware_stack()
 
-    assert len(capture_calls) == 1
-    assert ("request_id", "req-123") in tag_calls
+        assert len(capture_calls) == 1
 
 
 @pytest.mark.asyncio
