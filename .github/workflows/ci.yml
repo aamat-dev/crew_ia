@@ -65,6 +65,25 @@ jobs:
             htmlcov
             dashboard/mini/coverage
 
+  alembic-heads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Check Alembic heads
+        run: |
+          alembic heads
+          test $(alembic heads | wc -l) -eq 1
+
   coverage-merge:
     needs: lint-and-test
     runs-on: ubuntu-latest
