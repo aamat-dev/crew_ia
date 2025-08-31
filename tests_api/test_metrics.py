@@ -45,6 +45,7 @@ async def test_metrics_endpoint_enabled(monkeypatch):
     payload = resp.text
     for name in [
         "http_requests_total",
+        "http_requests_total_family",
         "http_request_duration_seconds_bucket",
         "db_pool_in_use",
         "orchestrator_node_duration_seconds_bucket",

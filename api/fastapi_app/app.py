@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from uuid import UUID
 from anyio import create_task_group
@@ -15,27 +14,16 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-SENTRY_DSN = os.getenv("SENTRY_DSN", "")
-if SENTRY_DSN:
-    import sentry_sdk
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        environment=os.getenv("SENTRY_ENV", "dev"),
-        release=os.getenv("RELEASE", "crew_ia@dev"),
-    )
-
-    class SentryRequestIDMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request, call_next):
-            rid = getattr(request.state, "request_id", None)
-            if rid:
-                sentry_sdk.set_tag("request_id", rid)
-            return await call_next(request)
-
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from .middleware import RequestIDMiddleware
 from .middleware.metrics import MetricsMiddleware
-from core.telemetry.metrics import metrics_enabled, generate_latest
+from .observability import (
+    metrics_enabled,
+    generate_latest,
+    init_sentry,
+    SentryContextMiddleware,
+)
 from core.storage.postgres_adapter import PostgresAdapter
 from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
@@ -89,8 +77,8 @@ app = FastAPI(
 
 # -------- Middlewares --------
 app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagation
-if SENTRY_DSN:
-    app.add_middleware(SentryRequestIDMiddleware)      # Sentry tag request_id
+if init_sentry():
+    app.add_middleware(SentryContextMiddleware)        # Sentry annotations
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
 app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
 
@@ -110,8 +98,8 @@ ALLOWED_ORIGINS = [
     for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
-CORS_ALLOW_METHODS = ["GET", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["Content-Type", "X-API-Key"]
+CORS_ALLOW_METHODS = ["GET", "POST", "PATCH", "OPTIONS"]
+CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
