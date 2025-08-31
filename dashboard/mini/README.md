@@ -1,3 +1,7 @@
+![CI](https://img.shields.io/github/actions/workflow/status/<owner>/<repo>/ci.yml?branch=main)
+[![codecov](https://codecov.io/gh/<owner>/<repo>/branch/main/graph/badge.svg)](https://codecov.io/gh/<owner>/<repo>)
+![E2E](https://img.shields.io/badge/E2E-Playwright-blue)
+
 # Fil G – Mini Dashboard (read-only)
 
 ## Introduction
