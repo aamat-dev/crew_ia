@@ -54,6 +54,28 @@ vérifications en local :
 make dash-mini-ci-local
 ```
 
+### Tests E2E
+
+Pré-requis :
+
+```bash
+npx playwright install
+```
+
+Lancer localement :
+
+```bash
+PREVIEW_URL=http://localhost:5173 npm run e2e
+```
+
+Lancer sur une preview distante :
+
+```bash
+PREVIEW_URL=<url> npm run e2e
+```
+
+Les appels API sont mockés dans le test et seules les routes UI sont vérifiées.
+
 ## Limites connues
 - Fonctionnement uniquement en lecture ; aucune création/édition de runs.
 - Nécessite une API accessible protégée par clé.
