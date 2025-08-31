@@ -7,7 +7,10 @@ from sqlalchemy import create_engine, pool
 from sqlmodel import SQLModel
 
 # --- Importe tes modèles pour que SQLModel.metadata soit peuplé ---
+# Modèles existants
 from core.storage.db_models import Run, Node, Artifact, Event  # noqa: F401
+# Modèles de l'application
+from app.db.base import Base  # noqa: F401
 from dotenv import load_dotenv
 load_dotenv()  # charge le .env tôt
 
