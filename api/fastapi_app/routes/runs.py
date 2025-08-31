@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import Optional, Sequence, Literal
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from sqlalchemy import join
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,12 +13,14 @@ from ..deps import (
     read_timezone,
     to_tz,
     strict_api_key_auth,
-    cap_limit,
     cap_date_range,
-    DEFAULT_LIMIT,
 )
 from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
-from ..pagination import set_pagination_headers
+from app.utils.pagination import (
+    PaginationParams,
+    pagination_params,
+    set_pagination_headers,
+)
 from ..ordering import apply_order
 
 # Import des modèles ORM existants
@@ -40,16 +42,12 @@ async def list_runs(
     response: Response,
     session: AsyncSession = Depends(get_session),
     tz = Depends(read_timezone),
-    limit: int = Query(DEFAULT_LIMIT, ge=1),
-    offset: int = Query(0, ge=0),
+    pagination: PaginationParams = Depends(pagination_params),
     status: Optional[str] = Query(None, description="Filtre par status"),
     title_contains: Optional[str] = Query(None, description="Filtre par sous-chaîne du titre"),
     started_from: Optional[datetime] = Query(None),
     started_to: Optional[datetime] = Query(None),
-    order_by: Optional[str] = Query("-started_at"),
-    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
-    limit = cap_limit(limit)
     cap_date_range(started_from, started_to)
     where_clauses = []
     if status:
@@ -73,7 +71,9 @@ async def list_runs(
         )
     ).scalar_one()
 
-    stmt = apply_order(base, order_by, order_dir, ORDERABLE_FIELDS, "-started_at").limit(limit).offset(offset)
+    stmt = apply_order(
+        base, pagination.order_by, pagination.order_dir, ORDERABLE_FIELDS, "-started_at"
+    ).limit(pagination.limit).offset(pagination.offset)
     runs = (await session.execute(stmt)).scalars().all()
 
     items = [
@@ -87,8 +87,15 @@ async def list_runs(
         for r in runs
     ]
 
-    set_pagination_headers(response, request, total, limit, offset)
-    return Page[RunListItemOut](items=items, total=total, limit=limit, offset=offset)
+    set_pagination_headers(
+        response, request, total, pagination.limit, pagination.offset
+    )
+    return Page[RunListItemOut](
+        items=items,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
 
 @router.get("/{run_id}", response_model=RunOut)
 async def get_run(

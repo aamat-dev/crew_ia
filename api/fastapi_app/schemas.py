@@ -10,7 +10,7 @@ class Page(BaseModel, Generic[T]):
     total: int
     limit: int
     offset: int
-    model_config = ConfigDict(json_schema_extra={"examples": [{"items": [], "total": 0, "limit": 20, "offset": 0}]})
+    model_config = ConfigDict(json_schema_extra={"examples": [{"items": [], "total": 0, "limit": 50, "offset": 0}]})
 
 # ---------- LLM options (facultatif) ----------
 class LLMRoleOptions(BaseModel):

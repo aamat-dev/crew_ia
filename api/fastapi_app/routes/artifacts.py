@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Literal
+from typing import Optional
 from uuid import UUID
 from pathlib import Path
 
@@ -8,9 +8,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_session, settings, strict_api_key_auth, cap_limit, DEFAULT_LIMIT
+from ..deps import get_session, settings, strict_api_key_auth
 from ..schemas import Page, ArtifactOut
-from ..pagination import set_pagination_headers
+from app.utils.pagination import (
+    PaginationParams,
+    pagination_params,
+    set_pagination_headers,
+)
 from ..ordering import apply_order
 from core.storage.db_models import Artifact  # type: ignore
 
@@ -25,14 +29,10 @@ async def list_artifacts(
     request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
-    limit: int = Query(DEFAULT_LIMIT, ge=1),
-    offset: int = Query(0, ge=0),
+    pagination: PaginationParams = Depends(pagination_params),
     type: Optional[str] = Query(None, description="Filtre par type d'artifact"),
     name_contains: Optional[str] = Query(None, description="Filtre nom (path ILIKE)"),
-    order_by: Optional[str] = Query("-created_at"),
-    order_dir: Optional[Literal["asc", "desc"]] = Query(None),
 ):
-    limit = cap_limit(limit)
     base = select(Artifact).where(Artifact.node_id == node_id)
     if type:
         base = base.where(Artifact.type == type)
@@ -46,7 +46,9 @@ async def list_artifacts(
         total_stmt = total_stmt.where(Artifact.path.ilike(f"%{name_contains}%"))
 
     total = (await session.execute(total_stmt)).scalar_one()
-    stmt = apply_order(base, order_by, order_dir, ORDERABLE, "-created_at").limit(limit).offset(offset)
+    stmt = apply_order(
+        base, pagination.order_by, pagination.order_dir, ORDERABLE, "-created_at"
+    ).limit(pagination.limit).offset(pagination.offset)
 
     rows = (await session.execute(stmt)).scalars().all()
 
@@ -70,8 +72,15 @@ async def list_artifacts(
         )
         for a in rows
     ]
-    set_pagination_headers(response, request, total, limit, offset)
-    return Page[ArtifactOut](items=items, total=total, limit=limit, offset=offset)
+    set_pagination_headers(
+        response, request, total, pagination.limit, pagination.offset
+    )
+    return Page[ArtifactOut](
+        items=items,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
 
 # --- NEW: GET /artifacts/{artifact_id} ---
 @router_artifacts.get("/{artifact_id}", response_model=ArtifactOut)
