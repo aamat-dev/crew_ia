@@ -31,6 +31,19 @@ Définir les variables d'environnement du projet :
 - **401 / 403** : vérifier la validité de la clé API.
 - **Pagination** : limite à 50 éléments avec en-têtes `Link` pour la navigation.
 
+## 🔐 Secrets & variables requis
+
+### Secrets GitHub du dépôt
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `PREVIEW_URL` (optionnel, fallback pour les tests E2E)
+
+### Variables d'environnement du projet Vercel
+Ajouter dans **Project → Env Vars** :
+- `VITE_API_BASE_URL`
+- `VITE_API_KEY` (facultatif)
+
 ## Installation locale
 … (le reste du fichier inchangé)
 
