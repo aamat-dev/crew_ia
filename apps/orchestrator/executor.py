@@ -540,6 +540,7 @@ async def _run_single_node(
     replayed = 0
     attempt = 0
     result: Dict[str, Any] | None = None
+    last_err: Exception | None = None
     while True:
         attempt += 1
         t0 = perf_counter() if metrics_enabled() else None
@@ -571,6 +572,7 @@ async def _run_single_node(
                         target.llm["tooling"] = tooling
             break
         except Exception as e:
+            last_err = e
             traceback.print_exc()
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))
             if os.getenv("SENTRY_DSN"):
@@ -616,6 +618,45 @@ async def _run_single_node(
                     model,
                 ).observe(dt)
 
+    signal = None
+    if status == "failed":
+        trace = "".join(
+            traceback.format_exception(type(last_err), last_err, last_err.__traceback__)
+        ) if last_err else ""
+        report = {"reason": str(last_err), "attempts": attempt, "trace": trace}
+        orig_role = node.suggested_agent_role or ""
+        if orig_role and not orig_role.endswith("_alt"):
+            alt_role = f"{orig_role}_alt"
+            try:
+                recruit(alt_role)
+                node.suggested_agent_role = alt_role
+                node_log.info("reallocation vers %s", alt_role)
+                result = await _execute_node(
+                    node,
+                    storage,
+                    dag,
+                    run_id,
+                    node_id_txt,
+                    dry_run=dry_run,
+                    override=overrides.get(node_id_txt),
+                )
+                status = "completed"
+                replayed = 1
+                report["reallocated_role"] = alt_role
+            except Exception as e2:
+                report["reallocation_error"] = str(e2)
+                signal = {
+                    "action": "plan_revision",
+                    "plan_status": "draft",
+                    "report": report,
+                }
+        else:
+            signal = {
+                "action": "plan_revision",
+                "plan_status": "draft",
+                "report": report,
+            }
+
     out = {
         "run_id": run_id,
         "node_id": node_id_txt,
@@ -632,7 +673,7 @@ async def _run_single_node(
                 await on_node_end(node, status)
         except Exception as e:
             print(colorize(f"[HOOK-ERR] on_node_end: {e}", RED))
-    return {"status": status, "skipped": 0, "replayed": replayed}
+    return {"status": status, "skipped": 0, "replayed": replayed, "signal": signal}
 
 
 async def run_graph(
@@ -664,6 +705,7 @@ async def run_graph(
     failed_ids: Set[str] = set()
     skipped_count = 0
     replayed_count = 0
+    signals: list[dict[str, Any]] = []
 
     while pending:
         ready = [
@@ -700,6 +742,9 @@ async def run_graph(
             else:
                 skipped_count += res.get("skipped", 0)
                 replayed_count += res.get("replayed", 0)
+                sig = res.get("signal")
+                if sig:
+                    signals.append(sig)
                 if res.get("status") == "failed":
                     failed_ids.add(nid)
                 else:
@@ -761,4 +806,5 @@ async def run_graph(
             "failed": len(failed_ids),
             "skipped": skipped_count,
         },
+        "signals": signals,
     }
