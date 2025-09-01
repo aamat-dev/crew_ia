@@ -11,5 +11,5 @@ async def test_request_id_header_and_log(client, caplog):
     assert resp.status_code == 200
     rid = resp.headers.get("X-Request-ID")
     assert rid
-    logged = [json.loads(r.message)["request_id"] for r in caplog.records]
+    logged = [getattr(r, "request_id", None) for r in caplog.records]
     assert rid in logged
