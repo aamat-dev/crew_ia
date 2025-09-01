@@ -10,7 +10,7 @@ from api.database.models import Run, Node, Artifact, Event
 
 @pytest.mark.asyncio
 async def test_events_include_llm_metadata(async_client, monkeypatch, tmp_path, db_session):
-    async def fake_run_graph(dag, storage, run_id, override_completed, dry_run, on_node_start, on_node_end):
+    async def fake_run_graph(dag, storage, run_id, override_completed, dry_run, on_node_start, on_node_end, **kwargs):
         node = {"title": "T1"}
         node_key = "n1"
         await on_node_start(node, node_key)
