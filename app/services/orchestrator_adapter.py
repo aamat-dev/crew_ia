@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 
 async def start(plan_id: uuid.UUID, dry_run: bool = False) -> uuid.UUID:
-    """Démarre un plan via l'orchestrateur (stub)."""
+    """Démarre un plan via l'orchestrateur (mock)."""
     return uuid.uuid4()
 
 
@@ -18,9 +18,11 @@ _NODE_STATES: Dict[uuid.UUID, Dict[str, Any]] = {}
 async def node_action(
     node_id: uuid.UUID, action: str, payload: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
-    """Applique une action sur un nœud (FSM en mémoire).
-    - 409 si transition invalide
-    - Retourne status_after et sidecar_updated
+    """Applique une action sur un nœud (mock en mémoire).
+
+    - Valide les transitions et lève HTTP 409 si invalide
+    - Retourne le statut après action
+    - Indique si le sidecar LLM a été mis à jour (override prompt/params)
     """
     payload = payload or {}
 

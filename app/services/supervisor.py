@@ -41,5 +41,5 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
             edges.append({"source": dep, "target": n.id})
 
     graph = PlanGraph(nodes=nodes, edges=edges)
-    status = PlanStatus.ready if nodes else PlanStatus.invalid
+    status = PlanStatus.draft if nodes else PlanStatus.invalid
     return PlanGenerationResult(graph=graph, status=status)
