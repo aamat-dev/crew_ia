@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.plan import Plan
+from app.models.plan import Plan, PlanStatus
+from app.models.plan_review import PlanReview
 from app.models.assignment import Assignment
 from app.schemas.assignment import AssignmentsPayload, AssignmentsResponse
 from api.fastapi_app.deps import get_db, strict_api_key_auth
@@ -61,8 +62,31 @@ async def upsert_assignments(
 
 
 @router.post("/{plan_id}/submit_for_validation")
-async def submit_for_validation(plan_id: UUID, body: dict, _: Any = Depends(strict_api_key_auth)) -> dict:
-    validated = body.get("validated")
+async def submit_for_validation(
+    plan_id: UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    plan = await db.get(Plan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    validated = bool(body.get("validated"))
     errors = body.get("errors") or []
-    # TODO: persister l'événement / statut
-    return {"plan_id": str(plan_id), "validated": bool(validated), "errors": errors}
+
+    review = PlanReview(
+        plan_id=plan_id,
+        version=plan.version,
+        validated=validated,
+        errors=errors,
+    )
+    db.add(review)
+
+    if validated and not errors:
+        plan.status = PlanStatus.ready
+    else:
+        plan.status = PlanStatus.draft
+
+    await db.commit()
+
+    return {"plan_id": str(plan_id), "validated": validated, "errors": errors}

@@ -5,6 +5,7 @@ from sqlmodel import SQLModel
 from core.storage.db_models import Artifact, Event, Node, Run
 from app.models.task import Task
 from app.models.plan import Plan
+from app.models.plan_review import PlanReview
 from app.models.assignment import Assignment
 
 # Les tests s’attendent à un objet ayant un attribut `metadata`.
@@ -19,4 +20,5 @@ __all__ = [
     "Task",
     "Plan",
     "Assignment",
+    "PlanReview",
 ]

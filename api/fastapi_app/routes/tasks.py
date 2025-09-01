@@ -174,11 +174,21 @@ async def generate_task_plan(
         raise HTTPException(status_code=404, detail="Task not found")
 
     result = await generate_plan(task)
-    plan = Plan(task_id=task.id, status=result.status, graph=result.graph.model_dump())
-    session.add(plan)
-    await session.flush()
-    if result.status == PlanStatus.ready:
-        task.plan_id = plan.id
+
+    plan = None
+    if task.plan_id:
+        plan = await session.get(Plan, task.plan_id)
+    if plan:
+        plan.graph = result.graph.model_dump()
+        plan.status = result.status
+        plan.version += 1
+    else:
+        plan = Plan(task_id=task.id, status=result.status, graph=result.graph.model_dump())
+        session.add(plan)
+        await session.flush()
+        if result.status != PlanStatus.invalid:
+            task.plan_id = plan.id
+
     await session.commit()
 
     req_id = x_request_id or getattr(request.state, "request_id", None)
