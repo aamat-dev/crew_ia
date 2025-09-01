@@ -2,14 +2,16 @@ import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import { useNodeArtifacts } from '../api/hooks';
 import { patchNode } from '../api/client';
+import { ApiError } from '../api/http';
 
 interface NodeSidePanelProps {
   node: { id: string; status: string; role?: string };
   onClose: () => void;
   onUpdated: () => void;
+  onAction?: (requestId: string) => void;
 }
 
-const NodeSidePanel = ({ node, onClose, onUpdated }: NodeSidePanelProps): JSX.Element => {
+const NodeSidePanel = ({ node, onClose, onUpdated, onAction }: NodeSidePanelProps): JSX.Element => {
   const [requestId, setRequestId] = useState<string | undefined>();
   const [overridePrompt, setOverridePrompt] = useState('');
   const [overrideParams, setOverrideParams] = useState('');
@@ -57,10 +59,24 @@ const NodeSidePanel = ({ node, onClose, onUpdated }: NodeSidePanelProps): JSX.El
 
   const doAction = async (body: Record<string, unknown>) => {
     if (!window.confirm('Confirmer ?')) return;
-    const { requestId } = await patchNode(node.id, body);
-    setRequestId(requestId);
-    await artifactsQuery.refetch();
-    onUpdated();
+    try {
+      const { requestId } = await patchNode(node.id, body);
+      setRequestId(requestId);
+      onAction?.(requestId);
+      await artifactsQuery.refetch();
+      onUpdated();
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 409 || err.status === 422)) {
+        const body = err.body as { detail?: string; error?: string } | undefined;
+        alert(`Erreur ${err.status}: ${body?.detail || body?.error || err.message}`);
+        if (err.requestId) {
+          setRequestId(err.requestId);
+          onAction?.(err.requestId);
+        }
+      } else if (err instanceof Error) {
+        alert(err.message);
+      }
+    }
   };
 
   const onOverride = () => {

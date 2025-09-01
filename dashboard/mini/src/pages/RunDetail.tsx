@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import DagView from '../components/DagView';
@@ -39,6 +39,9 @@ const RunDetail = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
   const hasKey = Boolean(apiKey) || useEnvKey;
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  type DagNode = RunType['dag'] extends { nodes: (infer N)[] } ? N : never;
+  const [selectedNode, setSelectedNode] = useState<DagNode | undefined>();
+  const [lastRequestId, setLastRequestId] = useState<string | undefined>();
   const runQuery = useQuery({
     queryKey: ['run', id],
     queryFn: ({ signal }) => fetchRun(id!, signal),
@@ -65,12 +68,17 @@ const RunDetail = (): JSX.Element => {
     );
   }
   const run = runQuery.data?.run;
+  useEffect(() => {
+    if (selectedNodeId && run?.dag) {
+      const n = run.dag.nodes.find((nd) => nd.id === selectedNodeId);
+      if (n) setSelectedNode(n);
+    }
+  }, [run, selectedNodeId]);
   if (!run) return <p>Aucune donnée.</p>;
-  const selectedNode = run.dag?.nodes.find((n) => n.id === selectedNodeId);
   return (
     <div>
       <h2>{run.title ?? run.id}</h2>
-      <p>Request ID: {runQuery.data?.requestId}</p>
+      <p>Request ID: {lastRequestId ?? runQuery.data?.requestId}</p>
       {run.dag && (
         <DagView
           dag={run.dag}
@@ -83,6 +91,7 @@ const RunDetail = (): JSX.Element => {
           node={selectedNode}
           onClose={() => setSelectedNodeId(undefined)}
           onUpdated={() => runQuery.refetch()}
+          onAction={(rid) => setLastRequestId(rid)}
         />
       )}
     </div>

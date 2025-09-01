@@ -25,6 +25,10 @@ async def node_action(
     """
 
     sidecar_updated = bool(payload) and bool(
-        (payload.get("override_prompt") or payload.get("params"))
+        (
+            payload.get("override_prompt")
+            or payload.get("prompt")
+            or payload.get("params")
+        )
     )
     return {"status_after": action, "sidecar_updated": sidecar_updated}
