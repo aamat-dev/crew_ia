@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "plans": {
+    "demo": {
+      "title": "Plan de démonstration",
+      "plan": [
+        {"id": "n1", "title": "Étape 1", "llm": {"provider": "openai", "model": "test-model"}},
+        {"id": "n2", "title": "Étape 2", "deps": ["n1"], "llm": {"provider": "openai", "model": "test-model"}}
+      ]
+    }
+  }
+}
