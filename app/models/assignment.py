@@ -5,8 +5,8 @@ from datetime import datetime, UTC
 from typing import Optional, Dict, Any
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, ForeignKey, Text, func, Index
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import Column, DateTime, ForeignKey, Text, func, Index, JSON
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlmodel import SQLModel, Field
 
 
@@ -22,7 +22,6 @@ class Assignment(SQLModel, table=True):
             PGUUID(as_uuid=True),
             ForeignKey("plans.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         )
     )
     node_id: str = Field(sa_column=Column(Text, nullable=False))
@@ -31,7 +30,8 @@ class Assignment(SQLModel, table=True):
     llm_backend: str = Field(sa_column=Column(Text, nullable=False))
     llm_model: str = Field(sa_column=Column(Text, nullable=False))
     params: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSONB, nullable=True)
+        default=None,
+        sa_column=Column(JSON, nullable=True),
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
