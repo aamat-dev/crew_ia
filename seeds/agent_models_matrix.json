@@ -1,0 +1,61 @@
+[
+  {
+    "role": "manager",
+    "domain": "frontend",
+    "models": {
+      "preferred": [
+        {"provider":"openai","model":"gpt-4o-mini","weight_quality":1.0,"weight_latency":1.0,"weight_cost":0.8},
+        {"provider":"anthropic","model":"claude-haiku","weight_quality":0.9,"weight_latency":1.0,"weight_cost":0.8}
+      ],
+      "fallbacks": [
+        {"provider":"mistral","model":"mistral-small","weight_quality":0.75,"weight_latency":0.9,"weight_cost":1.0},
+        {"provider":"ollama","model":"llama3","weight_quality":0.6,"weight_latency":0.7,"weight_cost":1.0}
+      ],
+      "notes_performance": {},
+      "notes_cost": {}
+    }
+  },
+  {
+    "role": "manager",
+    "domain": "backend",
+    "models": {
+      "preferred": [
+        {"provider":"openai","model":"gpt-4o-mini","weight_quality":1.0,"weight_latency":1.0,"weight_cost":0.8}
+      ],
+      "fallbacks": [
+        {"provider":"mistral","model":"mistral-small","weight_quality":0.8,"weight_latency":0.9,"weight_cost":1.0},
+        {"provider":"ollama","model":"llama3","weight_quality":0.6,"weight_latency":0.6,"weight_cost":1.0}
+      ],
+      "notes_performance": {},
+      "notes_cost": {}
+    }
+  },
+  {
+    "role": "executor",
+    "domain": "writer-translator",
+    "models": {
+      "preferred": [
+        {"provider":"openai","model":"gpt-4o-mini","weight_quality":1.0,"weight_latency":1.0,"weight_cost":0.9}
+      ],
+      "fallbacks": [
+        {"provider":"mistral","model":"mistral-small","weight_quality":0.8,"weight_latency":0.9,"weight_cost":1.0}
+      ],
+      "notes_performance": {},
+      "notes_cost": {}
+    }
+  },
+  {
+    "role": "reviewer",
+    "domain": "general",
+    "models": {
+      "preferred": [
+        {"provider":"openai","model":"gpt-4o-mini","weight_quality":1.0,"weight_latency":1.0,"weight_cost":0.85}
+      ],
+      "fallbacks": [
+        {"provider":"ollama","model":"llama3","weight_quality":0.6,"weight_latency":0.7,"weight_cost":1.0}
+      ],
+      "notes_performance": {},
+      "notes_cost": {}
+    }
+  }
+]

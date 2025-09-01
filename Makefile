@@ -200,6 +200,14 @@ api-run-prod: ensure-venv
 api-migrate: ensure-venv
 	@$(ACTIVATE) && alembic upgrade head
 
+.PHONY: migrate-fil8
+migrate-fil8:
+	poetry run alembic upgrade head
+
+.PHONY: seed-agents
+seed-agents:
+	poetry run python scripts/seed_agents.py
+
 .PHONY: api-test
 api-test: ensure-venv
 	@if [ -d api/tests ]; then \
