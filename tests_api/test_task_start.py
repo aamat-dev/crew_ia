@@ -74,3 +74,19 @@ async def test_start_task_plan_conflict(setup, async_client: AsyncClient, db_ses
 async def test_start_task_not_found(async_client: AsyncClient):
     r = await async_client.post(f"/tasks/{uuid.uuid4()}/start", headers={"X-API-Key": "test-key"})
     assert r.status_code == 404
+
+@pytest.mark.asyncio
+async def test_start_task_request_id(async_client: AsyncClient, db_session: AsyncSession):
+    task = Task(title="T4", status=TaskStatus.ready)
+    db_session.add(task)
+    await db_session.flush()
+    plan = Plan(task_id=task.id, status=PlanStatus.ready, graph={})
+    db_session.add(plan)
+    await db_session.flush()
+    task.plan_id = plan.id
+    await db_session.commit()
+
+    headers = {"X-API-Key": "test-key", "X-Request-ID": "req-42"}
+    r = await async_client.post(f"/tasks/{task.id}/start", headers=headers)
+    assert r.status_code == 202
+    assert r.headers.get("X-Request-ID") == "req-42"
