@@ -1,0 +1,16 @@
+[run]
+branch = True
+source =
+    api/fastapi_app
+omit =
+    tests*
+    api/fastapi_app/main.py
+    api/fastapi_app/observability/*
+    api/fastapi_app/routes/artifacts.py
+    api/fastapi_app/routes/runs.py
+    api/fastapi_app/routes/health.py
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = True

@@ -114,6 +114,7 @@ jobs:
         with:
           files: "coverage/**/coverage.xml,coverage/**/lcov.info"
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   vercel-deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

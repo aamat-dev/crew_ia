@@ -89,3 +89,14 @@ async def test_patch_node_not_found(client, monkeypatch):
     monkeypatch.setattr(orchestrator_adapter, "node_action", fake_action)
     r = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
     assert r.status_code == 404
+
+@pytest.mark.asyncio
+async def test_patch_node_conflict(client, monkeypatch):
+    node_id = uuid.uuid4()
+
+    async def fake_action(node_id_arg, action, payload):
+        raise HTTPException(status_code=409, detail="conflict")
+
+    monkeypatch.setattr(orchestrator_adapter, "node_action", fake_action)
+    r = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
+    assert r.status_code == 409
