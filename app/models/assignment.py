@@ -30,7 +30,8 @@ class Assignment(SQLModel, table=True):
     llm_backend: str = Field(sa_column=Column(Text, nullable=False))
     llm_model: str = Field(sa_column=Column(Text, nullable=False))
     params: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSON, nullable=True)
+        default=None,
+        sa_column=Column(JSON, nullable=True),
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
