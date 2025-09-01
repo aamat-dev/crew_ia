@@ -16,6 +16,7 @@ load_dotenv()
 
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
+from app.routers import nodes as node_actions
 from app.routers import plans as plan_routes
 from .middleware import RequestIDMiddleware
 from .middleware.metrics import MetricsMiddleware
@@ -117,6 +118,7 @@ app.include_router(artifacts.router_nodes)
 app.include_router(artifacts.router_artifacts)
 app.include_router(events.router)
 app.include_router(tasks.router)
+app.include_router(node_actions.router)
 app.include_router(plan_routes.router)
 
 # Redirection vers Swagger
