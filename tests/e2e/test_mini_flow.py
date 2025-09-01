@@ -40,7 +40,7 @@ async def test_mini_flow(tmp_path, monkeypatch):
         order.append(node_id)
 
     res1 = await run_graph(dag, DummyStorage(), "run1", on_node_end=on_end)
-    assert res1["status"] == "success"
+    assert res1["status"] == "succeeded"
     assert set(order[:2]) == {"R1","R2"}
     assert order[-1] == "W1"
     assert dag.nodes["W1"].suggested_agent_role == "Writer_FR"

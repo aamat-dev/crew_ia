@@ -43,7 +43,7 @@ async def test_llm_sidecar_validate(tmp_path, monkeypatch):
     monkeypatch.setattr(exec_mod, "run_llm", fake_run_llm)
 
     res = await run_graph(dag, DummyStorage(), run_id)
-    assert res["status"] == "success"
+    assert res["status"] == "succeeded"
 
     script = Path(__file__).resolve().parents[2] / "tools" / "validate_sidecars.py"
     proc = subprocess.run(

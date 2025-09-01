@@ -14,6 +14,7 @@ import traceback
 import logging
 import inspect
 import os
+import asyncio
 from typing import Optional, Set, Callable, Awaitable, Dict, Any
 from datetime import datetime, timezone
 from pathlib import Path
@@ -249,6 +250,8 @@ async def _execute_node(
     du nœud.
     """
 
+    node_log = logging.LoggerAdapter(log, {"run_id": run_id, "node_id": node_key})
+
     # Application éventuelle des overrides
     if override:
         node.llm = node.llm or {}
@@ -262,7 +265,13 @@ async def _execute_node(
         spec = resolve_agent(role)
     except KeyError:
         spec = recruit(role)
-    log.debug("node=%s role=%s provider=%s model=%s", node_key, role, spec.provider, spec.model)
+    node_log.debug(
+        "node=%s role=%s provider=%s model=%s",
+        node_key,
+        role,
+        spec.provider,
+        spec.model,
+    )
 
     # Assure le dossier FS du nœud
     ndir = fs_node_dir(run_id, node_key)
@@ -352,7 +361,7 @@ async def _execute_node(
                 node_uuid = UUID(str(node_dbid))
                 await _save_artifact_db(storage, node_id=node_uuid, content=md, ext=".md")
             except Exception:
-                log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+                node_log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
         else:
             # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
             if _is_pytest_tmp_cwd():
@@ -370,6 +379,7 @@ async def _execute_node(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "dry_run": False,
     }
+    sidecar = {k: v for k, v in sidecar.items() if v is not None}
     meta = _extract_llm_meta_from_result(artifact)
     if meta:
         sidecar.update(meta)
@@ -399,7 +409,7 @@ async def _execute_node(
                 ext=".llm.json",
             )
         except Exception:
-            log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+            node_log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
     else:
         # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
         if _is_pytest_tmp_cwd():
@@ -412,7 +422,7 @@ async def _execute_node(
                 json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
             )
 
-    log.info(
+    node_log.info(
         "node=%s role=%s provider=%s model=%s latency_ms=%s",
         node_key,
         role,
@@ -426,140 +436,114 @@ async def _execute_node(
 
 # ---------- Boucle d'exécution du DAG ----------------------------------------
 
-async def run_graph(
+
+async def _run_single_node(
+    node: PlanNode,
     dag: TaskGraph,
     storage: CompositeAdapter,
+    run_dir: Path,
     run_id: str,
-    override_completed: Set[str] | None = None,
-    dry_run: bool = False,
-    on_node_start: Optional[Callable[..., Awaitable[None]]] = None,
-    on_node_end: Optional[Callable[..., Awaitable[None]]] = None,
-    pause_event: Optional[Any] = None,
-    skip_nodes: Optional[Set[str]] = None,
-    overrides: Optional[Dict[str, Dict[str, Any]]] = None,
-):
-    RUNS_ROOT = get_var("RUNS_ROOT", ".runs")
-    Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
-    run_dir = Path(RUNS_ROOT) / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
+    node_id_txt: str,
+    *,
+    dry_run: bool,
+    on_node_start: Optional[Callable[..., Awaitable[None]]],
+    on_node_end: Optional[Callable[..., Awaitable[None]]],
+    skip_nodes: Set[str],
+    overrides: Dict[str, Dict[str, Any]],
+    override_completed: Set[str],
+    max_retries: int,
+    backoff_ms: int,
+    pause_event: Optional[Any],
+) -> Dict[str, Any]:
+    node_log = logging.LoggerAdapter(log, {"run_id": run_id, "node_id": node_id_txt})
+    if pause_event is not None:
+        await pause_event.wait()
+    _cs = _node_input_checksum(node)
+    if hasattr(node, "checksum"):
+        node.checksum = _cs
+    node_dir = run_dir / "nodes" / node_id_txt
+    node_dir.mkdir(parents=True, exist_ok=True)
+    status_file = node_dir / "status.json"
+    previous: Dict[str, Any] = {}
+    if status_file.exists():
+        try:
+            previous = json.loads(status_file.read_text(encoding="utf-8"))
+        except Exception:
+            previous = {}
+    prev_status = previous.get("status")
+    prev_checksum = previous.get("input_checksum")
 
-    completed_ids: Set[str] = set()
-    skipped_count = 0
-    replayed_count = 0
-    any_failed = False
+    must_recompute = True
+    if prev_status == "completed" and prev_checksum == _cs and node_id_txt not in override_completed:
+        must_recompute = False
 
-    nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
-    skip_nodes = skip_nodes or set()
-    overrides = overrides or {}
-    for node in nodes_iter:
-        if pause_event is not None:
-            await pause_event.wait()
-        log.debug(
-            "Preparing node: key=%s title=%s deps=%s",
-            _get_attr(node, "key"),
-            _get_attr(node, "title"),
-            _get_attr(node, "deps", []),
-        )
-        _cs = _node_input_checksum(node)
-        if hasattr(node, "checksum"):
-            node.checksum = _cs
+    label = "exécution" if must_recompute else "skip (cache)"
+    print(f"[RUN]    {node_id_txt} — {label}")
 
-        node_id_txt = _node_id_str(node, _cs)
-        node_dir = run_dir / "nodes" / node_id_txt
-        node_dir.mkdir(parents=True, exist_ok=True)
-        status_file = node_dir / "status.json"
-
-        previous: Dict[str, Any] = {}
-        if status_file.exists():
-            try:
-                previous = json.loads(status_file.read_text(encoding="utf-8"))
-            except Exception:
-                previous = {}
-
-        prev_status = previous.get("status")
-        prev_checksum = previous.get("input_checksum")
-
-        dep_ids = _norm_dep_ids(node)
-        if any(dep not in completed_ids for dep in dep_ids):
-            raise RuntimeError(f"Dependencies incomplete for node {node_id_txt}")
-
-        must_recompute = True
-        if prev_status == "completed" and prev_checksum == _cs and node_id_txt not in (override_completed or set()):
-            must_recompute = False
-
-        label = "exécution" if must_recompute else "skip (cache)"
+    if node_id_txt in skip_nodes:
+        label = "skip (action)"
         print(f"[RUN]    {node_id_txt} — {label}")
-
-        if node_id_txt in skip_nodes:
-            label = "skip (action)"
-            print(f"[RUN]    {node_id_txt} — {label}")
-            if on_node_start:
-                try:
-                    await on_node_start(node, node_id_txt)
-                except TypeError:
-                    await on_node_start(node)
-
-            await _execute_node(
-                node,
-                storage,
-                dag,
-                run_id,
-                node_id_txt,
-                dry_run=True,
-                override=overrides.get(node_id_txt),
-            )
-
-            status = "skipped"
-            skipped_count += 1
-            completed_ids.add(node_id_txt)
-
-            out = {
-                "run_id": run_id,
-                "node_id": node_id_txt,
-                "status": status,
-                "input_checksum": _cs,
-                "ended_at": datetime.now(timezone.utc).isoformat(),
-            }
-            status_file.write_text(
-                json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-
-            if on_node_end:
-                try:
-                    await on_node_end(node, node_id_txt, status)
-                except TypeError:
-                    await on_node_end(node, status)
-            continue
-
-        if not must_recompute and dry_run:
-            skipped_count += 1
-            await _execute_node(node, storage, dag, run_id, node_id_txt, dry_run=True, override=overrides.get(node_id_txt))
-            if on_node_end:
-                try:
-                    await on_node_end(node, node_id_txt, "skipped")
-                except TypeError:
-                    await on_node_end(node, "skipped")
-            continue
-        if not must_recompute:
-            skipped_count += 1
-            completed_ids.add(node_id_txt)
-            continue
-
         if on_node_start:
             try:
-                try:
-                    await on_node_start(node, node_id_txt)
-                except TypeError:
-                    await on_node_start(node)
-            except Exception as e:
-                print(colorize(f"[HOOK-ERR] on_node_start: {e}", RED))
+                await on_node_start(node, node_id_txt)
+            except TypeError:
+                await on_node_start(node)
+        await _execute_node(
+            node,
+            storage,
+            dag,
+            run_id,
+            node_id_txt,
+            dry_run=True,
+            override=overrides.get(node_id_txt),
+        )
+        status = "skipped"
+        out = {
+            "run_id": run_id,
+            "node_id": node_id_txt,
+            "status": status,
+            "input_checksum": _cs,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+        }
+        status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+        if on_node_end:
+            try:
+                await on_node_end(node, node_id_txt, status)
+            except TypeError:
+                await on_node_end(node, status)
+        return {"status": status, "skipped": 1, "replayed": 0}
 
-        status = "failed"
-        result: Dict[str, Any] | None = None
-        t0 = None
+    if not must_recompute and dry_run:
+        await _execute_node(
+            node, storage, dag, run_id, node_id_txt, dry_run=True, override=overrides.get(node_id_txt)
+        )
+        if on_node_end:
+            try:
+                await on_node_end(node, node_id_txt, "skipped")
+            except TypeError:
+                await on_node_end(node, "skipped")
+        return {"status": "skipped", "skipped": 1, "replayed": 0}
+
+    if not must_recompute:
+        return {"status": "skipped", "skipped": 1, "replayed": 0}
+
+    if on_node_start:
         try:
-            if metrics_enabled():
-                t0 = perf_counter()
+            try:
+                await on_node_start(node, node_id_txt)
+            except TypeError:
+                await on_node_start(node)
+        except Exception as e:
+            print(colorize(f"[HOOK-ERR] on_node_start: {e}", RED))
+
+    status = "failed"
+    replayed = 0
+    attempt = 0
+    result: Dict[str, Any] | None = None
+    while True:
+        attempt += 1
+        t0 = perf_counter() if metrics_enabled() else None
+        try:
             result = await _execute_node(
                 node,
                 storage,
@@ -570,9 +554,7 @@ async def run_graph(
                 override=overrides.get(node_id_txt),
             )
             status = "completed"
-            replayed_count += 1
-            completed_ids.add(node_id_txt)
-
+            replayed = 1
             if node.type == "manage" and isinstance(result, dict):
                 for assignment in result.get("assignments", []) or []:
                     node_id = assignment.get("node_id")
@@ -587,6 +569,7 @@ async def run_graph(
                         if getattr(target, "llm", None) is None:
                             target.llm = {}
                         target.llm["tooling"] = tooling
+            break
         except Exception as e:
             traceback.print_exc()
             print(colorize(f"[ERR]    {node_id_txt} — {e}", RED))
@@ -605,8 +588,14 @@ async def run_graph(
                     if model:
                         scope.set_tag("model", model)
                     sentry_sdk.capture_exception(e)
-            status = "failed"
-            any_failed = True
+            if attempt <= max_retries:
+                wait = (backoff_ms / 1000.0) * (2 ** (attempt - 1))
+                node_log.warning("retrying in %.2f seconds (attempt %s/%s)", wait, attempt, max_retries)
+                await asyncio.sleep(wait)
+                continue
+            else:
+                status = "failed"
+                break
         finally:
             if t0 is not None:
                 dt = perf_counter() - t0
@@ -627,23 +616,113 @@ async def run_graph(
                     model,
                 ).observe(dt)
 
-        out = {
-            "run_id": run_id,
-            "node_id": node_id_txt,
-            "status": status,
-            "input_checksum": _cs,
-            "ended_at": datetime.now(timezone.utc).isoformat(),
-        }
-        status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
-
-        if on_node_end:
+    out = {
+        "run_id": run_id,
+        "node_id": node_id_txt,
+        "status": status,
+        "input_checksum": _cs,
+        "ended_at": datetime.now(timezone.utc).isoformat(),
+    }
+    status_file.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    if on_node_end:
+        try:
             try:
-                try:
-                    await on_node_end(node, node_id_txt, status)
-                except TypeError:
-                    await on_node_end(node, status)
-            except Exception as e:
-                print(colorize(f"[HOOK-ERR] on_node_end: {e}", RED))
+                await on_node_end(node, node_id_txt, status)
+            except TypeError:
+                await on_node_end(node, status)
+        except Exception as e:
+            print(colorize(f"[HOOK-ERR] on_node_end: {e}", RED))
+    return {"status": status, "skipped": 0, "replayed": replayed}
+
+
+async def run_graph(
+    dag: TaskGraph,
+    storage: CompositeAdapter,
+    run_id: str,
+    override_completed: Set[str] | None = None,
+    dry_run: bool = False,
+    on_node_start: Optional[Callable[..., Awaitable[None]]] = None,
+    on_node_end: Optional[Callable[..., Awaitable[None]]] = None,
+    pause_event: Optional[Any] = None,
+    skip_nodes: Optional[Set[str]] = None,
+    overrides: Optional[Dict[str, Dict[str, Any]]] = None,
+):
+    RUNS_ROOT = get_var("RUNS_ROOT", ".runs")
+    Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
+    run_dir = Path(RUNS_ROOT) / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    skip_nodes = skip_nodes or set()
+    overrides = overrides or {}
+    override_completed = override_completed or set()
+    max_retries = int(get_var("NODE_MAX_RETRIES", 0))
+    backoff_ms = int(get_var("NODE_BACKOFF_MS", 0))
+
+    nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
+    pending = {n.id: n for n in nodes_iter}
+    completed_ids: Set[str] = set()
+    failed_ids: Set[str] = set()
+    skipped_count = 0
+    replayed_count = 0
+
+    while pending:
+        ready = [
+            nid for nid, node in list(pending.items())
+            if all(dep in completed_ids for dep in node.deps)
+        ]
+        if not ready:
+            failed_ids.update(pending.keys())
+            break
+        tasks = [
+            _run_single_node(
+                pending[nid],
+                dag,
+                storage,
+                run_dir,
+                run_id,
+                nid,
+                dry_run=dry_run,
+                on_node_start=on_node_start,
+                on_node_end=on_node_end,
+                skip_nodes=skip_nodes,
+                overrides=overrides,
+                override_completed=override_completed,
+                max_retries=max_retries,
+                backoff_ms=backoff_ms,
+                pause_event=pause_event,
+            )
+            for nid in ready
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for nid, res in zip(ready, results):
+            if isinstance(res, Exception):
+                failed_ids.add(nid)
+            else:
+                skipped_count += res.get("skipped", 0)
+                replayed_count += res.get("replayed", 0)
+                if res.get("status") == "failed":
+                    failed_ids.add(nid)
+                else:
+                    completed_ids.add(nid)
+            pending.pop(nid, None)
+
+    # Écrire un status "failed" pour les nœuds restants non exécutés
+    for nid in failed_ids:
+        node_dir = run_dir / "nodes" / nid
+        node_dir.mkdir(parents=True, exist_ok=True)
+        status_file = node_dir / "status.json"
+        if not status_file.exists():
+            _cs = _node_input_checksum(dag.nodes[nid])
+            out = {
+                "run_id": run_id,
+                "node_id": nid,
+                "status": "failed",
+                "input_checksum": _cs,
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+            }
+            status_file.write_text(
+                json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
 
     now_utc = datetime.now(timezone.utc)
     try:
@@ -652,13 +731,10 @@ async def run_graph(
     except Exception:
         now_paris = now_utc
 
-    print(colorize(f"📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).", CYAN))
-    print(colorize(f"🕒 Heure UTC   : {now_utc:%Y-%m-%d %H:%M:%S %Z}", CYAN))
-    print(colorize(f"🕒 Heure Paris : {now_paris:%Y-%m-%d %H:%M:%S %Z}", CYAN))
-
     summary = {
         "run_id": run_id,
         "completed": sorted(completed_ids),
+        "failed": sorted(failed_ids),
         "skipped_count": skipped_count,
         "replayed_count": replayed_count,
         "utc_time": now_utc.isoformat(),
@@ -666,8 +742,23 @@ async def run_graph(
     }
     summary_path = run_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(colorize(f"💾 Résumé sauvegardé : {summary_path}", CYAN))
 
-    print(f"{CYAN}📊 Bilan : {skipped_count} skippé(s), {replayed_count} rejoué(s).{RESET}")
-    final_status = "failed" if any_failed else "success"
-    return {"status": final_status, "completed": sorted(completed_ids), "run_id": run_id}
+    total = len(dag.nodes)
+    if not failed_ids and len(completed_ids) == total:
+        final_status = "succeeded"
+    elif failed_ids and not completed_ids:
+        final_status = "failed"
+    else:
+        final_status = "partial"
+
+    return {
+        "status": final_status,
+        "completed": sorted(completed_ids),
+        "failed": sorted(failed_ids),
+        "run_id": run_id,
+        "stats": {
+            "succeeded": len(completed_ids),
+            "failed": len(failed_ids),
+            "skipped": skipped_count,
+        },
+    }

@@ -236,7 +236,7 @@ async def run_task(
 
         ended = dt.datetime.now(dt.timezone.utc)
         final_status = (
-            RunStatus.completed if res.get("status") == "success" else RunStatus.failed
+            RunStatus.completed if res.get("status") == "succeeded" else RunStatus.failed
         )
         status_metric = (
             "completed" if final_status == RunStatus.completed else "failed"

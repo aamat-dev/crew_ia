@@ -37,8 +37,8 @@ async def test_recovery_resume(tmp_path, monkeypatch):
     # Forcer les dossiers de run dans tmp
     runs_root = tmp_path / ".runs"
     os.environ["RUNS_ROOT"] = str(runs_root)
-    os.environ["NODE_RETRIES"] = "0"          # pour le premier run: pas de retry
-    os.environ["RETRY_BASE_DELAY"] = "0.01"
+    os.environ["NODE_MAX_RETRIES"] = "0"          # pour le premier run: pas de retry
+    os.environ["NODE_BACKOFF_MS"] = "10"
     os.environ["MAX_CONCURRENCY"] = "2"
 
     dag = DummyDag()
@@ -65,18 +65,18 @@ async def test_recovery_resume(tmp_path, monkeypatch):
             return True
     storage = DummyStorage()
 
-    # 1) Premier run: A completed, B failed, C déclenche une erreur de dépendance
-    with pytest.raises(RuntimeError):
-        await run_graph(dag, storage, run_id=run_id)
+    # 1) Premier run: A completed, B failed, C reste bloqué (dépendance)
+    res1 = await run_graph(dag, storage, run_id=run_id)
+    assert res1["status"] == "partial"
     st = FileStatusStore(runs_root=str(runs_root))
     assert st.read(run_id, "A").status == "completed"
     assert st.read(run_id, "B").status == "failed"
-    assert st.read(run_id, "C") is None
+    assert st.read(run_id, "C").status == "failed"
 
     # 2) Second run: on autorise 1 retry, reprise avec même run_id
-    os.environ["NODE_RETRIES"] = "1"
+    os.environ["NODE_MAX_RETRIES"] = "1"
     res2 = await run_graph(dag, storage, run_id=run_id)
-    assert res2["status"] == "success"
+    assert res2["status"] == "succeeded"
     assert st.read(run_id, "A").status == "completed"   # resté completed (skippé)
     assert st.read(run_id, "B").status == "completed"   # rejoué puis OK
     assert st.read(run_id, "C").status == "completed"   # OK
