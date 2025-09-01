@@ -5,6 +5,7 @@ import AppLayout from './layouts/AppLayout';
 import RunsPage from './pages/RunsPage';
 import RunDetailPage from './pages/RunDetailPage';
 import { ApiKeyProvider } from './state/ApiKeyContext';
+import Settings from './pages/Settings';
 
 const queryClient = new QueryClient();
 
@@ -16,6 +17,7 @@ export const App = (): JSX.Element => (
           <Routes>
             <Route path="/runs" element={<RunsPage />} />
             <Route path="/runs/:id" element={<RunDetailPage />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/runs" replace />} />
           </Routes>
         </AppLayout>

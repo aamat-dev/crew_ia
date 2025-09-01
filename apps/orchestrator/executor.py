@@ -235,7 +235,27 @@ async def _execute_node(
     dag: TaskGraph,
     run_id: str,
     node_key: str,
+    *,
+    dry_run: bool = False,
+    override: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
+    """Exécute un nœud du plan.
+
+    Lorsque ``dry_run`` est à ``True`` on n'appelle pas réellement l'agent LLM
+    mais on écrit quand même un sidecar minimimal contenant les informations
+    d'exécution (backend, modèle, prompt, paramètres…).
+    ``override`` permet de surcharger dynamiquement le prompt ou les paramètres
+    du nœud.
+    """
+
+    # Application éventuelle des overrides
+    if override:
+        node.llm = node.llm or {}
+        if override.get("prompt") is not None:
+            node.llm["prompt"] = override["prompt"]
+        if override.get("params") is not None:
+            node.llm["params"] = override["params"]
+
     role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
     try:
         spec = resolve_agent(role)
@@ -246,6 +266,21 @@ async def _execute_node(
     # Assure le dossier FS du nœud
     ndir = fs_node_dir(run_id, node_key)
     ndir.mkdir(parents=True, exist_ok=True)
+
+    if dry_run and node.type != "manage":
+        # Construit un sidecar minimal sans appeler l'agent
+        llm_conf = getattr(node, "llm", {}) or {}
+        sidecar = {
+            "backend": llm_conf.get("backend") or llm_conf.get("provider"),
+            "model": llm_conf.get("model"),
+            "prompt": llm_conf.get("prompt"),
+            "params": llm_conf.get("params"),
+            "inputs": llm_conf.get("inputs"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "dry_run": True,
+        }
+        write_llm_sidecar(run_id, node_key, sidecar)
+        return {}
 
     if node.type == "manage":
         nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
@@ -305,41 +340,50 @@ async def _execute_node(
             if _is_pytest_tmp_cwd():
                 Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
 
-    # Écrire sidecar LLM si disponible
+    # Écrire sidecar LLM systématique
+    llm_conf = getattr(node, "llm", {}) or {}
+    sidecar = {
+        "backend": llm_conf.get("backend") or llm_conf.get("provider"),
+        "model": llm_conf.get("model"),
+        "prompt": llm_conf.get("prompt"),
+        "params": llm_conf.get("params"),
+        "inputs": llm_conf.get("inputs"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "dry_run": False,
+    }
     meta = _extract_llm_meta_from_result(artifact)
-    sidecar = None
-    if meta or md:
-        sidecar = {**(meta or {})}
-        if md:
-            sidecar["markdown"] = md
-    if sidecar:
-        node_uuid_str = None
-        if node_dbid:
+    if meta:
+        sidecar.update(meta)
+    if md:
+        sidecar["markdown"] = md
+
+    node_uuid_str = None
+    if node_dbid:
+        try:
+            node_uuid_str = str(UUID(str(node_dbid)))
+        except Exception:
+            node_uuid_str = None
+    sidecar = write_llm_sidecar(
+        run_id, node_key, sidecar, node_id=node_uuid_str
+    )
+    if node_dbid:
+        if node_uuid_str:
             try:
-                node_uuid_str = str(UUID(str(node_dbid)))
-            except Exception:
-                node_uuid_str = None
-        sidecar = write_llm_sidecar(
-            run_id, node_key, sidecar, node_id=node_uuid_str
-        )
-        if node_dbid:
-            if node_uuid_str:
-                try:
-                    node_uuid = UUID(node_uuid_str)
-                    await _save_artifact_db(
-                        storage,
-                        node_id=node_uuid,
-                        content=json.dumps(sidecar, ensure_ascii=False, indent=2),
-                        ext=".llm.json",
-                    )
-                except Exception:
-                    log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
-        else:
-            # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
-            if _is_pytest_tmp_cwd():
-                Path(f"artifact_{node_key}.llm.json").write_text(
-                    json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+                node_uuid = UUID(node_uuid_str)
+                await _save_artifact_db(
+                    storage,
+                    node_id=node_uuid,
+                    content=json.dumps(sidecar, ensure_ascii=False, indent=2),
+                    ext=".llm.json",
                 )
+            except Exception:
+                log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
+    else:
+        # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
+        if _is_pytest_tmp_cwd():
+            Path(f"artifact_{node_key}.llm.json").write_text(
+                json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
     log.info(
         "node=%s role=%s provider=%s model=%s latency_ms=%s",
@@ -363,6 +407,9 @@ async def run_graph(
     dry_run: bool = False,
     on_node_start: Optional[Callable[..., Awaitable[None]]] = None,
     on_node_end: Optional[Callable[..., Awaitable[None]]] = None,
+    pause_event: Any | None = None,
+    skip_nodes: Optional[Set[str]] = None,
+    overrides: Optional[Dict[str, Dict[str, Any]]] = None,
 ):
     RUNS_ROOT = get_var("RUNS_ROOT", ".runs")
     Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
@@ -375,7 +422,11 @@ async def run_graph(
     any_failed = False
 
     nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
+    skip_nodes = skip_nodes or set()
+    overrides = overrides or {}
     for node in nodes_iter:
+        if pause_event is not None:
+            await pause_event.wait()
         log.debug(
             "Preparing node: key=%s title=%s deps=%s",
             _get_attr(node, "key"),
@@ -412,6 +463,41 @@ async def run_graph(
         label = "exécution" if must_recompute else "skip (cache)"
         print(f"[RUN]    {node_id_txt} — {label}")
 
+        if node_id_txt in skip_nodes:
+            if on_node_start:
+                try:
+                    await on_node_start(node, node_id_txt)
+                except TypeError:
+                    await on_node_start(node)
+            await _execute_node(
+                node,
+                storage,
+                dag,
+                run_id,
+                node_id_txt,
+                dry_run=True,
+                override=overrides.get(node_id_txt),
+            )
+            status = "skipped"
+            skipped_count += 1
+            completed_ids.add(node_id_txt)
+            out = {
+                "run_id": run_id,
+                "node_id": node_id_txt,
+                "status": status,
+                "input_checksum": _cs,
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+            }
+            status_file.write_text(
+                json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            if on_node_end:
+                try:
+                    await on_node_end(node, node_id_txt, status)
+                except TypeError:
+                    await on_node_end(node, status)
+            continue
+
         if not must_recompute and dry_run:
             skipped_count += 1
             continue
@@ -435,7 +521,15 @@ async def run_graph(
         try:
             if metrics_enabled():
                 t0 = perf_counter()
-            result = await _execute_node(node, storage, dag, run_id, node_id_txt)
+            result = await _execute_node(
+                node,
+                storage,
+                dag,
+                run_id,
+                node_id_txt,
+                dry_run=dry_run,
+                override=overrides.get(node_id_txt),
+            )
             status = "completed"
             replayed_count += 1
             completed_ids.add(node_id_txt)
