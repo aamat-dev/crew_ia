@@ -239,7 +239,23 @@ async def _execute_node(
     dry_run: bool = False,
     override: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    """Exécute un nœud du plan ou écrit uniquement le sidecar en mode dry_run."""
+
+    """Exécute un nœud du plan.
+
+    Lorsque ``dry_run`` est à ``True`` on n'appelle pas réellement l'agent LLM
+    mais on écrit quand même un sidecar minimimal contenant les informations
+    d'exécution (backend, modèle, prompt, paramètres…).
+    ``override`` permet de surcharger dynamiquement le prompt ou les paramètres
+    du nœud.
+    """
+
+    # Application éventuelle des overrides
+    if override:
+        node.llm = node.llm or {}
+        if override.get("prompt") is not None:
+            node.llm["prompt"] = override["prompt"]
+        if override.get("params") is not None:
+            node.llm["params"] = override["params"]
 
     role = node.suggested_agent_role if node.type != "manage" else "Manager_Generic"
     try:
@@ -251,6 +267,21 @@ async def _execute_node(
     # Assure le dossier FS du nœud
     ndir = fs_node_dir(run_id, node_key)
     ndir.mkdir(parents=True, exist_ok=True)
+
+    if dry_run and node.type != "manage":
+        # Construit un sidecar minimal sans appeler l'agent
+        llm_conf = getattr(node, "llm", {}) or {}
+        sidecar = {
+            "backend": llm_conf.get("backend") or llm_conf.get("provider"),
+            "model": llm_conf.get("model"),
+            "prompt": llm_conf.get("prompt"),
+            "params": llm_conf.get("params"),
+            "inputs": llm_conf.get("inputs"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "dry_run": True,
+        }
+        write_llm_sidecar(run_id, node_key, sidecar)
+        return {}
 
     if node.type == "manage":
         nodes_iter = dag.nodes.values() if isinstance(dag.nodes, dict) else dag.nodes
@@ -327,26 +358,26 @@ async def _execute_node(
             if _is_pytest_tmp_cwd():
                 Path(f"artifact_{node_key}.md").write_text(md, encoding="utf-8")
 
-    # Écrire sidecar LLM
-    meta = _extract_llm_meta_from_result(artifact)
-    sidecar = None
-    if meta or md:
-        sidecar = {**(meta or {})}
-        if md:
-            sidecar["markdown"] = md
-    if sidecar is None:
-        sidecar = {}
+    # Écrire sidecar LLM systématique
     llm_conf = getattr(node, "llm", {}) or {}
-    extra = {
-        "backend": llm_conf.get("provider"),
+    sidecar = {
+        "backend": llm_conf.get("backend") or llm_conf.get("provider"),
         "model": llm_conf.get("model"),
-        "prompt": (sidecar.get("prompts", {}) or {}).get("final"),
-        "params": llm_conf.get("params", {}),
-        "inputs": llm_conf.get("inputs", {}),
+        # priorité à l’override (llm_conf["prompt"]) ; sinon prompt final renvoyé par l’agent
+        "prompt": llm_conf.get("prompt"),
+        "params": llm_conf.get("params"),
+        "inputs": llm_conf.get("inputs"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "dry_run": False,
     }
-    sidecar = {**sidecar, **extra}
+    meta = _extract_llm_meta_from_result(artifact)
+    if meta:
+        sidecar.update(meta)
+    # si aucun override de prompt, on copie le prompt final de l’agent (s’il existe)
+    if not sidecar.get("prompt"):
+        sidecar["prompt"] = (sidecar.get("prompts", {}) or {}).get("final")
+    if md:
+        sidecar["markdown"] = md
 
     node_uuid_str = None
     if node_dbid:
@@ -357,6 +388,7 @@ async def _execute_node(
     sidecar = write_llm_sidecar(
         run_id, node_key, sidecar, node_id=node_uuid_str
     )
+
     if node_dbid and node_uuid_str:
         try:
             node_uuid = UUID(node_uuid_str)
@@ -369,6 +401,12 @@ async def _execute_node(
         except Exception:
             log.debug("node_db_id invalide, DB ignorée: %s", node_dbid)
     else:
+        # Fallback legacy uniquement si les tests ont changé de CWD (tmpdir)
+        if _is_pytest_tmp_cwd():
+            Path(f"artifact_{node_key}.llm.json").write_text(
+                json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
         if _is_pytest_tmp_cwd():
             Path(f"artifact_{node_key}.llm.json").write_text(
                 json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -460,14 +498,37 @@ async def run_graph(
                     await on_node_start(node, node_id_txt)
                 except TypeError:
                     await on_node_start(node)
-            await _execute_node(node, storage, dag, run_id, node_id_txt, dry_run=True, override=overrides.get(node_id_txt))
-            if on_node_end:
-                try:
-                    await on_node_end(node, node_id_txt, "skipped")
-                except TypeError:
-                    await on_node_end(node, "skipped")
+
+            await _execute_node(
+                node,
+                storage,
+                dag,
+                run_id,
+                node_id_txt,
+                dry_run=True,
+                override=overrides.get(node_id_txt),
+            )
+
+            status = "skipped"
             skipped_count += 1
             completed_ids.add(node_id_txt)
+
+            out = {
+                "run_id": run_id,
+                "node_id": node_id_txt,
+                "status": status,
+                "input_checksum": _cs,
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+            }
+            status_file.write_text(
+                json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+
+            if on_node_end:
+                try:
+                    await on_node_end(node, node_id_txt, status)
+                except TypeError:
+                    await on_node_end(node, status)
             continue
 
         if not must_recompute and dry_run:
