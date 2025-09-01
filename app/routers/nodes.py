@@ -23,7 +23,7 @@ log = logging.getLogger("api.node_actions")
 async def node_action_route(
     node_id: UUID, action: NodeActionRequest, request: Request
 ) -> NodeActionResponse:
-    payload = action.model_dump(exclude={"action"}, exclude_none=True)
+    payload = action.model_dump(exclude={"action"}, exclude_none=True, by_alias=True)
     result = await orchestrator_adapter.node_action(node_id, action.action, payload)
 
     req_id = getattr(request.state, "request_id", None)

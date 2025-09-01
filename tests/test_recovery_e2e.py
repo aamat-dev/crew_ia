@@ -20,7 +20,11 @@ class Node:
 
 class DummyDag:
     def __init__(self):
-        self.nodes = {k: Node(k) for k in ["A", "B", "C"]}
+        self.nodes = {
+            "A": Node("A"),
+            "B": Node("B", role="Worker_alt"),
+            "C": Node("C"),
+        }
         self.nodes["B"].deps = ["A"]
         self.nodes["C"].deps = ["B"]
         self.nodes["A"].succ = [self.nodes["B"]]
