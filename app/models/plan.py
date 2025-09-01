@@ -29,13 +29,19 @@ class Plan(SQLModel, table=True):
             PGUUID(as_uuid=True),
             ForeignKey("tasks.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         )
     )
     status: PlanStatus = Field(
         sa_column=Column(SAEnum(PlanStatus, name="planstatus"), nullable=False)
     )
-    graph: Dict[str, Any] = Field(sa_column=Column(sa.JSON, nullable=False))
+
+    # <- variante portable : JSON générique + JSONB en Postgres
+    graph: Dict[str, Any] = Field(
+        sa_column=Column(
+            sa.JSON().with_variant(JSONB, "postgresql"),
+            nullable=False,
+        )
+    )
     version: int = Field(
         default=1,
         sa_column=Column(Integer, nullable=False, server_default="1"),
