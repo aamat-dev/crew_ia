@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, func, Index
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlmodel import SQLModel, Field
 
 
