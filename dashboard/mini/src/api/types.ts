@@ -75,6 +75,30 @@ export interface ArtifactItem {
   url: string;
 }
 
+export type TaskStatus =
+  | 'draft'
+  | 'ready'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed';
+
+export interface Plan {
+  status: 'draft' | 'ready' | 'invalid';
+  errors?: string[];
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  created_at?: string;
+  plan?: Plan;
+}
+
+export type TaskDetail = Task;
+
 // Run type as returned by the backend with API status values
 export type BackendRun = Omit<Run, 'status'> & { status: ApiStatus };
 

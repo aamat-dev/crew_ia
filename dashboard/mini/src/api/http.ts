@@ -23,6 +23,8 @@ export class ApiError extends Error {
 export interface FetchOpts {
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
+  method?: 'GET' | 'POST';
+  body?: unknown;
 }
 
 export async function fetchJson<T>(
@@ -44,6 +46,9 @@ export async function fetchJson<T>(
   if (apiKey) {
     headers['X-API-Key'] = apiKey;
   }
+  if (opts.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const timeoutCtrl = new AbortController();
   const timeoutId = setTimeout(() => timeoutCtrl.abort(), API_TIMEOUT_MS);
@@ -59,8 +64,10 @@ export async function fetchJson<T>(
 
   const fetchOnce = () =>
     fetch(url.toString(), {
+      method: opts.method ?? 'GET',
       headers,
       signal: timeoutCtrl.signal,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
 
   const maxRetries = 2;

@@ -10,6 +10,9 @@ import {
   RunSummary,
   Status,
   BackendRun,
+  // <= fusion : on garde tout
+  Task,
+  TaskDetail,
   Plan,
   Assignment,
 } from './types';
@@ -47,6 +50,7 @@ export const mapUiStatusesToApi = (status?: Status[]): ApiStatus[] => {
     .filter((s): s is ApiStatus => Boolean(s));
 };
 
+// ---------------- Runs ----------------
 export const listRuns = async (
   params: {
     page: number;
@@ -55,9 +59,7 @@ export const listRuns = async (
     dateFrom?: string;
     dateTo?: string;
     title?: string;
-    /** colonne de tri côté API (ex: 'started_at' | 'ended_at' | 'title' | 'status') */
     orderBy?: 'started_at' | 'ended_at' | 'title' | 'status';
-    /** sens du tri */
     orderDir?: 'asc' | 'desc';
   },
   opts: FetchOpts = {},
@@ -81,9 +83,7 @@ export const listRuns = async (
   });
   const links = parseLinkHeader(headers.get('Link') ?? '');
   const totalHeader = headers.get('X-Total-Count');
-  const total = totalHeader
-    ? Number(totalHeader)
-    : (data as unknown as { total?: number }).total;
+  const total = totalHeader ? Number(totalHeader) : (data as any).total;
   return {
     items: data.items.map((r) => ({ ...r, status: apiToUiStatus(r.status) })),
     meta: {
@@ -96,40 +96,26 @@ export const listRuns = async (
   };
 };
 
-export const getRun = async (
-  id: string,
-  opts: FetchOpts = {},
-): Promise<RunDetail> => {
+export const getRun = async (id: string, opts: FetchOpts = {}): Promise<RunDetail> => {
   const { data } = await fetchJson<RunDetail>(`/runs/${id}`, opts);
   const run: RunDetail = { ...data, status: apiToUiStatus(data.status) };
   if (run.dag) {
     run.dag = {
-      nodes: run.dag.nodes.map((n) => ({
-        ...n,
-        status: apiToUiStatus(n.status),
-      })),
+      nodes: run.dag.nodes.map((n) => ({ ...n, status: apiToUiStatus(n.status) })),
       edges: run.dag.edges,
     };
   }
   return run;
 };
 
-export const getRunSummary = async (
-  id: string,
-  opts: FetchOpts = {},
-): Promise<RunSummary> => {
+export const getRunSummary = async (id: string, opts: FetchOpts = {}): Promise<RunSummary> => {
   const { data } = await fetchJson<RunSummary>(`/runs/${id}/summary`, opts);
   return data;
 };
 
 export const listRunNodes = async (
   id: string,
-  params: {
-    page: number;
-    pageSize: number;
-    orderBy?: string;
-    orderDir?: 'asc' | 'desc';
-  },
+  params: { page: number; pageSize: number; orderBy?: string; orderDir?: 'asc' | 'desc' },
   opts: FetchOpts = {},
 ): Promise<Page<NodeItem>> => {
   const limit = Math.min(params.pageSize, 200);
@@ -141,24 +127,17 @@ export const listRunNodes = async (
     order_dir: params.orderDir,
   };
   type BackendNode = Omit<NodeItem, 'status'> & { status: ApiStatus };
-  const { data, headers } = await fetchJson<{ items: BackendNode[] }>(
-    `/runs/${id}/nodes`,
-    { ...opts, query },
-  );
+  const { data, headers } = await fetchJson<{ items: BackendNode[] }>(`/runs/${id}/nodes`, {
+    ...opts,
+    query,
+  });
   const links = parseLinkHeader(headers.get('Link') ?? '');
   const totalHeader = headers.get('X-Total-Count');
-  const total = totalHeader
-    ? Number(totalHeader)
-    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  const total =
+    totalHeader ? Number(totalHeader) : (data as unknown as { meta?: { total?: number } }).meta?.total;
   return {
     items: data.items.map((n) => ({ ...n, status: apiToUiStatus(n.status) })),
-    meta: {
-      page: params.page,
-      page_size: limit,
-      total,
-      next: links.next?.href,
-      prev: links.prev?.href,
-    },
+    meta: { page: params.page, page_size: limit, total, next: links.next?.href, prev: links.prev?.href },
   };
 };
 
@@ -184,24 +163,17 @@ export const listRunEvents = async (
     order_by: params.orderBy,
     order_dir: params.orderDir,
   };
-  const { data, headers } = await fetchJson<{ items: EventItem[] }>(
-    `/runs/${id}/events`,
-    { ...opts, query },
-  );
+  const { data, headers } = await fetchJson<{ items: EventItem[] }>(`/runs/${id}/events`, {
+    ...opts,
+    query,
+  });
   const links = parseLinkHeader(headers.get('Link') ?? '');
   const totalHeader = headers.get('X-Total-Count');
-  const total = totalHeader
-    ? Number(totalHeader)
-    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  const total =
+    totalHeader ? Number(totalHeader) : (data as unknown as { meta?: { total?: number } }).meta?.total;
   return {
     items: data.items,
-    meta: {
-      page: params.page,
-      page_size: limit,
-      total,
-      next: links.next?.href,
-      prev: links.prev?.href,
-    },
+    meta: { page: params.page, page_size: limit, total, next: links.next?.href, prev: links.prev?.href },
   };
 };
 
@@ -217,34 +189,22 @@ export const listNodeArtifacts = async (
     offset,
     type: params.kind,
   };
-  const { data, headers } = await fetchJson<{ items: ArtifactItem[] }>(
-    `/nodes/${nodeId}/artifacts`,
-    {
-      ...opts,
-      query,
-    },
-  );
+  const { data, headers } = await fetchJson<{ items: ArtifactItem[] }>(`/nodes/${nodeId}/artifacts`, {
+    ...opts,
+    query,
+  });
   const links = parseLinkHeader(headers.get('Link') ?? '');
   const totalHeader = headers.get('X-Total-Count');
-  const total = totalHeader
-    ? Number(totalHeader)
-    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  const total =
+    totalHeader ? Number(totalHeader) : (data as unknown as { meta?: { total?: number } }).meta?.total;
   return {
     items: data.items,
-    meta: {
-      page: params.page,
-      page_size: limit,
-      total,
-      next: links.next?.href,
-      prev: links.prev?.href,
-    },
+    meta: { page: params.page, page_size: limit, total, next: links.next?.href, prev: links.prev?.href },
   };
 };
 
-export const getPlan = async (
-  id: string,
-  opts: FetchOpts = {},
-): Promise<Plan> => {
+// ---------------- Plans / Assignments (S12) ----------------
+export const getPlan = async (id: string, opts: FetchOpts = {}): Promise<Plan> => {
   const { data } = await fetchJson<Plan>(`/plans/${id}`, opts);
   return data;
 };
@@ -254,11 +214,7 @@ export const saveAssignments = async (
   assignments: Assignment[],
   opts: FetchOpts = {},
 ): Promise<void> => {
-  await postJson<unknown, { assignments: Assignment[] }>(
-    `/plans/${planId}/assignments`,
-    { assignments },
-    opts,
-  );
+  await postJson<unknown, { assignments: Assignment[] }>(`/plans/${planId}/assignments`, { assignments }, opts);
 };
 
 export const setPlanStatus = async (
@@ -266,9 +222,47 @@ export const setPlanStatus = async (
   status: 'draft' | 'ready' | 'invalid',
   opts: FetchOpts = {},
 ): Promise<void> => {
-  await postJson<unknown, { status: 'draft' | 'ready' | 'invalid' }>(
-    `/plans/${planId}/status`,
-    { status },
-    opts,
-  );
+  await postJson<unknown, { status: 'draft' | 'ready' | 'invalid' }>(`/plans/${planId}/status`, { status }, opts);
+};
+
+// ---------------- Tasks (S11) ----------------
+export const listTasks = async (
+  params: { page: number; pageSize: number; orderBy?: 'created_at' | 'title' | 'status'; orderDir?: 'asc' | 'desc' },
+  opts: FetchOpts = {},
+): Promise<Page<Task>> => {
+  const limit = Math.min(params.pageSize, 200);
+  const offset = (params.page - 1) * limit;
+  const query: Record<string, string | number | boolean | undefined> = {
+    limit,
+    offset,
+    order_by: params.orderBy,
+    order_dir: params.orderDir,
+  };
+  const { data, headers } = await fetchJson<{ items: Task[] }>('/tasks', { ...opts, query });
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total =
+    totalHeader ? Number(totalHeader) : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  return {
+    items: data.items,
+    meta: { page: params.page, page_size: limit, total, next: links.next?.href, prev: links.prev?.href },
+  };
+};
+
+export const createTask = async (
+  payload: { title: string; description?: string },
+  opts: FetchOpts = {},
+): Promise<Task> => {
+  const { data } = await fetchJson<Task>('/tasks', { ...opts, method: 'POST', body: payload });
+  return data;
+};
+
+export const getTask = async (id: string, opts: FetchOpts = {}): Promise<TaskDetail> => {
+  const { data } = await fetchJson<TaskDetail>(`/tasks/${id}`, opts);
+  return data;
+};
+
+export const generateTaskPlan = async (id: string, opts: FetchOpts = {}): Promise<Plan> => {
+  const { data } = await fetchJson<Plan>(`/tasks/${id}/plan`, { ...opts, method: 'POST' });
+  return data;
 };
