@@ -5,17 +5,20 @@ import logging
 import os
 import time
 from typing import Optional, Any, Dict
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime, UTC
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi import Header
 from pydantic import ValidationError
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import strict_api_key_auth, get_session
 from ..schemas import TaskRequest, TaskAcceptedResponse
+from app.models.task import Task, TaskStatus
+from app.schemas.task import TaskCreate, TaskOut
 from core.services.orchestrator_service import schedule_run
-from app.models.task import Task
 from app.models.plan import Plan, PlanStatus
 from app.schemas.plan import PlanCreateResponse
 from app.services.supervisor import generate_plan
@@ -47,16 +50,69 @@ def _check_rate_limit(request: Request) -> None:
         raise HTTPException(status_code=429, detail="Too Many Requests")
     store[key] = (count + 1, start)
 
-# ---------- Route ----------
+# ---------- Routes ----------
 
-@router.post("", response_model=TaskAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "",
+    response_model=TaskOut | TaskAcceptedResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_task(
     payload: Dict[str, Any],
+    response: Response,
     request: Request,
-    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+    session: AsyncSession = Depends(get_session),
+    x_request_id: Optional[str] = Header(default=None, alias="X-Request-ID"),
 ):
-    """Lance l'orchestrateur en arrière-plan, répond 202 + run_id."""
+    """Crée une tâche brouillon ou lance l'orchestrateur suivant le corps de requête.
 
+    Exemple cURL (création simple)::
+
+        curl -X POST http://localhost:8000/tasks \
+             -H 'X-API-Key: <API_KEY>' \
+             -H 'X-Request-ID: <UUIDv4>' \
+             -H 'Content-Type: application/json' \
+             -d '{"title": "T1", "description": "desc"}'
+    """
+
+    rid = x_request_id or str(uuid4())
+    response.headers["X-Request-ID"] = rid
+
+    # Branche simple: création d'une tâche brouillon
+    allowed_keys = {"title", "description"}
+    if set(payload.keys()) <= allowed_keys:
+        try:
+            data = TaskCreate.model_validate(payload)
+        except ValidationError as e:
+            errs = [{"loc": err["loc"], "msg": err["msg"], "type": err["type"]} for err in e.errors()]
+            raise HTTPException(status_code=422, detail=errs)
+
+        title = data.title
+
+        exists = await session.execute(
+            select(func.count())
+            .select_from(Task)
+            .where(func.lower(Task.title) == title.lower())
+        )
+        if exists.scalar_one() > 0:
+            raise HTTPException(status_code=409, detail="task exists")
+
+        now = datetime.now(UTC)
+        task = Task(
+            title=title,
+            description=data.description,
+            status=TaskStatus.draft,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+
+        response.headers["Location"] = f"/tasks/{task.id}"
+        return TaskOut.model_validate(task)
+
+    # Sinon: route orchestrateur (legacy)
     _check_rate_limit(request)
 
     try:
@@ -94,6 +150,8 @@ async def create_task(
     except Exception:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+    response.status_code = status.HTTP_202_ACCEPTED
+    response.headers["Location"] = f"/runs/{run_id}"
     return TaskAcceptedResponse(run_id=str(run_id), location=f"/runs/{run_id}")
 
 
