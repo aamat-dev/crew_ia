@@ -9,7 +9,14 @@ from uuid import UUID
 import os
 import time
 
-from ..deps import strict_api_key_auth
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.models.task import Task, TaskStatus
+from app.models.plan import Plan, PlanStatus
+from app.services import orchestrator_adapter
+
+from ..deps import strict_api_key_auth, get_session
 from ..schemas import TaskRequest, TaskAcceptedResponse
 from core.services.orchestrator_service import schedule_run
 
@@ -86,3 +93,33 @@ async def create_task(
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return TaskAcceptedResponse(run_id=str(run_id), location=f"/runs/{run_id}")
+
+
+@router.post("/{task_id}/start", status_code=status.HTTP_202_ACCEPTED)
+async def start_task_run(
+    task_id: UUID,
+    dry_run: bool = False,
+    session: AsyncSession = Depends(get_session),
+):
+    """Démarre un run pour un ``task_id`` donné."""
+    task = await session.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.plan_id is None:
+        raise HTTPException(status_code=409, detail="Plan missing")
+
+    plan = (
+        await session.execute(select(Plan).where(Plan.id == task.plan_id))
+    ).scalar_one_or_none()
+    if plan is None or plan.status != PlanStatus.ready:
+        raise HTTPException(status_code=409, detail="Plan not ready")
+
+    run_id = await orchestrator_adapter.start(plan.id, dry_run)
+
+    if not dry_run:
+        task.run_id = run_id
+        task.status = TaskStatus.running
+        session.add(task)
+        await session.commit()
+
+    return {"run_id": str(run_id), "dry_run": dry_run}

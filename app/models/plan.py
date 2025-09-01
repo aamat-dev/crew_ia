@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, func, Index
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlmodel import SQLModel, Field
 
 
@@ -35,7 +35,7 @@ class Plan(SQLModel, table=True):
     status: PlanStatus = Field(
         sa_column=Column(SAEnum(PlanStatus, name="planstatus"), nullable=False)
     )
-    graph: Dict[str, Any] = Field(sa_column=Column(JSONB, nullable=False))
+    graph: Dict[str, Any] = Field(sa_column=Column(sa.JSON, nullable=False))
     version: int = Field(
         default=1,
         sa_column=Column(Integer, nullable=False, server_default="1"),
@@ -55,5 +55,3 @@ class Plan(SQLModel, table=True):
             nullable=False,
         ),
     )
-
-    __table_args__ = (Index("ix_plans_task_id", "task_id"),)
