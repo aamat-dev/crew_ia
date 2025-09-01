@@ -34,7 +34,7 @@ class Plan(SQLModel, table=True):
     status: PlanStatus = Field(
         sa_column=Column(SAEnum(PlanStatus, name="planstatus"), nullable=False)
     )
-    # JSON portable (SQLite/PG) avec JSONB côté Postgres
+    # <- variante portable : JSON générique + JSONB en Postgres
     graph: Dict[str, Any] = Field(
         sa_column=Column(
             sa.JSON().with_variant(JSONB, "postgresql"),

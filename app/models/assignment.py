@@ -5,8 +5,8 @@ from datetime import datetime, UTC
 from typing import Optional, Dict, Any
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, ForeignKey, Text, func, Index
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import Column, DateTime, ForeignKey, Text, func, Index, JSON
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlmodel import SQLModel, Field
 
 
@@ -31,10 +31,7 @@ class Assignment(SQLModel, table=True):
     llm_model: str = Field(sa_column=Column(Text, nullable=False))
     params: Optional[Dict[str, Any]] = Field(
         default=None,
-        sa_column=Column(
-            sa.JSON().with_variant(JSONB, "postgresql"),
-            nullable=True,
-        ),
+        sa_column=Column(JSON, nullable=True),
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
