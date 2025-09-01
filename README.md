@@ -34,6 +34,71 @@ Pour lister les événements d'un run spécifique :
 curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 ```
 
+## Scénario E2E (API + UI)
+
+### Prérequis
+
+- Python 3.11+
+- Node 18+
+- `make`, `npm`
+
+Variables d'environnement minimales :
+
+```
+API_KEY=test-key
+DATABASE_URL=sqlite+aiosqlite:///./app.db
+API_URL=http://localhost:8000
+```
+
+### Étapes (local)
+
+1. Appliquer les migrations :
+
+   ```bash
+   make api-migrate
+   ```
+
+2. Démarrer l'API (terminal séparé) :
+
+   ```bash
+   make api-run
+   ```
+
+3. Déclencher le flux de démonstration (création → plan → assignation → start) :
+
+   ```bash
+   make task-plan-start
+   ```
+
+### Étapes (prévisualisation UI)
+
+Lance les tests E2E Playwright sur la version buildée du dashboard :
+
+```bash
+make ui-run-e2e
+```
+
+### Exemples cURL
+
+```bash
+# 1) Créer une tâche brouillon
+curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  -d '{"title":"Demo"}' $API_URL/tasks
+
+# 2) Générer un plan
+curl -X POST -H "X-API-Key: $API_KEY" \
+  $API_URL/tasks/<TASK_ID>/plan
+
+# 3) Assigner des nœuds
+curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  -d '{"items":[{"node_id":"n1","role":"writer","agent_id":"a1","llm_backend":"openai","llm_model":"gpt-4o-mini"}]}' \
+  $API_URL/plans/<PLAN_ID>/assignments
+
+# 4) Démarrer (dry run)
+curl -X POST -H "X-API-Key: $API_KEY" \
+  "$API_URL/tasks/<TASK_ID>/start?dry_run=true"
+```
+
 The server always returns timestamps in UTC. Clients may supply `X-Timezone`
 header to ask for conversion to a specific zone.
 

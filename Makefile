@@ -194,6 +194,10 @@ api-run-metrics: ensure-venv
 api-run-prod: ensure-venv
         @$(ACTIVATE) && uvicorn $(API_MODULE) --host 0.0.0.0 --port $(API_PORT) --workers 2
 
+.PHONY: api-migrate
+api-migrate: ensure-venv
+	@$(ACTIVATE) && alembic upgrade head
+
 .PHONY: api-test
 api-test: ensure-venv
 	@if [ -d api/tests ]; then \
@@ -214,6 +218,11 @@ api-e2e-happy: ensure-venv
 api-e2e-meta: ensure-venv
 	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
 
+# ---- Scripts divers -----------------------------------------
+.PHONY: task-plan-start
+task-plan-start: ensure-venv
+	@$(ACTIVATE) && $(PYTHON) scripts/task_plan_start.py
+
 # ---- Validation ----------------------------------
 .PHONY: validate validate-all validate-strict validate-non-uuid
 validate: ensure-venv
@@ -229,7 +238,7 @@ validate-non-uuid: ensure-venv
 	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
 
 # ---- Mini Dashboard ---------------------------
-.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-test dash-mini-e2e dash-mini-e2e-ci dash-mini-ci-local
+.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-test dash-mini-e2e dash-mini-e2e-ci dash-mini-ci-local ui-run-e2e
 dash-mini-install:
 	cd dashboard/mini && npm ci
 
@@ -255,8 +264,17 @@ dash-mini-e2e-ci:
 
 
 dash-mini-ci-local:
-	cd dashboard/mini && npm run lint && npm run typecheck && npm test -- --run && npm run build
+	        cd dashboard/mini && npm run lint && npm run typecheck && npm test -- --run && npm run build
 
+
+# ---- UI ------------------------------------------------------
+.PHONY: ui-run-e2e
+ui-run-e2e:
+	cd dashboard/mini && npm run build
+	cd dashboard/mini && (npm run preview & pid=$$!; \
+		sleep 2; \
+		PREVIEW_URL=http://localhost:5173 npm run e2e; \
+		kill $$pid)
 
 # ---- Docker compose (optionnel) -------------------------------
 HAS_COMPOSE := $(shell test -f docker-compose.yml && echo yes || echo no)
