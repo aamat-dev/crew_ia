@@ -238,3 +238,16 @@ export const listNodeArtifacts = async (
     },
   };
 };
+
+export const patchNode = async (
+  nodeId: string,
+  body: Record<string, unknown>,
+  opts: FetchOpts = {},
+) => {
+  const { requestId } = await fetchJson<unknown>(`/nodes/${nodeId}`, {
+    ...opts,
+    method: 'PATCH',
+    body,
+  });
+  return { requestId };
+};

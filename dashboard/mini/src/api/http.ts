@@ -23,6 +23,8 @@ export class ApiError extends Error {
 export interface FetchOpts {
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
+  method?: string;
+  body?: unknown;
 }
 
 export async function fetchJson<T>(
@@ -57,11 +59,17 @@ export async function fetchJson<T>(
     }
   }
 
-  const fetchOnce = () =>
-    fetch(url.toString(), {
-      headers,
-      signal: timeoutCtrl.signal,
-    });
+  const init: RequestInit = {
+    method: opts.method ?? 'GET',
+    headers,
+    signal: timeoutCtrl.signal,
+  };
+  if (opts.body !== undefined) {
+    headers['content-type'] = 'application/json';
+    init.body = JSON.stringify(opts.body);
+  }
+
+  const fetchOnce = () => fetch(url.toString(), init);
 
   const maxRetries = 2;
   const backoff = [200, 500];

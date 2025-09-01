@@ -4,13 +4,15 @@ import type { RunDetail } from '../api/types';
 
 interface DagViewProps {
   dag?: RunDetail['dag'];
+  onSelectNode?: (id: string) => void;
+  selectedNodeId?: string;
 }
 
 interface ReactFlowModule {
   default: ComponentType<unknown>;
 }
 
-const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
+const DagView = ({ dag, onSelectNode, selectedNodeId }: DagViewProps): JSX.Element | null => {
   const [rf, setRf] = useState<ReactFlowModule | null>(null);
 
   useEffect(() => {
@@ -47,6 +49,7 @@ const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
           panOnDrag
           zoomOnScroll
           fitView
+          onNodeClick={(_: unknown, n: { id: string }) => onSelectNode?.(n.id)}
         />
       </div>
     );
@@ -96,8 +99,15 @@ const DagView = ({ dag }: DagViewProps): JSX.Element | null => {
           key={n.id}
           transform={`translate(${40 + idx * 120},40)`}
           data-testid={`dag-node-${n.id}`}
+          onClick={() => onSelectNode?.(n.id)}
         >
-          <rect width="80" height="40" fill="#eee" stroke="#333" rx="4" />
+          <rect
+            width="80"
+            height="40"
+            fill="#eee"
+            stroke={selectedNodeId === n.id ? 'blue' : '#333'}
+            rx="4"
+          />
           <text
             x="40"
             y="18"
