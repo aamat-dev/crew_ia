@@ -1,4 +1,4 @@
-import { fetchJson, FetchOpts } from './http';
+import { fetchJson, FetchOpts, postJson } from './http';
 import {
   ApiStatus,
   ArtifactItem,
@@ -10,6 +10,8 @@ import {
   RunSummary,
   Status,
   BackendRun,
+  Plan,
+  Assignment,
 } from './types';
 import { parseLinkHeader } from './links';
 
@@ -237,4 +239,36 @@ export const listNodeArtifacts = async (
       prev: links.prev?.href,
     },
   };
+};
+
+export const getPlan = async (
+  id: string,
+  opts: FetchOpts = {},
+): Promise<Plan> => {
+  const { data } = await fetchJson<Plan>(`/plans/${id}`, opts);
+  return data;
+};
+
+export const saveAssignments = async (
+  planId: string,
+  assignments: Assignment[],
+  opts: FetchOpts = {},
+): Promise<void> => {
+  await postJson<unknown, { assignments: Assignment[] }>(
+    `/plans/${planId}/assignments`,
+    { assignments },
+    opts,
+  );
+};
+
+export const setPlanStatus = async (
+  planId: string,
+  status: 'draft' | 'ready' | 'invalid',
+  opts: FetchOpts = {},
+): Promise<void> => {
+  await postJson<unknown, { status: 'draft' | 'ready' | 'invalid' }>(
+    `/plans/${planId}/status`,
+    { status },
+    opts,
+  );
 };

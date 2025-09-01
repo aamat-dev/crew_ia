@@ -105,3 +105,50 @@ export async function fetchJson<T>(
     }
   }
 }
+export async function postJson<T, B = unknown>(
+  path: string,
+  body: B,
+  opts: FetchOpts = {},
+): Promise<{ data: T; requestId: string }> {
+  const url = new URL(getApiBaseUrl() + path);
+  if (opts.query) {
+    for (const [key, value] of Object.entries(opts.query)) {
+      if (value !== undefined) {
+        url.searchParams.set(key, String(value));
+      }
+    }
+  }
+  const requestId = uuidv4();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const apiKey = getCurrentApiKey();
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+  const timeoutCtrl = new AbortController();
+  const timeoutId = setTimeout(() => timeoutCtrl.abort(), API_TIMEOUT_MS);
+  if (opts.signal) {
+    if (opts.signal.aborted) {
+      timeoutCtrl.abort();
+    } else {
+      opts.signal.addEventListener('abort', () => timeoutCtrl.abort(), {
+        once: true,
+      });
+    }
+  }
+  try {
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: timeoutCtrl.signal,
+    });
+    const ct = res.headers.get('content-type');
+    const data = ct && ct.includes('application/json') ? await res.json() : undefined;
+    if (!res.ok) {
+      throw new ApiError(`API Error ${res.status}`, res.status, requestId, data);
+    }
+    return { data: data as T, requestId };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

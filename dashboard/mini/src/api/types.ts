@@ -84,3 +84,21 @@ export interface BackendRunsList {
   limit: number;
   offset: number;
 }
+export interface Assignment {
+  node_id: string;
+  role: string;
+  agent_id: string;
+  llm_backend: string;
+  llm_model: string;
+  params?: Record<string, any>;
+}
+
+export interface Plan {
+  id: string;
+  status: 'draft' | 'ready' | 'invalid';
+  graph: {
+    nodes: Array<{ id: string; role?: string }>;
+    edges: Array<{ from: string; to: string }>;
+  };
+  assignments?: Assignment[];
+}
