@@ -1,53 +1,59 @@
-import logging
-import json
-import contextvars
+from __future__ import annotations
 
-request_id_var = contextvars.ContextVar("request_id", default=None)
+import contextvars
+import datetime as dt
+import json
+import logging
+from typing import Any
+
+# Context variables
+request_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("request_id", default=None)
+run_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("run_id", default=None)
+node_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("node_id", default=None)
+status_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("status", default=None)
+llm_backend_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("llm_backend", default=None)
+llm_model_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("llm_model", default=None)
 
 class ContextFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover - simple
-        rid = request_id_var.get()
-        if rid:
-            record.request_id = rid
+    """Injecte les contextvars dans chaque LogRecord."""
+    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+        record.request_id = request_id_var.get()
+        record.run_id = run_id_var.get()
+        record.node_id = node_id_var.get()
+        record.status = status_var.get()
+        record.llm_backend = llm_backend_var.get()
+        record.llm_model = llm_model_var.get()
         return True
 
 class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:  # pragma: no cover - simple
-        payload = {
-            "level": record.levelname,
-            "message": record.getMessage(),
+    """Formateur JSON simple pour les logs structurés."""
+    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+        payload: dict[str, Any] = {
+            "timestamp": dt.datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname.lower(),
             "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", None),
+            "run_id": getattr(record, "run_id", None),
+            "node_id": getattr(record, "node_id", None),
+            "status": getattr(record, "status", None),
+            "llm_backend": getattr(record, "llm_backend", None),
+            "llm_model": getattr(record, "llm_model", None),
         }
-        for k, v in record.__dict__.items():
-            if k not in (
-                "name",
-                "msg",
-                "args",
-                "levelname",
-                "levelno",
-                "pathname",
-                "filename",
-                "module",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-                "lineno",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "message",
-            ):
-                payload[k] = v
+        # Champs additionnels éventuels (ex: middleware d'accès)
+        for key in ("method", "path", "status_code", "duration_ms"):
+            value = getattr(record, key, None)
+            if value is not None:
+                payload[key] = value
         return json.dumps(payload, ensure_ascii=False)
 
-_handler = logging.StreamHandler()
-_handler.setFormatter(JsonFormatter())
-_root = logging.getLogger()
-_root.handlers = [_handler]
-_root.setLevel(logging.INFO)
-_root.addFilter(ContextFilter())
+def configure_logging() -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    handler.addFilter(ContextFilter())
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    root.handlers = [handler]
+
+# Configure au chargement du module
+configure_logging()

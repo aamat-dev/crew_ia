@@ -218,7 +218,7 @@ def main() -> None:
     )
 
     status = result.get("status")
-    if status == "success":
+    if status == "succeeded":
         completed = result.get("completed", [])
         print(f"✅ Succès — {len(completed)} nœud(s) complété(s).")
     else:

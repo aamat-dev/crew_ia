@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import time
 import uuid
@@ -8,6 +7,8 @@ from core.log import request_id_var
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+
+from core.log import request_id_var
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Attach a request ID and log access in JSON format."""
@@ -26,15 +27,13 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         duration_ms = int((time.perf_counter() - start) * 1000)
         response.headers["X-Request-ID"] = rid
         self.logger.info(
-            json.dumps(
-                {
-                    "request_id": rid,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status_code": response.status_code,
-                    "duration_ms": duration_ms,
-                }
-            )
+            "access",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
         )
         request_id_var.reset(token)
         return response

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from uuid import UUID
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,3 +58,11 @@ async def upsert_assignments(
         out_items.append(item)
     await db.commit()
     return AssignmentsResponse(updated=updated, items=out_items)
+
+
+@router.post("/{plan_id}/submit_for_validation")
+async def submit_for_validation(plan_id: UUID, body: dict, _: Any = Depends(strict_api_key_auth)) -> dict:
+    validated = body.get("validated")
+    errors = body.get("errors") or []
+    # TODO: persister l'événement / statut
+    return {"plan_id": str(plan_id), "validated": bool(validated), "errors": errors}

@@ -60,7 +60,7 @@ async def test_llm_meta_fallback_fs(tmp_path, monkeypatch):
         }
         (node_dir / f"artifact_{node_key}.llm.json").write_text(json.dumps(meta))
         await on_node_end(node, node_key, "completed")
-        return {"status": "success"}
+        return {"status": "succeeded"}
 
     monkeypatch.setenv("ARTIFACTS_DIR", str(tmp_path))
     monkeypatch.setattr("apps.orchestrator.api_runner.run_graph", fake_run_graph)

@@ -7,13 +7,7 @@ from fastapi import HTTPException
 
 
 async def start(plan_id: uuid.UUID, dry_run: bool = False) -> uuid.UUID:
-    """Démarre un plan via l'orchestrateur.
-
-    Cette implémentation simplifiée se contente de générer et retourner un
-    identifiant de run aléatoire. L'orchestrateur réel se chargerait de
-    l'exécution asynchrone du plan.
-    """
-
+    """Démarre un plan via l'orchestrateur (stub)."""
     return uuid.uuid4()
 
 
@@ -24,16 +18,10 @@ _NODE_STATES: Dict[uuid.UUID, Dict[str, Any]] = {}
 async def node_action(
     node_id: uuid.UUID, action: str, payload: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
-    """Applique une action sur un nœud.
-
-    Cette implémentation mémoire maintient un état minimal afin de vérifier la
-    cohérence des transitions. En cas de transition invalide, on lève une
-    ``HTTPException`` 409.
-
-    On retourne le statut après action et un indicateur ``sidecar_updated`` si
-    un override de prompt ou de paramètres est présent.
+    """Applique une action sur un nœud (FSM en mémoire).
+    - 409 si transition invalide
+    - Retourne status_after et sidecar_updated
     """
-
     payload = payload or {}
 
     state = _NODE_STATES.setdefault(
