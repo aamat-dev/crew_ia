@@ -45,11 +45,13 @@ help:
 	@echo "  env-check           -> imprime quelques variables utiles"
 	@echo "  api-run             -> lance FastAPI en dev (reload)"
 	@echo "  api-run-prod        -> lance FastAPI en prod"
+	@echo "  api-migrate         -> applique les migrations Alembic"
 	@echo "  api-test            -> teste l’API (si tests présents)"
 	@echo "  db-up / db-down     -> docker compose (postgres/pgadmin) si docker-compose.yml existe"
 	@echo "  db-logs / db-reset  -> idem"
 	@echo "  validate            -> valide les sidecars .llm.json"
 	@echo "  validate-strict     -> validation stricte des sidecars"
+	@echo "  ui-run-e2e          -> build + preview + tests e2e UI"
 .PHONY: init-env
 init-env:
 	@if [ -f $(ENV_FILE) ]; then \
