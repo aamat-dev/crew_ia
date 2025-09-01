@@ -42,13 +42,13 @@ async def test_patch_node_override(client, monkeypatch):
 
     async def fake_action(node_id_arg, action, payload):
         assert action == "override"
-        assert payload["override_prompt"] == "recalc"
+        assert payload["prompt"] == "recalc"
         return {"status_after": "queued", "sidecar_updated": True}
 
     monkeypatch.setattr(orchestrator_adapter, "node_action", fake_action)
     r = await client.patch(
         f"/nodes/{node_id}",
-        json={"action": "override", "override_prompt": "recalc"},
+        json={"action": "override", "prompt": "recalc"},
     )
     assert r.status_code == 200
     assert r.json() == {
@@ -100,3 +100,20 @@ async def test_patch_node_conflict(client, monkeypatch):
     monkeypatch.setattr(orchestrator_adapter, "node_action", fake_action)
     r = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
     assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_patch_node_resume_invalid_state(client):
+    node_id = uuid.uuid4()
+    # Par défaut l'état est "running", resume doit donc échouer
+    r = await client.patch(f"/nodes/{node_id}", json={"action": "resume"})
+    assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_patch_node_pause_twice_conflict(client):
+    node_id = uuid.uuid4()
+    r1 = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
+    assert r1.status_code == 200
+    r2 = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
+    assert r2.status_code == 409

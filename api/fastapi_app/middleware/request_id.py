@@ -4,6 +4,7 @@ import json
 import logging
 import time
 import uuid
+from core.log import request_id_var
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -19,6 +20,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         request.state.request_id = rid
+        token = request_id_var.set(rid)
         start = time.perf_counter()
         response = await call_next(request)
         duration_ms = int((time.perf_counter() - start) * 1000)
@@ -34,4 +36,5 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
                 }
             )
         )
+        request_id_var.reset(token)
         return response
