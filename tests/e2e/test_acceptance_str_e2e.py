@@ -35,5 +35,5 @@ async def test_acceptance_str_e2e(tmp_path, monkeypatch):
     monkeypatch.setattr(exec_mod, "run_llm", fake_run_llm)
 
     res = await run_graph(dag, DummyStorage(), "run1")
-    assert res["status"] == "success"
+    assert res["status"] == "succeeded"
     assert Path("artifact_n1.md").exists()
