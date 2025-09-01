@@ -1,0 +1,49 @@
+[
+  {
+    "name": "manager-frontend",
+    "role": "manager",
+    "domain": "frontend",
+    "prompt_system": "Tu es un Manager Frontend. Langue:{language} Ton:{tone}. Responsabilités: planifier, coacher, valider. Limites: outils déclaratifs uniquement.",
+    "default_model": "openai:gpt-4o-mini",
+    "config": {
+      "prompt_guidelines": {"style":{"tone":"professionnel","no_purple_prose":true},"io_format":{"input":"json","output":"json"},"acceptance":["structure claire","pas de cycles infinis"],"tracing":{"summarize_key_decisions":true}},
+      "capabilities": {"tools":["search","notion.write"],"permissions":["assign","review"]},
+      "provider_strategy": {"preferences":[{"provider":"openai","model":"gpt-4o-mini"}],"fallbacks":[{"provider":"mistral","model":"mistral-small"}],"budget":{"max_total_cost_per_run":5.0}},
+      "cost_limits": {"max_tokens_per_call":8192,"max_total_cost_per_run":5.0},
+      "safety_policies": {"allow_tools":["search","notion.write"],"forbidden_content":[],"pii_redaction":true},
+      "metadata": {"category":"manager","name_pattern":"manager-frontend-{domain}"}
+    }
+  },
+  {
+    "name": "manager-backend",
+    "role": "manager",
+    "domain": "backend",
+    "prompt_system": "Tu es un Manager Backend. Langue:{language} Ton:{tone}.",
+    "default_model": "openai:gpt-4o-mini",
+    "config": { "prompt_guidelines": {"style":{"tone":"professionnel","no_purple_prose":true}}, "capabilities": {"tools":["search"],"permissions":["assign","review"]}, "provider_strategy": {"preferences":[{"provider":"openai","model":"gpt-4o-mini"}],"fallbacks":[{"provider":"mistral","model":"mistral-small"}]}, "cost_limits": {"max_tokens_per_call":8192,"max_total_cost_per_run":5.0}, "safety_policies": {}, "metadata":{"category":"manager","name_pattern":"manager-backend-{domain}"} }
+  },
+  {
+    "name": "executor-writer-translator",
+    "role": "executor",
+    "domain": "writer-translator",
+    "prompt_system": "Tu es un traducteur technique EN↔FR. Langue:{language} Ton:{tone}.",
+    "default_model": "openai:gpt-4o-mini",
+    "config": { "prompt_guidelines": {"style":{"tone":"professionnel","no_purple_prose":true},"io_format":{"input":"text","output":"text"},"acceptance":["fidélité","terminologie"],"tracing":{"summarize_key_decisions":true}}, "capabilities": {"tools":[],"permissions":[]}, "provider_strategy": {"preferences":[{"provider":"openai","model":"gpt-4o-mini"}],"fallbacks":[{"provider":"mistral","model":"mistral-small"}],"budget":{"max_total_cost_per_run":1.0}}, "cost_limits": {"max_tokens_per_call":8192,"max_total_cost_per_run":1.0}, "safety_policies": {}, "metadata":{"category":"executor","name_pattern":"translator-{domain}"} }
+  },
+  {
+    "name": "executor-researcher",
+    "role": "executor",
+    "domain": "research",
+    "prompt_system": "Tu es un chercheur. Langue:{language} Ton:{tone}.",
+    "default_model": "openai:gpt-4o-mini",
+    "config": { "prompt_guidelines": {"style":{"tone":"professionnel","no_purple_prose":true}}, "capabilities": {"tools":["search"],"permissions":[]}, "provider_strategy": {"preferences":[{"provider":"openai","model":"gpt-4o-mini"}],"fallbacks":[{"provider":"mistral","model":"mistral-small"}]}, "cost_limits": {"max_tokens_per_call":8192,"max_total_cost_per_run":3.0}, "safety_policies": {}, "metadata":{"category":"executor","name_pattern":"researcher-{domain}"} }
+  },
+  {
+    "name": "reviewer-general",
+    "role": "reviewer",
+    "domain": "general",
+    "prompt_system": "Tu es un reviewer. Langue:{language} Ton:{tone}.",
+    "default_model": "openai:gpt-4o-mini",
+    "config": { "prompt_guidelines": {"style":{"tone":"professionnel","no_purple_prose":true}}, "capabilities": {"tools":[],"permissions":["review"]}, "provider_strategy": {"preferences":[{"provider":"openai","model":"gpt-4o-mini"}],"fallbacks":[{"provider":"ollama","model":"llama3"}]}, "cost_limits": {"max_tokens_per_call":4096,"max_total_cost_per_run":2.0}, "safety_policies": {}, "metadata":{"category":"reviewer","name_pattern":"reviewer-{domain}"} }
+  }
+]
