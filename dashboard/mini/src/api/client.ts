@@ -149,12 +149,32 @@ export const getPlan = async (id: string, opts: FetchOpts = {}): Promise<Plan> =
   return data;
 };
 
-export const saveAssignments = async (planId: string, assignments: Assignment[], opts: FetchOpts = {}): Promise<void> => {
-  await postJson<unknown, { assignments: Assignment[] }>(`/plans/${planId}/assignments`, { assignments }, opts);
+export const saveAssignments = async (
+  planId: string,
+  assignments: Assignment[],
+  opts: FetchOpts = {},
+): Promise<void> => {
+  await postJson<unknown, { items: Assignment[] }>(
+    `/plans/${planId}/assignments`,
+    { items: assignments },
+    opts,
+  );
 };
 
 export const setPlanStatus = async (planId: string, status: 'draft'|'ready'|'invalid', opts: FetchOpts = {}): Promise<void> => {
   await postJson<unknown, { status: 'draft'|'ready'|'invalid' }>(`/plans/${planId}/status`, { status }, opts);
+};
+
+export const submitPlanForValidation = async (
+  planId: string,
+  payload: { validated: boolean; errors?: string[] },
+  opts: FetchOpts = {},
+): Promise<void> => {
+  await postJson<unknown, { validated: boolean; errors?: string[] }>(
+    `/plans/${planId}/submit_for_validation`,
+    payload,
+    opts,
+  );
 };
 
 // -------- Tasks
