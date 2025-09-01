@@ -17,6 +17,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+import core.log  # configure root logger
+
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks
 from app.routers import nodes as node_actions

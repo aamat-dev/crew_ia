@@ -16,7 +16,6 @@ llm_model_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("llm_
 
 class ContextFilter(logging.Filter):
     """Injecte les contextvars dans chaque LogRecord."""
-
     def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
         record.request_id = request_id_var.get()
         record.run_id = run_id_var.get()
@@ -28,20 +27,20 @@ class ContextFilter(logging.Filter):
 
 class JsonFormatter(logging.Formatter):
     """Formateur JSON simple pour les logs structurés."""
-
     def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
         payload: dict[str, Any] = {
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
             "level": record.levelname.lower(),
+            "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", None),
             "run_id": getattr(record, "run_id", None),
             "node_id": getattr(record, "node_id", None),
-            "request_id": getattr(record, "request_id", None),
             "status": getattr(record, "status", None),
             "llm_backend": getattr(record, "llm_backend", None),
             "llm_model": getattr(record, "llm_model", None),
-            "message": record.getMessage(),
         }
-        # Ajout de champs supplémentaires éventuels
+        # Champs additionnels éventuels (ex: middleware d'accès)
         for key in ("method", "path", "status_code", "duration_ms"):
             value = getattr(record, key, None)
             if value is not None:
@@ -49,7 +48,6 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 def configure_logging() -> None:
-    """Configure le root logger pour utiliser le formateur JSON."""
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     handler.addFilter(ContextFilter())
@@ -57,5 +55,5 @@ def configure_logging() -> None:
     root.setLevel(logging.INFO)
     root.handlers = [handler]
 
-# Configure les logs dès l'import
+# Configure au chargement du module
 configure_logging()

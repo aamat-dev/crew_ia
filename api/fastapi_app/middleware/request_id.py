@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from core.log import request_id_var
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request

@@ -1,8 +1,5 @@
-import json
 import logging
-
 import pytest
-
 
 @pytest.mark.asyncio
 async def test_request_id_header_and_log(client, caplog):
