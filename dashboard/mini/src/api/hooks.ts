@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getRun,
   getRunSummary,
@@ -6,6 +6,10 @@ import {
   listRunEvents,
   listRunNodes,
   listRuns,
+  listTasks,
+  getTask,
+  createTask,
+  generateTaskPlan,
 } from './client';
 import {
   ArtifactItem,
@@ -16,6 +20,9 @@ import {
   RunDetail,
   RunSummary,
   Status,
+  Task,
+  TaskDetail,
+  Plan,
 } from './types';
 
 export const useRuns = (
@@ -96,3 +103,47 @@ export const useNodeArtifacts = (
     queryFn: ({ signal }) => listNodeArtifacts(nodeId, params, { signal }),
     enabled: opts?.enabled,
   });
+
+export const useTasks = (
+  params: {
+    page: number;
+    pageSize: number;
+    orderBy?: 'created_at' | 'title' | 'status';
+    orderDir?: 'asc' | 'desc';
+  },
+  opts?: { enabled?: boolean },
+) =>
+  useQuery<Page<Task>>({
+    queryKey: ['tasks', params],
+    queryFn: ({ signal }) => listTasks(params, { signal }),
+    staleTime: 5_000,
+    enabled: opts?.enabled,
+  });
+
+export const useTask = (id: string, opts?: { enabled?: boolean }) =>
+  useQuery<TaskDetail>({
+    queryKey: ['task', id],
+    queryFn: ({ signal }) => getTask(id, { signal }),
+    enabled: opts?.enabled,
+  });
+
+export const useCreateTask = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { title: string; description?: string }) =>
+      createTask(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+};
+
+export const useGenerateTaskPlan = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => generateTaskPlan(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', id] });
+    },
+  });
+};
