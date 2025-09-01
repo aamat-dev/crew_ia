@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+
+# Configuration du logger structuré dès le démarrage de l'application
+import core.log  # noqa: F401
 from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
