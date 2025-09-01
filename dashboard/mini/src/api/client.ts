@@ -10,6 +10,9 @@ import {
   RunSummary,
   Status,
   BackendRun,
+  Task,
+  TaskDetail,
+  Plan,
 } from './types';
 import { parseLinkHeader } from './links';
 
@@ -237,4 +240,73 @@ export const listNodeArtifacts = async (
       prev: links.prev?.href,
     },
   };
+};
+
+export const listTasks = async (
+  params: {
+    page: number;
+    pageSize: number;
+    orderBy?: 'created_at' | 'title' | 'status';
+    orderDir?: 'asc' | 'desc';
+  },
+  opts: FetchOpts = {},
+): Promise<Page<Task>> => {
+  const limit = Math.min(params.pageSize, 200);
+  const offset = (params.page - 1) * limit;
+  const query: Record<string, string | number | boolean | undefined> = {
+    limit,
+    offset,
+    order_by: params.orderBy,
+    order_dir: params.orderDir,
+  };
+  const { data, headers } = await fetchJson<{ items: Task[] }>('/tasks', {
+    ...opts,
+    query,
+  });
+  const links = parseLinkHeader(headers.get('Link') ?? '');
+  const totalHeader = headers.get('X-Total-Count');
+  const total = totalHeader
+    ? Number(totalHeader)
+    : (data as unknown as { meta?: { total?: number } }).meta?.total;
+  return {
+    items: data.items,
+    meta: {
+      page: params.page,
+      page_size: limit,
+      total,
+      next: links.next?.href,
+      prev: links.prev?.href,
+    },
+  };
+};
+
+export const createTask = async (
+  payload: { title: string; description?: string },
+  opts: FetchOpts = {},
+): Promise<Task> => {
+  const { data } = await fetchJson<Task>('/tasks', {
+    ...opts,
+    method: 'POST',
+    body: payload,
+  });
+  return data;
+};
+
+export const getTask = async (
+  id: string,
+  opts: FetchOpts = {},
+): Promise<TaskDetail> => {
+  const { data } = await fetchJson<TaskDetail>(`/tasks/${id}`, opts);
+  return data;
+};
+
+export const generateTaskPlan = async (
+  id: string,
+  opts: FetchOpts = {},
+): Promise<Plan> => {
+  const { data } = await fetchJson<Plan>(`/tasks/${id}/plan`, {
+    ...opts,
+    method: 'POST',
+  });
+  return data;
 };
