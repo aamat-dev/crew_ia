@@ -47,7 +47,7 @@ export const listRuns = async (
   const offset = (params.page - 1) * limit;
   const query: Record<string,string|number|boolean|undefined> = {
     limit, offset,
-    status: mapUiStatusesToApi(params.status).join('') || undefined,
+    status: mapUiStatusesToApi(params.status).join(',') || undefined,
     started_from: params.dateFrom,
     started_to: params.dateTo,
     title_contains: params.title,

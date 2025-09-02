@@ -39,7 +39,7 @@ const RunDetail = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
   const hasKey = Boolean(apiKey) || useEnvKey;
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
-  type DagNode = RunType['dag'] extends { nodes: (infer N)[] } ? N : never;
+  type DagNode = NonNullable<RunType['dag']>['nodes'][number];
   const [selectedNode, setSelectedNode] = useState<DagNode | undefined>();
   const [lastRequestId, setLastRequestId] = useState<string | undefined>();
   const runQuery = useQuery({
