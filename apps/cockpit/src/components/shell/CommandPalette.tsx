@@ -11,30 +11,19 @@ const nav = [
   { label: "Settings", href: "/settings" },
 ];
 
-export function CommandPalette() {
-  const [open, setOpen] = React.useState(false);
+interface CommandPaletteProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: CommandPaletteProps) {
   const router = useRouter();
 
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-      if (e.key.toLowerCase() === "g") {
-        const next = (ev: KeyboardEvent) => {
-          if (ev.key.toLowerCase() === "r") router.push("/runs");
-          if (ev.key.toLowerCase() === "t") router.push("/tasks");
-        };
-        window.addEventListener("keydown", next, { once: true });
-      }
-    };
-    window.addEventListener("keydown", down);
-    return () => window.removeEventListener("keydown", down);
-  }, [router]);
-
   return (
-    <Command.Dialog open={open} onOpenChange={setOpen} label="Commandes">
+    <Command.Dialog open={open} onOpenChange={onOpenChange} label="Commandes">
       <Command.Input placeholder="Rechercher..." />
       <Command.List>
         {nav.map((item) => (
@@ -42,7 +31,7 @@ export function CommandPalette() {
             key={item.href}
             onSelect={() => {
               router.push(item.href);
-              setOpen(false);
+              onOpenChange(false);
             }}
           >
             {item.label}
@@ -52,3 +41,5 @@ export function CommandPalette() {
     </Command.Dialog>
   );
 }
+
+export default CommandPalette;
