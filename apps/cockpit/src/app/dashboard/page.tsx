@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { Activity, ThumbsUp, Timer } from "lucide-react";
 import { KpiCard } from "@/components/kpi/KpiCard";
 import { ThroughputChart } from "@/components/charts/ThroughputChart";
@@ -12,19 +12,21 @@ import { useToast } from "@/components/ds/Toast";
 export default function DashboardPage() {
   const toast = useToast();
 
-  const throughput = useQuery({
-    queryKey: ["throughput"],
-    queryFn: () => fetch("/api/agents").then((r) => r.json()),
-  });
-
-  const latency = useQuery({
-    queryKey: ["latency"],
-    queryFn: () => fetch("/api/runs").then((r) => r.json()),
-  });
-
-  const feedback = useQuery({
-    queryKey: ["feedback"],
-    queryFn: () => fetch("/api/feedbacks").then((r) => r.json()),
+  const [throughput, latency, feedback] = useQueries({
+    queries: [
+      {
+        queryKey: ["throughput"],
+        queryFn: () => fetch("/api/agents").then((r) => r.json()),
+      },
+      {
+        queryKey: ["latency"],
+        queryFn: () => fetch("/api/runs").then((r) => r.json()),
+      },
+      {
+        queryKey: ["feedback"],
+        queryFn: () => fetch("/api/feedbacks").then((r) => r.json()),
+      },
+    ],
   });
 
   useEffect(() => {
