@@ -33,20 +33,28 @@ def pagination_params(
 
 def set_pagination_headers(
     response: Response, request: Request, total: int, limit: int, offset: int
-) -> None:
-    """Ajoute les en-têtes RFC5988 Link et X-Total-Count."""
-    links: list[str] = []
+) -> dict[str, str]:
+    """Ajoute les en-têtes RFC5988 Link et X-Total-Count.
+
+    Renvoie également un dictionnaire ``{"prev": url?, "next": url?}``
+    utilisable pour exposer ``_links`` dans la réponse JSON.
+    """
+    links_header: list[str] = []
+    links_dict: dict[str, str] = {}
     if offset > 0:
         prev_offset = max(offset - limit, 0)
         prev_url = str(
             request.url.include_query_params(offset=prev_offset, limit=limit)
         )
-        links.append(f"<{prev_url}>; rel=\"prev\"")
+        links_header.append(f"<{prev_url}>; rel=\"prev\"")
+        links_dict["prev"] = prev_url
     if offset + limit < total:
         next_url = str(
             request.url.include_query_params(offset=offset + limit, limit=limit)
         )
-        links.append(f"<{next_url}>; rel=\"next\"")
-    if links:
-        response.headers["Link"] = ", ".join(links)
+        links_header.append(f"<{next_url}>; rel=\"next\"")
+        links_dict["next"] = next_url
+    if links_header:
+        response.headers["Link"] = ", ".join(links_header)
     response.headers["X-Total-Count"] = str(total)
+    return links_dict

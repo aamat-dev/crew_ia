@@ -208,6 +208,10 @@ migrate-fil8:
 seed-agents:
 	poetry run python scripts/seed_agents.py
 
+.PHONY: test-fil8
+test-fil8:
+	pytest -q tests -k "agents or recruit or matrix or rbac" --cov=api --cov-report=term --cov-report=xml --cov-report=html
+
 .PHONY: api-test
 api-test: ensure-venv
 	@if [ -d api/tests ]; then \

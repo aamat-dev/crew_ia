@@ -20,7 +20,7 @@ load_dotenv()
 import core.log  # configure root logger
 
 from .deps import settings
-from .routes import health, runs, nodes, artifacts, events, tasks
+from .routes import health, runs, nodes, artifacts, events, tasks, agents
 from app.routers import nodes as node_actions
 from app.routers import plans as plan_routes
 from .middleware import RequestIDMiddleware
@@ -43,6 +43,7 @@ TAGS_METADATA = [
     {"name": "artifacts", "description": "Lecture des artifacts produits par les nœuds."},
     {"name": "events", "description": "Lecture des événements/logs d'un run."},
     {"name": "tasks", "description": "Déclenchement d’un run ad-hoc et suivi de statut."},
+    {"name": "agents", "description": "Gestion des agents, recrutement et matrice modèles."},
 ]
 
 def _build_storage():
@@ -106,7 +107,7 @@ ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_METHODS = ["GET", "POST", "PATCH", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"]
+CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID", "X-Role"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -125,6 +126,7 @@ app.include_router(events.router)
 app.include_router(tasks.router)
 app.include_router(node_actions.router)
 app.include_router(plan_routes.router)
+app.include_router(agents.router)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)

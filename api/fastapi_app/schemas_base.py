@@ -5,11 +5,17 @@ from datetime import datetime
 
 T = TypeVar("T")
 
+class PageLinks(BaseModel):
+    prev: Optional[str] = None
+    next: Optional[str] = None
+
+
 class Page(BaseModel, Generic[T]):
     items: List[T]
     total: int
     limit: int
     offset: int
+    links: Optional[PageLinks] = Field(default=None, alias="_links")
     model_config = ConfigDict(json_schema_extra={"examples": [{"items": [], "total": 0, "limit": 50, "offset": 0}]})
 
 # ---------- LLM options (facultatif) ----------
@@ -138,6 +144,57 @@ class EventOut(BaseModel):
     message: str
     timestamp: datetime
     request_id: Optional[str] = None
+
+
+# ---------- Agents ---------------------------------------------------------
+
+
+class AgentOut(BaseModel):
+    id: UUID
+    name: str
+    role: str
+    domain: str
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Dict[str, Any] = Field(default_factory=dict)
+    version: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AgentCreate(BaseModel):
+    name: str
+    role: str
+    domain: str
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    domain: Optional[str] = None
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class AgentMatrixOut(BaseModel):
+    id: UUID
+    role: str
+    domain: str
+    models: Dict[str, Any]
+    version: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 __all__ = [
     name
