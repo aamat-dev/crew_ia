@@ -310,3 +310,15 @@ Exemple de sidecar valide :
   "node_id": "123e4567-e89b-42d3-a456-426614174001"
 }
 ```
+
+## Cockpit front-end
+
+Un tableau de bord Next.js est disponible dans `apps/cockpit`.
+Pour le démarrer en développement :
+
+```bash
+cd apps/cockpit
+npm run dev
+```
+
+Cela démarre un serveur local accessible sur http://localhost:3000.
