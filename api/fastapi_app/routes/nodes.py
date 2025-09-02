@@ -84,7 +84,7 @@ async def list_nodes(
         )
         for n in rows
     ]
-    set_pagination_headers(
+    links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )
     return Page[NodeOut](
@@ -92,4 +92,5 @@ async def list_nodes(
         total=total,
         limit=pagination.limit,
         offset=pagination.offset,
+        links=links or None,
     )

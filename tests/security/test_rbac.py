@@ -33,3 +33,10 @@ async def test_no_rbac_header_required_when_flag_off(client, monkeypatch):
         headers={"X-Request-ID": "r3"},
     )
     assert r.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_get_allowed_without_role_header(client, monkeypatch):
+    monkeypatch.setattr(deps, "FEATURE_RBAC", True)
+    r = await client.get("/agents")
+    assert r.status_code == 200
