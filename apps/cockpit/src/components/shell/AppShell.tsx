@@ -12,6 +12,8 @@ import {
 import { ToastProvider } from "@/components/ds/Toast";
 import { cn } from "@/lib/utils";
 import { Header } from "./Header";
+import { ShortcutsCheatsheet } from "@/components/shortcuts/ShortcutsCheatsheet";
+import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,6 +21,15 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
+  const [cheatsheetOpen, setCheatsheetOpen] = React.useState(false);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
+  useGlobalShortcuts({
+    searchRef,
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    onOpenCheatsheet: () => setCheatsheetOpen(true),
+  });
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -56,11 +67,20 @@ export function AppShell({ children }: AppShellProps) {
           </nav>
         </aside>
         <div className="flex flex-1 flex-col">
-          <Header />
+          <Header
+            searchRef={searchRef}
+            onCheatsheetOpen={() => setCheatsheetOpen(true)}
+            commandPaletteOpen={commandPaletteOpen}
+            onCommandPaletteOpenChange={setCommandPaletteOpen}
+          />
           <main className="flex-1 overflow-y-auto p-4" role="main">
             {children}
           </main>
         </div>
+        <ShortcutsCheatsheet
+          open={cheatsheetOpen}
+          onOpenChange={setCheatsheetOpen}
+        />
       </div>
     </ToastProvider>
   );
