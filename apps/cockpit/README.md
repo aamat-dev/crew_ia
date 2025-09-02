@@ -12,6 +12,10 @@ Les tokens (couleurs, typographies, radius, ombres, animations) sont définis da
 
 Le mode clair/sombre respecte `prefers-color-scheme` et peut être changé depuis le header.
 
+## Dashboard
+
+La page `/dashboard` affiche des KPI animés et des graphes dynamiques construits avec Recharts. Les données sont récupérées via TanStack Query depuis des API mock (`/api/agents`, `/api/runs`, `/api/feedbacks`). Des Skeletons et toasts gèrent les états de chargement et d'erreur.
+
 ## Tests d'accessibilité
 
-Lancer `npm test` pour exécuter les tests `jest-axe` sur l'AppShell et vérifier qu'aucune violation n'est détectée.
+Lancer `npm test` pour exécuter les tests `jest-axe` sur l'AppShell et le Dashboard et vérifier qu'aucune violation n'est détectée.
