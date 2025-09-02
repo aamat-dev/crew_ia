@@ -1,0 +1,32 @@
+---
+sidebar_position: 3
+---
+
+# Accessibilité
+
+## WCAG
+
+Respecter WCAG 2.1 AA pour toutes les pages.
+
+## jest-axe
+
+```ts
+import { axe } from 'jest-axe';
+const results = await axe(<MonComposant />);
+expect(results).toHaveNoViolations();
+```
+
+## Raccourcis
+
+- Fournir des raccourcis clavier documentés.
+- Éviter les conflits avec ceux du navigateur.
+
+## Focus
+
+- Gérer l'ordre de tabulation.
+- Mettre en évidence l'élément actif.
+
+## Reduce Motion
+
+- Respecter `prefers-reduced-motion`.
+- Offrir une option pour désactiver les animations.

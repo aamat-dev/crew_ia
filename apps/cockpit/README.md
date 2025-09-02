@@ -19,3 +19,7 @@ La page `/dashboard` affiche des KPI animés et des graphes dynamiques construit
 ## Tests d'accessibilité
 
 Lancer `npm test` pour exécuter les tests `jest-axe` sur l'AppShell et le Dashboard et vérifier qu'aucune violation n'est détectée.
+
+## Documentation
+
+La documentation complète est disponible dans [cockpit-docs](../cockpit-docs).
