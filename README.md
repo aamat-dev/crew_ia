@@ -51,6 +51,23 @@ curl -X POST "http://localhost:8000/feedbacks" \
  }'
 ```
 
+Un feedback automatique est généré après chaque nœud. Si le score est
+inférieur au seuil configuré (`FEEDBACK_CRITICAL_THRESHOLD`, 60 par
+défaut) :
+
+1. Le nœud est marqué en pause et un événement `feedback.critical` est
+émis.
+2. Depuis l'interface, un re-run guidé peut être déclenché après avoir
+corrigé le prompt ou relancé le nœud.
+
+### Scénario E2E feedback auto + re-run
+
+1. Lancer l'API (`make api-run`).
+2. Exécuter un DAG : un feedback auto est créé et visible dans le
+   panneau Feedback du dashboard.
+3. En cas de score critique, utiliser le bouton « Re-run guidé » pour
+   relancer le nœud après correction.
+
 ## Scénario E2E (API + UI)
 
 ### Prérequis

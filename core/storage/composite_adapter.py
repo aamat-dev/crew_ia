@@ -86,7 +86,7 @@ class CompositeAdapter:
 
     async def _call(self, name: str, *args, **kwargs):
         result = None
-        needs_norm = name in {"save_artifact", "save_event"}
+        needs_norm = name in {"save_artifact", "save_event", "save_feedback"}
         for a in self.adapters:
             if not hasattr(a, name):
                 continue
@@ -117,6 +117,9 @@ class CompositeAdapter:
 
     async def save_event(self, *args, **kwargs):
         return await self._call("save_event", *args, **kwargs)
+
+    async def save_feedback(self, *args, **kwargs):
+        return await self._call("save_feedback", *args, **kwargs)
 
     async def get_run(self, *args, **kwargs):
         # premier qui répond (tolérant aux erreurs backend)
