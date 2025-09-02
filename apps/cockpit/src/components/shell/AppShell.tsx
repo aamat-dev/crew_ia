@@ -32,7 +32,7 @@ export function AppShell({ children }: AppShellProps) {
   });
 
   const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/tasks", label: "Tasks", icon: ListCheck },
     { href: "/plans", label: "Plans", icon: Map },
     { href: "/runs", label: "Runs", icon: Play },

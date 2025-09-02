@@ -40,3 +40,4 @@ test_api*
 .envrc
 test_metrics.db
 node_modules/
+.docusaurus/
