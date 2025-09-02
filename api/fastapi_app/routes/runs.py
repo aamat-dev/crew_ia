@@ -193,6 +193,53 @@ async def get_run(
 
     dag = DagOut(nodes=dag_nodes, edges=[])
 
+    # DAG nodes with feedbacks
+    node_rows = (
+        await session.execute(select(Node).where(Node.run_id == run_id))
+    ).scalars().all()
+    node_ids = [n.id for n in node_rows]
+    fb_map: dict[UUID, list[FeedbackOut]] = {nid: [] for nid in node_ids}
+    if node_ids:
+        fb_rows = (
+            await session.execute(
+                select(Feedback).where(Feedback.node_id.in_(node_ids)).order_by(Feedback.created_at.desc())
+            )
+        ).scalars().all()
+        for f in fb_rows:
+            fb_map[f.node_id].append(
+                FeedbackOut(
+                    id=f.id,
+                    run_id=f.run_id,
+                    node_id=f.node_id,
+                    source=f.source,
+                    reviewer=f.reviewer,
+                    score=f.score,
+                    comment=f.comment,
+                    metadata=f.meta,
+                    created_at=to_tz(f.created_at, tz),
+                    updated_at=to_tz(f.updated_at, tz),
+                )
+            )
+
+    dag_nodes = [
+        NodeOut(
+            id=n.id,
+            run_id=n.run_id,
+            key=n.key,
+            title=n.title,
+            status=n.status,
+            role=n.role,
+            checksum=n.checksum,
+            deps=n.deps,
+            created_at=to_tz(n.created_at, tz),
+            updated_at=to_tz(n.updated_at, tz),
+            feedbacks=fb_map.get(n.id, []),
+        )
+        for n in node_rows
+    ]
+
+    dag = DagOut(nodes=dag_nodes, edges=[])
+
     return RunOut(
         id=run.id,
         title=run.title,
