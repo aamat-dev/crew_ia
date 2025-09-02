@@ -26,11 +26,9 @@ describe('PlanEditor assignments', () => {
       graph: { nodes: [{ id: 'n1' }], edges: [] },
       assignments: [],
     };
-    const fetchMock = vi
-      .fn<[
-        RequestInfo,
-        RequestInit | undefined
-      ], Promise<Response>>((url, opts) => {
+    const fetchMock = vi.fn<
+      (url: RequestInfo, _opts?: RequestInit) => Promise<Response>
+    >((url) => {
         if (url.toString().endsWith('/plans/p1')) {
           return Promise.resolve(
             new Response(JSON.stringify(plan), {
@@ -82,11 +80,11 @@ describe('PlanEditor assignments', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
 
-    const calls = fetchMock.mock.calls.filter((c) =>
-      c[0].toString().endsWith('/plans/p1/assignments'),
-    );
+    const calls = (
+      fetchMock.mock.calls as Array<[RequestInfo, RequestInit | undefined]>
+    ).filter(([url]) => url.toString().endsWith('/plans/p1/assignments'));
     expect(JSON.parse(calls[0][1]?.body as string)).toEqual({
-      assignments: [
+      items: [
         {
           node_id: 'n1',
           role: 'r1',
@@ -98,7 +96,7 @@ describe('PlanEditor assignments', () => {
       ],
     });
     expect(JSON.parse(calls[1][1]?.body as string)).toEqual({
-      assignments: [
+      items: [
         {
           node_id: 'n1',
           role: 'r1',
@@ -118,11 +116,9 @@ describe('PlanEditor assignments', () => {
       graph: { nodes: [{ id: 'n1' }], edges: [] },
       assignments: [],
     };
-    const fetchMock = vi
-      .fn<[
-        RequestInfo,
-        RequestInit | undefined
-      ], Promise<Response>>((url, opts) => {
+    const fetchMock = vi.fn<
+      (url: RequestInfo, _opts?: RequestInit) => Promise<Response>
+    >((url) => {
         if (url.toString().endsWith('/plans/p1')) {
           return Promise.resolve(
             new Response(JSON.stringify(plan), {

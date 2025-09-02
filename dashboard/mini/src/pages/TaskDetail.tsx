@@ -80,7 +80,7 @@ const TaskDetailPage = (): JSX.Element => {
           )}
         </div>
       )}
-      <button onClick={generate} disabled={genMutation.isLoading}>
+      <button onClick={generate} disabled={genMutation.isPending}>
         Générer le plan
       </button>
     </div>

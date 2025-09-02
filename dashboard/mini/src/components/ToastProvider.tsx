@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+  type JSX,
+} from 'react';
 
 interface Toast {
   id: number;

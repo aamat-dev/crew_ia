@@ -43,7 +43,11 @@ const PlanGraph = ({ graph, selected, onSelect }: PlanGraphProps) => {
     }));
     return (
       <div style={{ width: '100%', height: 200 }} data-testid="plan-reactflow">
-        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, node) => onSelect?.(node.id)} />
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={(_: unknown, node: { id: string }) => onSelect?.(node.id)}
+        />
       </div>
     );
   }
