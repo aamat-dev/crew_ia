@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 
 from api.fastapi_app.models.agent import Agent
@@ -28,6 +28,10 @@ async def test_create_read_agent(db_session):
 
 @pytest.mark.asyncio
 async def test_unique_agent_name(db_session):
+    # Assure une base propre pour le nom utilisé dans ce test
+    await db_session.execute(delete(Agent).where(Agent.name == "dup"))
+    await db_session.commit()
+
     a1 = Agent(name="dup", role="manager", domain="frontend")
     a2 = Agent(name="dup", role="manager", domain="backend")
     db_session.add(a1)

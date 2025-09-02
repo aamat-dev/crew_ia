@@ -1,0 +1,41 @@
+{
+  "$schema": "quality/schemas/checklist-1.0.schema.json",
+  "id": "qa.write.v1",
+  "version": "1.0.0",
+  "node_type": "write",
+  "reject_threshold": 60,
+  "allow_na": true,
+  "criteria": [
+    {
+      "id": "clarity",
+      "label": "Clarté du texte",
+      "weight": 0.34,
+      "rubric": {
+        "0": "Texte incompréhensible ou très confus.",
+        "50": "Texte partiellement clair mais comporte des ambiguïtés.",
+        "100": "Texte clair et facile à comprendre."
+      }
+    },
+    {
+      "id": "completeness",
+      "label": "Complétude du contenu",
+      "weight": 0.33,
+      "rubric": {
+        "0": "Informations essentielles manquantes.",
+        "50": "Contenu partiellement complet.",
+        "100": "Contenu totalement complet et pertinent."
+      }
+    },
+    {
+      "id": "coherence",
+      "label": "Cohérence et structure",
+      "weight": 0.33,
+      "expected": { "sections_optional": true, "format": "markdown|doc|plain" },
+      "rubric": {
+        "0": "Structure incohérente ou illogique.",
+        "50": "Structure acceptable avec quelques incohérences.",
+        "100": "Structure logique et cohérente."
+      }
+    }
+  ]
+}

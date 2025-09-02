@@ -1,0 +1,41 @@
+{
+  "$schema": "quality/schemas/checklist-1.0.schema.json",
+  "id": "qa.review.v1",
+  "version": "1.0.0",
+  "node_type": "review",
+  "reject_threshold": 60,
+  "allow_na": true,
+  "criteria": [
+    {
+      "id": "coverage",
+      "label": "Couverture de la revue",
+      "weight": 0.34,
+      "rubric": {
+        "0": "Nombreux aspects non revus.",
+        "50": "Revue partielle.",
+        "100": "Revue complète de tous les aspects pertinents."
+      }
+    },
+    {
+      "id": "constructiveness",
+      "label": "Caractère constructif",
+      "weight": 0.33,
+      "expected": { "actionable": true },
+      "rubric": {
+        "0": "Feedback inutile ou absent.",
+        "50": "Feedback limité ou peu exploitable.",
+        "100": "Feedback clair et exploitable."
+      }
+    },
+    {
+      "id": "style",
+      "label": "Clarté du feedback",
+      "weight": 0.33,
+      "rubric": {
+        "0": "Feedback confus ou mal formulé.",
+        "50": "Feedback compréhensible mais perfectible.",
+        "100": "Feedback clair et bien formulé."
+      }
+    }
+  ]
+}
