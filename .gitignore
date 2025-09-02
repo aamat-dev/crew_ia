@@ -14,7 +14,6 @@ artifacts/
 !README.md
 !docs/*.md
 
-
 # Caches / temporaires Python
 __pycache__/
 *.py[cod]
