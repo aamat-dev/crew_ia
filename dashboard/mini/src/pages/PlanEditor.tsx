@@ -46,7 +46,7 @@ const PlanEditor = () => {
       const newMap = { ...assignments, [a.node_id]: a };
       setAssignments(newMap);
       setSuccess('Assignation sauvegardée');
-      if (plan && plan.graph.nodes.every((n) => newMap[n.id])) {
+      if (plan?.graph?.nodes.every((n) => newMap[n.id])) {
         await setPlanStatus(id, 'ready');
         setPlan({ ...plan, status: 'ready' });
       }

@@ -60,6 +60,7 @@ export interface Feedback {
   created_at: string;
   updated_at?: string;
 }
+
 export interface NodeItem {
   id: string;
   role?: string;
@@ -96,11 +97,6 @@ export type TaskStatus =
   | 'completed'
   | 'failed';
 
-export interface Plan {
-  status: 'draft' | 'ready' | 'invalid';
-  errors?: string[];
-}
-
 export interface Task {
   id: string;
   title: string;
@@ -131,9 +127,10 @@ export interface Assignment {
 }
 
 export interface Plan {
-  id: string;
+  id?: string;
   status: 'draft' | 'ready' | 'invalid';
-  graph: {
+  errors?: string[];
+  graph?: {
     nodes: Array<{ id: string; role?: string }>;
     edges: Array<{ from: string; to: string }>;
   };

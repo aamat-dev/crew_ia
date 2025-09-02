@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Any, Dict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Body
+from fastapi import APIRouter, Depends, Query, Request, Response, status, Body
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,6 @@ from ..deps import (
     to_tz,
 )
 from ..schemas_base import Page
-from ..schemas.feedbacks import FeedbackCreate, FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
@@ -33,11 +33,51 @@ ORDERABLE = {
 }
 
 
+# --- Schemas locaux (on étend sans casser le contrat main) ---
+
+class FeedbackCreate(BaseModel):
+    run_id: UUID
+    node_id: UUID
+    source: str = Field(..., min_length=1)
+    reviewer: Optional[str] = Field(default=None)  # main autorisait None
+    score: Optional[int] = Field(None, ge=0, le=100)  # optionnel pour compat tests
+    comment: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # compat main (meta)
+    evaluation: Optional[Dict[str, Any]] = None  # NOUVEAU
+
+    @field_validator("source")
+    @classmethod
+    def _source_norm(cls, v: str) -> str:
+        return v.strip()
+
+    @field_validator("reviewer")
+    @classmethod
+    def _reviewer_norm(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if isinstance(v, str) else v
+
+
+class FeedbackOut(BaseModel):
+    id: UUID
+    run_id: UUID
+    node_id: UUID
+    source: str
+    reviewer: Optional[str] = None
+    score: Optional[int] = None
+    comment: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    evaluation: Optional[Dict[str, Any]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+# --- Routes ---
+
 @router.post(
     "",
     response_model=FeedbackOut,
     status_code=201,
     dependencies=[Depends(require_role("editor", "admin")), Depends(require_request_id)],
+
     responses={
         201: {
             "description": "Feedback créé",
@@ -99,8 +139,12 @@ async def create_feedback(
         score=fb.score,
         comment=fb.comment,
         metadata=fb.meta,
-        created_at=fb.created_at,
-        updated_at=getattr(fb, "updated_at", None),
+        created_at=fb.created_at.isoformat() if fb.created_at else None,
+        updated_at=(
+            getattr(fb, "updated_at", None).isoformat()
+            if getattr(fb, "updated_at", None)
+            else None
+        ),
     )
 
 
@@ -168,8 +212,12 @@ async def list_feedbacks(
             score=f.score,
             comment=f.comment,
             metadata=f.meta,
-            created_at=to_tz(f.created_at, tz),
-            updated_at=to_tz(getattr(f, "updated_at", None), tz),
+            created_at=to_tz(f.created_at, tz).isoformat() if f.created_at else None,
+            updated_at=(
+                to_tz(getattr(f, "updated_at", None), tz).isoformat()
+                if getattr(f, "updated_at", None)
+                else None
+            ),
         )
         for f in rows
     ]

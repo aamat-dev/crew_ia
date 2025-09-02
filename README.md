@@ -67,6 +67,14 @@ Workflow complet :
 2. Le tableau affiche immédiatement les feedbacks auto et humains.
 3. En cas de score critique, utiliser « Re-run guidé » pour relancer le nœud.
 
+![Feedback Panel](docs/feedback-panel.png)
+
+Workflow complet :
+
+1. Saisir un feedback humain dans le panneau Feedback (score, commentaire).
+2. Le tableau affiche immédiatement les feedbacks auto et humains.
+3. En cas de score critique, utiliser « Re-run guidé » pour relancer le nœud.
+
 ### Scénario E2E feedback auto + re-run
 
 1. Lancer l'API (`make api-run`).

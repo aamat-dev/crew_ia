@@ -102,7 +102,7 @@ const FeedbackPanel = ({ runId, nodeId }: Props): JSX.Element => {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
-        <button onClick={onSubmit} disabled={mutation.isLoading}>Envoyer</button>
+        <button onClick={onSubmit} disabled={mutation.isPending}>Envoyer</button>
       </div>
       <div style={{ marginTop: 8 }}>
         <button onClick={() => void doAction({ action: 'resume' })}>Re-run guidé</button>
