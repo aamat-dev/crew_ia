@@ -13,7 +13,7 @@ export function KpiCard({ title, value, className }: KpiCardProps) {
       role="group"
       aria-label={`KPI ${title}`}
       className={cn(
-        "rounded-md border p-4 shadow-sm bg-background text-foreground",
+        "rounded-lg border p-4 shadow-sm bg-card text-card-foreground",
         className
       )}
     >
