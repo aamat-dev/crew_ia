@@ -60,10 +60,7 @@ export interface Feedback {
   created_at: string;
   updated_at?: string;
 }
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 export interface NodeItem {
   id: string;
   role?: string;

@@ -3,15 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-<<<<<<< Updated upstream
-from fastapi import APIRouter, Depends, Query, Request, Response, Body
-=======
-<<<<<<< ours
 from fastapi import APIRouter, Depends, Query, Request, Response, status
-=======
-from fastapi import APIRouter, Depends, Query, Request, Response, Body
->>>>>>> theirs
->>>>>>> Stashed changes
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,9 +33,6 @@ ORDERABLE = {
 }
 
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< ours
 # --- Schemas locaux (on étend sans casser le contrat main) ---
 
 class FeedbackCreate(BaseModel):
@@ -83,21 +72,12 @@ class FeedbackOut(BaseModel):
 
 # --- Routes ---
 
->>>>>>> Stashed changes
 @router.post(
     "",
     response_model=FeedbackOut,
     status_code=201,
     dependencies=[Depends(require_role("editor", "admin")), Depends(require_request_id)],
-<<<<<<< Updated upstream
-=======
-=======
-@router.post(
-    "",
-    response_model=FeedbackOut,
-    status_code=201,
-    dependencies=[Depends(require_role("editor", "admin")), Depends(require_request_id)],
->>>>>>> Stashed changes
+
     responses={
         201: {
             "description": "Feedback créé",
@@ -119,10 +99,6 @@ class FeedbackOut(BaseModel):
             },
         }
     },
-<<<<<<< Updated upstream
-=======
->>>>>>> theirs
->>>>>>> Stashed changes
 )
 async def create_feedback(
     payload: FeedbackCreate = Body(
