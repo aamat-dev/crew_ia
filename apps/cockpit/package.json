@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:a11y": "jest -t accessibilité"
+    "test:a11y": "jest -t accessibilité",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.55.0",
     "@swc/jest": "^0.2.36",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.8.0",
