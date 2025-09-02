@@ -32,6 +32,9 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Assets binaires
+*.ico
+
 # Tests
 test_api*
 .envrc
