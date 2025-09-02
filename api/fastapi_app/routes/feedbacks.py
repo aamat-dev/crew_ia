@@ -1,9 +1,8 @@
 from __future__ import annotations
-
-from typing import Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,16 +15,20 @@ from ..deps import (
     to_tz,
 )
 from ..schemas_base import Page
-from ..schemas.feedbacks import FeedbackCreate, FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
     set_pagination_headers,
 )
 from ..ordering import apply_order
+from pydantic import BaseModel, Field, field_validator
 from core.storage.db_models import Feedback
 
-router = APIRouter(prefix="/feedbacks", tags=["feedbacks"], dependencies=[Depends(strict_api_key_auth)])
+router = APIRouter(
+    prefix="/feedbacks",
+    tags=["feedbacks"],
+    dependencies=[Depends(strict_api_key_auth)]
+)
 
 ORDERABLE = {
     "created_at": Feedback.created_at,
@@ -33,7 +36,51 @@ ORDERABLE = {
 }
 
 
-@router.post("", response_model=FeedbackOut, status_code=201, dependencies=[Depends(require_role("editor", "admin")), Depends(require_request_id)])
+# --- Schemas locaux (on étend sans casser le contrat main) ---
+
+class FeedbackCreate(BaseModel):
+    run_id: UUID
+    node_id: UUID
+    source: str = Field(..., min_length=1)
+    reviewer: Optional[str] = Field(default=None)  # main autorisait None
+    score: Optional[int] = Field(None, ge=0, le=100)  # optionnel pour compat tests
+    comment: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # compat main (meta)
+    evaluation: Optional[Dict[str, Any]] = None  # NOUVEAU
+
+    @field_validator("source")
+    @classmethod
+    def _source_norm(cls, v: str) -> str:
+        return v.strip()
+
+    @field_validator("reviewer")
+    @classmethod
+    def _reviewer_norm(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if isinstance(v, str) else v
+
+
+class FeedbackOut(BaseModel):
+    id: UUID
+    run_id: UUID
+    node_id: UUID
+    source: str
+    reviewer: Optional[str] = None
+    score: Optional[int] = None
+    comment: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    evaluation: Optional[Dict[str, Any]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+# --- Routes ---
+
+@router.post(
+    "",
+    response_model=FeedbackOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("editor", "admin")), Depends(require_request_id)],
+)
 async def create_feedback(
     payload: FeedbackCreate,
     session: AsyncSession = Depends(get_session),
@@ -45,11 +92,13 @@ async def create_feedback(
         reviewer=payload.reviewer,
         score=payload.score,
         comment=payload.comment,
-        meta=payload.metadata,
+        meta=payload.metadata,          # compat main
+        evaluation=payload.evaluation,  # nouveau champ
     )
     session.add(fb)
     await session.commit()
     await session.refresh(fb)
+
     return FeedbackOut(
         id=fb.id,
         run_id=fb.run_id,
@@ -59,8 +108,9 @@ async def create_feedback(
         score=fb.score,
         comment=fb.comment,
         metadata=fb.meta,
-        created_at=fb.created_at,
-        updated_at=fb.updated_at,
+        evaluation=fb.evaluation,
+        created_at=fb.created_at.isoformat() if fb.created_at else None,
+        updated_at=fb.updated_at.isoformat() if getattr(fb, "updated_at", None) else None,
     )
 
 
@@ -81,9 +131,15 @@ async def list_feedbacks(
         where.append(Feedback.node_id == node_id)
 
     base = select(Feedback).where(and_(*where)) if where else select(Feedback)
-    total = (await session.execute(select(func.count(Feedback.id)).where(and_(*where)) if where else select(func.count(Feedback.id)))).scalar_one()
-    stmt = apply_order(base, pagination.order_by, pagination.order_dir, ORDERABLE, "-created_at").limit(pagination.limit).offset(pagination.offset)
+    total = (
+        await session.execute(
+            select(func.count(Feedback.id)).where(and_(*where)) if where else select(func.count(Feedback.id))
+        )
+    ).scalar_one()
+    stmt = apply_order(base, pagination.order_by, pagination.order_dir, ORDERABLE, "-created_at") \
+        .limit(pagination.limit).offset(pagination.offset)
     rows = (await session.execute(stmt)).scalars().all()
+
     items = [
         FeedbackOut(
             id=f.id,
@@ -94,8 +150,9 @@ async def list_feedbacks(
             score=f.score,
             comment=f.comment,
             metadata=f.meta,
+            evaluation=f.evaluation,  # inclus dans la sortie
             created_at=to_tz(f.created_at, tz),
-            updated_at=to_tz(f.updated_at, tz),
+            updated_at=to_tz(getattr(f, "updated_at", None), tz) if getattr(f, "updated_at", None) else None,
         )
         for f in rows
     ]

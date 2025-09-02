@@ -1,0 +1,41 @@
+{
+  "$schema": "quality/schemas/checklist-1.0.schema.json",
+  "id": "qa.build.v1",
+  "version": "1.0.0",
+  "node_type": "build",
+  "reject_threshold": 70,
+  "allow_na": true,
+  "criteria": [
+    {
+      "id": "correctness",
+      "label": "Exactitude fonctionnelle",
+      "weight": 0.4,
+      "rubric": {
+        "0": "Fonctionne mal ou plante.",
+        "50": "Fonctionne partiellement avec des bugs.",
+        "100": "Fonctionne comme attendu sans bug connu."
+      }
+    },
+    {
+      "id": "tests",
+      "label": "Couverture des tests",
+      "weight": 0.3,
+      "expected": { "coverage_min": 0.8 },
+      "rubric": {
+        "0": "Aucun test.",
+        "50": "Tests limités ou incomplets.",
+        "100": "Tests complets couvrant les cas principaux."
+      }
+    },
+    {
+      "id": "style",
+      "label": "Qualité du code",
+      "weight": 0.3,
+      "rubric": {
+        "0": "Style incohérent ou non conforme.",
+        "50": "Style acceptable avec des écarts.",
+        "100": "Style propre et cohérent."
+      }
+    }
+  ]
+}

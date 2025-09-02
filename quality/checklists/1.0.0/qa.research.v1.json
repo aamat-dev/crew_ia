@@ -1,0 +1,41 @@
+{
+  "$schema": "quality/schemas/checklist-1.0.schema.json",
+  "id": "qa.research.v1",
+  "version": "1.0.0",
+  "node_type": "research",
+  "reject_threshold": 65,
+  "allow_na": true,
+  "criteria": [
+    {
+      "id": "relevance",
+      "label": "Pertinence des informations",
+      "weight": 0.34,
+      "rubric": {
+        "0": "Informations non pertinentes ou hors sujet.",
+        "50": "Informations partiellement pertinentes.",
+        "100": "Informations directement pertinentes."
+      }
+    },
+    {
+      "id": "depth",
+      "label": "Profondeur de l'analyse",
+      "weight": 0.33,
+      "rubric": {
+        "0": "Analyse superficielle.",
+        "50": "Analyse de profondeur moyenne.",
+        "100": "Analyse approfondie et nuancée."
+      }
+    },
+    {
+      "id": "sources",
+      "label": "Qualité des sources",
+      "weight": 0.33,
+      "expected": { "min_sources": 2 },
+      "rubric": {
+        "0": "Aucune source ou sources non fiables.",
+        "50": "Sources partiellement fiables ou insuffisantes.",
+        "100": "Sources fiables et correctement citées."
+      }
+    }
+  ]
+}

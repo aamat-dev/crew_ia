@@ -1,4 +1,3 @@
-# api/fastapi_app/app.py
 from __future__ import annotations
 
 from fastapi import FastAPI
@@ -21,6 +20,7 @@ import core.log  # configure root logger
 
 from .deps import settings
 from .routes import health, runs, nodes, artifacts, events, tasks, agents, feedbacks
+from .routes.qa_report import router as qa_router
 from app.routers import nodes as node_actions
 from app.routers import plans as plan_routes
 from .middleware import RequestIDMiddleware
@@ -89,7 +89,7 @@ app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagatio
 if init_sentry():
     app.add_middleware(SentryContextMiddleware)        # Sentry annotations
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
-app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
+app.add_middleware(GZipMiddleware, minimum_size=1024)  # gzip
 
 if metrics_enabled():
     @app.get("/metrics", include_in_schema=False)
@@ -129,6 +129,7 @@ app.include_router(node_actions.router)
 app.include_router(plan_routes.router)
 app.include_router(agents.router)
 app.include_router(feedbacks.router)
+app.include_router(qa_router)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)
