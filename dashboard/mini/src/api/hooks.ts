@@ -22,7 +22,6 @@ import {
   Status,
   Task,
   TaskDetail,
-  Plan,
 } from './types';
 
 export const useRuns = (
