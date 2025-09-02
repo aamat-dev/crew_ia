@@ -92,8 +92,12 @@ async def list_nodes(
                     score=f.score,
                     comment=f.comment,
                     metadata=f.meta,
-                    created_at=to_tz(f.created_at, tz),
-                    updated_at=to_tz(getattr(f, "updated_at", None), tz),
+                    created_at=to_tz(f.created_at, tz).isoformat() if f.created_at else None,
+                    updated_at=(
+                        to_tz(getattr(f, "updated_at", None), tz).isoformat()
+                        if getattr(f, "updated_at", None)
+                        else None
+                    ),
                 )
             )
 

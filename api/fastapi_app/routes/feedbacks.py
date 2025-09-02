@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Any, Dict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status, Body
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,6 @@ from ..deps import (
     to_tz,
 )
 from ..schemas_base import Page
-from ..schemas.feedbacks import FeedbackCreate, FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
@@ -139,8 +139,12 @@ async def create_feedback(
         score=fb.score,
         comment=fb.comment,
         metadata=fb.meta,
-        created_at=fb.created_at,
-        updated_at=getattr(fb, "updated_at", None),
+        created_at=fb.created_at.isoformat() if fb.created_at else None,
+        updated_at=(
+            getattr(fb, "updated_at", None).isoformat()
+            if getattr(fb, "updated_at", None)
+            else None
+        ),
     )
 
 
@@ -208,8 +212,12 @@ async def list_feedbacks(
             score=f.score,
             comment=f.comment,
             metadata=f.meta,
-            created_at=to_tz(f.created_at, tz),
-            updated_at=to_tz(getattr(f, "updated_at", None), tz),
+            created_at=to_tz(f.created_at, tz).isoformat() if f.created_at else None,
+            updated_at=(
+                to_tz(getattr(f, "updated_at", None), tz).isoformat()
+                if getattr(f, "updated_at", None)
+                else None
+            ),
         )
         for f in rows
     ]
