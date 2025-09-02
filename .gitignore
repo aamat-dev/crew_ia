@@ -12,7 +12,7 @@ env/
 artifacts/
 *.md
 !README.md
-!docs/design-tokens.md
+!docs/*.md
 
 # Caches / temporaires Python
 __pycache__/

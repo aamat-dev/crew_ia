@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* ============================= */
+/*   Design tokens (light mode)  */
+/* ============================= */
 :root {
   color-scheme: light;
-  /* Couleurs */
+
+  /* Core colors (HSL triples) */
   --bg: 0 0% 100%;
   --fg: 240 10% 3.9%;
   --muted: 240 4.8% 95.9%;
@@ -11,18 +15,14 @@
   --primary-foreground: 0 0% 100%;
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 10% 3.9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
   --ring: 262 83% 58%;
   --ring-foreground: 0 0% 100%;
   --card: 0 0% 100%;
   --card-foreground: 240 10% 3.9%;
 
-  /* Surfaces */
-  --elev-0: 1;
-  --elev-1: 0.9;
-  --elev-2: 0.75;
-  --elev-3: 0.6;
+  /* Shadows & radii */
   --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
   --shadow-md: 0 4px 6px hsl(0 0% 0% / 0.1);
   --shadow-lg: 0 10px 15px hsl(0 0% 0% / 0.15);
@@ -31,13 +31,13 @@
   --radius-lg: 0.5rem;
   --radius-2xl: 1rem;
 
-  /* Typographie */
+  /* Typography */
   --font-sans: var(--font-geist-sans, system-ui, sans-serif);
-  --font-mono: var(--font-geist-mono, monospace);
-  --scale-1: 0.875rem;
-  --scale-2: 1rem;
-  --scale-3: 1.25rem;
-  --scale-4: 1.5rem;
+  --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  --font-size-1: 0.875rem;
+  --font-size-2: 1rem;
+  --font-size-3: 1.25rem;
+  --font-size-4: 1.5rem;
 
   /* Motion */
   --duration-fast: 150ms;
@@ -46,14 +46,23 @@
   --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --easing-emph: cubic-bezier(0.2, 0, 0, 1);
 
-  /* États d’accessibilité */
+  /* A11y */
   --focus-ring: 210 100% 50%;
   --focus-width: 2px;
   --outline-offset: 2px;
+
+  /* Glass elevations (light) */
+  --elev-card: hsl(var(--bg) / 0.6);
+  --elev-muted: hsl(var(--muted) / 0.6);
+  --elev-danger: hsl(var(--destructive) / 0.6);
 }
 
+/* ============================= */
+/*          Dark theme           */
+/* ============================= */
 [data-theme="dark"] {
   color-scheme: dark;
+
   --bg: 240 10% 3.9%;
   --fg: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
@@ -62,14 +71,20 @@
   --primary-foreground: 0 0% 100%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 240 5% 64.9%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 85.7% 97.3%;
   --ring: 262 83% 58%;
   --ring-foreground: 0 0% 100%;
   --card: 240 10% 3.9%;
   --card-foreground: 0 0% 98%;
+
+  /* Glass elevations (dark) */
+  --elev-card: hsl(var(--bg) / 0.6);
+  --elev-muted: hsl(var(--muted) / 0.6);
+  --elev-danger: hsl(var(--destructive) / 0.6);
 }
 
+/* Respecte la préférence système si aucun data-theme explicite */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
@@ -81,15 +96,20 @@
     --primary-foreground: 0 0% 100%;
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 240 5% 64.9%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
     --ring: 262 83% 58%;
     --ring-foreground: 0 0% 100%;
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
+
+    --elev-card: hsl(var(--bg) / 0.6);
+    --elev-muted: hsl(var(--muted) / 0.6);
+    --elev-danger: hsl(var(--destructive) / 0.6);
   }
 }
 
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-fast: 0ms;
@@ -100,7 +120,11 @@
   }
 }
 
+/* ============================= */
+/*  Tailwind v4 theme exposure   */
+/* ============================= */
 @theme inline {
+  /* Map vers variables Tailwind */
   --color-background: hsl(var(--bg));
   --color-foreground: hsl(var(--fg));
   --color-muted: hsl(var(--muted));
@@ -116,22 +140,32 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
   --color-border: hsl(var(--muted));
-  --color-focus: hsl(var(--focus-ring));
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-2xl: var(--radius-2xl);
+
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-size-1: var(--scale-1);
-  --font-size-2: var(--scale-2);
-  --font-size-3: var(--scale-3);
-  --font-size-4: var(--scale-4);
+  --font-size-1: var(--font-size-1);
+  --font-size-2: var(--font-size-2);
+  --font-size-3: var(--font-size-3);
+  --font-size-4: var(--font-size-4);
+
+  /* Expose glass elevations */
+  --elev-card: var(--elev-card);
+  --elev-muted: var(--elev-muted);
+  --elev-danger: var(--elev-danger);
 }
 
+/* ============================= */
+/*      Base document styles     */
+/* ============================= */
 body {
   background: hsl(var(--bg));
   color: hsl(var(--fg));
@@ -143,3 +177,58 @@ body {
   outline-offset: var(--outline-offset);
 }
 
+/* ============================= */
+/*        Glass utilities        */
+/* ============================= */
+@layer utilities {
+  .glass {
+    background-color: var(--elev-card);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--fg) / 0.06),
+      var(--shadow-sm);
+    color: hsl(var(--fg));
+  }
+
+  @supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+    .glass {
+      -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+      backdrop-filter: blur(var(--glass-blur, 12px));
+    }
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+    .glass {
+      background-color: hsl(var(--bg));
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce), (prefers-reduced-motion: reduce) {
+    .glass {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+      background-color: hsl(var(--bg));
+    }
+  }
+
+  .glass-muted {
+    background-color: var(--elev-muted);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--fg) / 0.04),
+      var(--shadow-sm);
+  }
+
+  .glass-card {
+    background-color: var(--elev-card);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--fg) / 0.06),
+      var(--shadow-md);
+  }
+
+  .glass-danger {
+    background-color: var(--elev-danger);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--destructive-foreground) / 0.08),
+      var(--shadow-sm);
+    color: hsl(var(--destructive-foreground));
+  }
+}
