@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-background: 0 0% 100%;
+  --color-foreground: 240 10% 3.9%;
+  --color-muted: 240 4.8% 95.9%;
+  --color-muted-foreground: 240 3.8% 46.1%;
+  --color-primary: 262 83% 58%;
+  --color-primary-foreground: 0 0% 100%;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
+  --shadow-md: 0 4px 6px hsl(0 0% 0% / 0.1);
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --color-background: 240 10% 3.9%;
+  --color-foreground: 0 0% 98%;
+  --color-muted: 240 3.7% 15.9%;
+  --color-muted-foreground: 240 5% 64.9%;
+  --color-primary: 262 83% 58%;
+  --color-primary-foreground: 0 0% 100%;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: hsl(var(--color-background));
+  --color-foreground: hsl(var(--color-foreground));
+  --color-muted: hsl(var(--color-muted));
+  --color-muted-foreground: hsl(var(--color-muted-foreground));
+  --color-primary: hsl(var(--color-primary));
+  --color-primary-foreground: hsl(var(--color-primary-foreground));
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: hsl(var(--color-background));
+  color: hsl(var(--color-foreground));
+  font-family: var(--font-geist-sans, Arial, sans-serif);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:focus-visible {
+  outline: 2px solid hsl(var(--color-primary));
+  outline-offset: 2px;
 }
