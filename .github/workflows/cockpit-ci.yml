@@ -1,0 +1,31 @@
+name: Cockpit CI
+
+on:
+  push:
+    paths:
+      - 'apps/cockpit/**'
+      - '.github/workflows/cockpit-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/cockpit/**'
+      - '.github/workflows/cockpit-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/cockpit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/cockpit/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Lighthouse audit
+        run: npm run ci:lighthouse
