@@ -59,6 +59,13 @@ défaut) :
 émis.
 2. Depuis l'interface, un re-run guidé peut être déclenché après avoir
 corrigé le prompt ou relancé le nœud.
+![Feedback Panel](docs/feedback-panel.png)
+
+Workflow complet :
+
+1. Saisir un feedback humain dans le panneau Feedback (score, commentaire).
+2. Le tableau affiche immédiatement les feedbacks auto et humains.
+3. En cas de score critique, utiliser « Re-run guidé » pour relancer le nœud.
 
 ### Scénario E2E feedback auto + re-run
 
@@ -67,6 +74,19 @@ corrigé le prompt ou relancé le nœud.
    panneau Feedback du dashboard.
 3. En cas de score critique, utiliser le bouton « Re-run guidé » pour
    relancer le nœud après correction.
+
+### Tests E2E UI (Playwright)
+
+1. Lancer le front en mode dev ou preview :
+   ```bash
+   (cd dashboard/mini && npm i && npm run dev)
+   # repérez l'URL, par ex. http://localhost:5173
+   ```
+2. Exécuter les tests :
+   ```bash
+   PREVIEW_URL=http://localhost:5173 make ui-feedbacks-e2e
+   ```
+   Le test est ignoré si `PREVIEW_URL` n'est pas défini.
 
 ## Scénario E2E (API + UI)
 
@@ -147,6 +167,8 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
 - `CORS_ORIGINS` — origines autorisées pour CORS.
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
+- `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
+- `FEEDBACK_REVIEW_TIMEOUT_MS` — délai d'attente de l'auto‑review en ms (défaut 3500).
 
 ### Presets dev / prod
 

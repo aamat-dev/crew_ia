@@ -43,11 +43,23 @@ export interface RunSummary {
 export interface RunDetail extends Run {
   summary?: RunSummary;
   dag?: {
-    nodes: Array<{ id: string; label?: string; role?: string; status: Status }>;
+    nodes: Array<{ id: string; label?: string; role?: string; status: Status; feedbacks?: Feedback[] }>;
     edges: Array<{ from: string; to: string }>;
   };
 }
 
+export interface Feedback {
+  id: string;
+  run_id: string;
+  node_id: string;
+  source: 'auto' | 'human';
+  reviewer?: string;
+  score: number;
+  comment: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string;
+}
 export interface NodeItem {
   id: string;
   role?: string;
@@ -56,6 +68,7 @@ export interface NodeItem {
   ended_at?: string;
   duration_ms?: number;
   checksum?: string;
+  feedbacks?: Feedback[];
 }
 
 export interface EventItem {

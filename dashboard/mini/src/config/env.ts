@@ -22,6 +22,10 @@ export const API_TIMEOUT_MS =
 export const DEMO_API_KEY =
   String(import.meta.env.VITE_DEMO_API_KEY ?? '').trim() || undefined;
 
+const rawFbThreshold = Number(import.meta.env.VITE_FEEDBACK_CRITICAL_THRESHOLD);
+export const FEEDBACK_CRITICAL_THRESHOLD =
+  Number.isFinite(rawFbThreshold) ? rawFbThreshold : 60;
+
 export default {
   getApiBaseUrl,
   setApiBaseUrl,

@@ -20,6 +20,7 @@ export interface FetchOpts {
   signal?: AbortSignal;
   method?: string;     // string pour autoriser PATCH
   body?: unknown;
+  role?: 'viewer' | 'editor' | 'admin';
 }
 
 export async function fetchJson<T>(
@@ -34,9 +35,12 @@ export async function fetchJson<T>(
   }
 
   const requestId = uuidv4();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'X-Request-ID': requestId,
+  };
   const apiKey = getCurrentApiKey();
   if (apiKey) headers['X-API-Key'] = apiKey;
+  if (opts.role) headers['X-Role'] = opts.role;
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
   const timeoutCtrl = new AbortController();
@@ -100,9 +104,13 @@ export async function postJson<T, B = unknown>(
   }
 
   const requestId = uuidv4();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Request-ID': requestId,
+  };
   const apiKey = getCurrentApiKey();
   if (apiKey) headers['X-API-Key'] = apiKey;
+  if (opts.role) headers['X-Role'] = opts.role;
 
   const timeoutCtrl = new AbortController();
   const timeoutId = setTimeout(() => timeoutCtrl.abort(), API_TIMEOUT_MS);

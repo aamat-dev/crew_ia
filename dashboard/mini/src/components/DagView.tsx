@@ -1,5 +1,6 @@
 import type { ComponentType, JSX } from 'react';
 import { useEffect, useState } from 'react';
+import FeedbackBadge from './FeedbackBadge';
 import type { RunDetail } from '../api/types';
 
 interface DagViewProps {
@@ -31,7 +32,14 @@ const DagView = ({ dag, onSelectNode, selectedNodeId }: DagViewProps): JSX.Eleme
     const nodes = dag.nodes.map((n, idx) => ({
       id: n.id,
       position: { x: idx * 200, y: 0 },
-      data: { label: `${n.role ?? n.id} (${n.status})` },
+      data: {
+        label: (
+          <span>
+            {n.role ?? n.id} ({n.status})
+            <FeedbackBadge feedbacks={n.feedbacks} />
+          </span>
+        ),
+      },
     }));
     const edges = dag.edges.map((e) => ({
       id: `${e.from}-${e.to}`,
@@ -126,6 +134,9 @@ const DagView = ({ dag, onSelectNode, selectedNodeId }: DagViewProps): JSX.Eleme
           >
             {n.status}
           </text>
+          <foreignObject x="62" y="-8" width="20" height="20">
+            <FeedbackBadge feedbacks={n.feedbacks} />
+          </foreignObject>
         </g>
       ))}
     </svg>

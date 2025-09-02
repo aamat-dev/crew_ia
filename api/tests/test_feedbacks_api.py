@@ -124,3 +124,28 @@ async def test_get_nodes_includes_feedbacks(monkeypatch, async_client, seed_samp
     target = [n for n in items if n["id"] == str(node_id)][0]
     assert len(target["feedbacks"]) == 1
     assert target["feedbacks"][0]["comment"] == "c"
+
+
+@pytest.mark.asyncio
+async def test_run_detail_includes_feedbacks(monkeypatch, async_client, seed_sample):
+    monkeypatch.setattr(deps, "FEATURE_RBAC", True)
+    run_id = seed_sample["run_id"]
+    node_id = seed_sample["node_ids"][0]
+    headers = {"X-Role": "editor", "X-Request-ID": "rr2"}
+    await async_client.post(
+        "/feedbacks",
+        json={
+            "run_id": str(run_id),
+            "node_id": str(node_id),
+            "source": "human",
+            "score": 55,
+            "comment": "c",
+        },
+        headers=headers,
+    )
+    r = await async_client.get(f"/runs/{run_id}")
+    assert r.status_code == 200
+    dag_nodes = r.json()["dag"]["nodes"]
+    target = [n for n in dag_nodes if n["id"] == str(node_id)][0]
+    assert len(target["feedbacks"]) == 1
+    assert target["feedbacks"][0]["comment"] == "c"

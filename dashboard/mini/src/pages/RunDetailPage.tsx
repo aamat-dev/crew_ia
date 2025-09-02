@@ -10,6 +10,7 @@ import DagView from '../components/DagView';
 import NodesTable from '../components/NodesTable';
 import EventsTable from '../components/EventsTable';
 import ArtifactsList from '../components/ArtifactsList';
+import FeedbackPanel from '../components/FeedbackPanel';
 
 const RunDetailPage = (): JSX.Element => {
   const { apiKey, useEnvKey } = useApiKey();
@@ -119,12 +120,19 @@ const RunDetailPage = (): JSX.Element => {
         <RunSummary run={run} summary={summary} />
       )}
       {activeTab === 'dag' && run.dag && (
-        <section>
-          <DagView dag={run.dag} />
+        <section style={{ display: 'flex' }}>
+          <DagView
+            dag={run.dag}
+            onSelectNode={setSelectedNodeId}
+            selectedNodeId={selectedNodeId}
+          />
+          {selectedNodeId && (
+            <FeedbackPanel runId={run.id} nodeId={selectedNodeId} />
+          )}
         </section>
       )}
       {activeTab === 'nodes' && (
-        <section>
+        <section style={{ display: 'flex' }}>
           <NodesTable
             runId={run.id}
             page={nodesPage}
@@ -147,6 +155,9 @@ const RunDetailPage = (): JSX.Element => {
               setNodesPage(1);
             }}
           />
+          {selectedNodeId && (
+            <FeedbackPanel runId={run.id} nodeId={selectedNodeId} />
+          )}
         </section>
       )}
       {activeTab === 'events' && (
