@@ -10,6 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:a11y": "jest -t accessibilité",
+    "ci:preview": "next build && next start -p 3001",
+    "ci:lighthouse": "node scripts/lh-ci.mjs"
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
