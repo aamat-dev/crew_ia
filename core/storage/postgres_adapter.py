@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
-from core.storage.db_models import Run, Node, Artifact, Event, RunStatus, NodeStatus
+from core.storage.db_models import Run, Node, Artifact, Event, Feedback, RunStatus, NodeStatus
 
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://crew:crew@localhost:5432/crew")
@@ -215,6 +215,22 @@ class PostgresAdapter:
         async with self.session() as s:
             res = await s.execute(stmt)
             return list(res.scalars().all())
+
+    # ---------- Feedbacks ----------
+
+    async def save_feedback(self, feedback: Optional[Feedback] = None, **kwargs) -> Feedback:
+        obj = self._coalesce_obj(Feedback, feedback, kwargs)
+        if obj.created_at is None:
+            obj.created_at = datetime.now(timezone.utc)
+        async with self.session() as s:
+            try:
+                s.add(obj)
+                await s.flush()
+                await s.commit()
+                return obj
+            except Exception:
+                await s.rollback()
+                raise
 
     # ---------- Résolutions & ensures (optionnels) ----------
 

@@ -34,6 +34,40 @@ Pour lister les événements d'un run spécifique :
 curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 ```
 
+### Feedbacks
+
+Créer un feedback manuel :
+
+```
+curl -X POST "http://localhost:8000/feedbacks" \
+ -H 'Content-Type: application/json' \
+ -H 'X-API-Key: test-key' -H 'X-Request-ID: demo-1' -H 'X-Role: editor' \
+ -d '{
+   "run_id": "11111111-1111-1111-1111-111111111111",
+   "node_id": "22222222-2222-2222-2222-222222222222",
+   "source": "human",
+   "score": 35,
+   "comment": "Format JSON invalide"
+ }'
+```
+
+Un feedback automatique est généré après chaque nœud. Si le score est
+inférieur au seuil configuré (`FEEDBACK_CRITICAL_THRESHOLD`, 60 par
+défaut) :
+
+1. Le nœud est marqué en pause et un événement `feedback.critical` est
+émis.
+2. Depuis l'interface, un re-run guidé peut être déclenché après avoir
+corrigé le prompt ou relancé le nœud.
+
+### Scénario E2E feedback auto + re-run
+
+1. Lancer l'API (`make api-run`).
+2. Exécuter un DAG : un feedback auto est créé et visible dans le
+   panneau Feedback du dashboard.
+3. En cas de score critique, utiliser le bouton « Re-run guidé » pour
+   relancer le nœud après correction.
+
 ## Scénario E2E (API + UI)
 
 ### Prérequis

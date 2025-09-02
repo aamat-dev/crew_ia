@@ -41,6 +41,7 @@ from core.io.artifacts_fs import (
     write_md,
     node_dir as fs_node_dir,
 )
+from apps.orchestrator.sidecars import normalize_llm_sidecar
 
 log = logging.getLogger("crew.executor")
 
@@ -199,6 +200,89 @@ def _extract_markdown_from_result(artifact: Any) -> str | None:
     if isinstance(artifact, str) and artifact.strip():
         return artifact
     return None
+
+
+async def _invoke_auto_reviewer(content: str | None) -> Dict[str, Any]:
+    """Appelle un agent de type "reviewer" pour évaluer un contenu."""
+    try:
+        node = PlanNodeModel(
+            id="auto-review",
+            title="Auto Review",
+            type="execute",
+            suggested_agent_role="Reviewer",
+        )
+        # Pour l'instant, le contenu n'est pas utilisé par agent_runner mais
+        # il pourra être injecté via un override si nécessaire.
+        res = await agent_runner(node)
+        return res or {}
+    except Exception as e:  # pragma: no cover - fail silent
+        log.warning("auto reviewer LLM error: %s", e)
+        return {}
+
+
+async def _auto_review_node(
+    storage: CompositeAdapter,
+    run_id: str,
+    node_key: str,
+    node_dbid: str | None,
+    result: Dict[str, Any],
+) -> None:
+    """Déclenche l'auto-review d'un nœud (non bloquant)."""
+    md = result.get("markdown")
+    review = await _invoke_auto_reviewer(md)
+    score = int(review.get("score") or 0)
+    comment = review.get("comment") or ""
+    meta = review.get("llm") or review.get("metadata") or {}
+
+    # Sidecar
+    ndir = fs_node_dir(run_id, node_key)
+    ndir.mkdir(parents=True, exist_ok=True)
+    sidecar_path = ndir / f"{node_key}.review.llm.json"
+    meta_norm = normalize_llm_sidecar(meta, run_id=run_id, node_id=node_dbid)
+    sidecar_path.write_text(json.dumps(meta_norm, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if node_dbid:
+        try:
+            await storage.save_feedback(
+                run_id=run_id,
+                node_id=node_dbid,
+                source="auto",
+                reviewer=meta_norm.get("model"),
+                score=score,
+                comment=comment,
+                meta=meta_norm,
+            )
+        except Exception as e:  # pragma: no cover - storage failures tolerated
+            log.warning("auto-review feedback save failed: %s", e)
+
+    threshold = int(get_var("FEEDBACK_CRITICAL_THRESHOLD", 60))
+    if score < threshold and node_dbid:
+        try:
+            await storage.save_event(
+                run_id=run_id,
+                node_id=node_dbid,
+                level="warn",
+                message="feedback.critical",
+            )
+        except Exception:
+            pass
+
+
+async def _maybe_auto_review(
+    storage: CompositeAdapter,
+    run_id: str,
+    node_key: str,
+    node_dbid: str | None,
+    result: Dict[str, Any],
+) -> None:
+    timeout_ms = int(get_var("FEEDBACK_REVIEW_TIMEOUT_MS", 3500))
+    try:
+        await asyncio.wait_for(
+            _auto_review_node(storage, run_id, node_key, node_dbid, result),
+            timeout=timeout_ms / 1000,
+        )
+    except Exception as e:
+        log.debug("auto-review skipped: %s", e)
 
 
 async def _save_artifact_db(storage: CompositeAdapter, **kwargs) -> None:
@@ -556,6 +640,14 @@ async def _run_single_node(
             )
             status = "completed"
             replayed = 1
+            try:
+                node_dbid = getattr(node, "db_id", None)
+            except Exception:
+                node_dbid = None
+            try:
+                await _maybe_auto_review(storage, run_id, node_id_txt, str(node_dbid) if node_dbid else None, result or {})
+            except Exception:
+                pass
             if node.type == "manage" and isinstance(result, dict):
                 for assignment in result.get("assignments", []) or []:
                     node_id = assignment.get("node_id")

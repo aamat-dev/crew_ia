@@ -1,4 +1,3 @@
-# api/fastapi_app/app.py
 from __future__ import annotations
 
 from fastapi import FastAPI
@@ -45,6 +44,7 @@ TAGS_METADATA = [
     {"name": "events", "description": "Lecture des événements/logs d'un run."},
     {"name": "tasks", "description": "Déclenchement d’un run ad-hoc et suivi de statut."},
     {"name": "agents", "description": "Gestion des agents, recrutement et matrice modèles."},
+    {"name": "feedbacks", "description": "Feedbacks auto-générés ou humains."},
 ]
 
 def _build_storage():
@@ -89,7 +89,7 @@ app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagatio
 if init_sentry():
     app.add_middleware(SentryContextMiddleware)        # Sentry annotations
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
-app.add_middleware(GZipMiddleware, minimum_size=1024) # gzip
+app.add_middleware(GZipMiddleware, minimum_size=1024)  # gzip
 
 if metrics_enabled():
     @app.get("/metrics", include_in_schema=False)
