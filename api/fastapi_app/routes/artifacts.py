@@ -72,7 +72,7 @@ async def list_artifacts(
         )
         for a in rows
     ]
-    set_pagination_headers(
+    links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )
     return Page[ArtifactOut](
@@ -80,6 +80,7 @@ async def list_artifacts(
         total=total,
         limit=pagination.limit,
         offset=pagination.offset,
+        links=links or None,
     )
 
 # --- NEW: GET /artifacts/{artifact_id} ---

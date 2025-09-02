@@ -7,6 +7,7 @@ async def test_runs_pagination(client, seed_sample):
     body = r.json()
     assert body["limit"] == 50
     assert body["offset"] == 0
+    assert "_links" in body
 
     total = body["total"]
 
@@ -40,6 +41,7 @@ async def test_nodes_pagination(client, seed_sample):
     body = r.json()
     assert body["limit"] == 50
     assert body["offset"] == 0
+    assert "_links" in body
 
     r2 = await client.get(f"/runs/{run_id}/nodes?limit=500")
     assert r2.status_code == 200
@@ -64,6 +66,7 @@ async def test_artifacts_pagination(client, seed_sample):
     body = r.json()
     assert body["limit"] == 50
     assert body["offset"] == 0
+    assert "_links" in body
 
     r2 = await client.get(f"/nodes/{node_id}/artifacts?limit=500")
     assert r2.status_code == 200
@@ -96,6 +99,7 @@ async def test_events_pagination(client, seed_sample):
     body = r.json()
     assert body["limit"] == 50
     assert body["offset"] == 0
+    assert "_links" in body
 
     r2 = await client.get("/events", params={"run_id": run_id, "limit": 500})
     assert r2.status_code == 200

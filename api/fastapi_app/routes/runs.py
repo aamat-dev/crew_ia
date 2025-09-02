@@ -87,7 +87,7 @@ async def list_runs(
         for r in runs
     ]
 
-    set_pagination_headers(
+    links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )
     return Page[RunListItemOut](
@@ -95,6 +95,7 @@ async def list_runs(
         total=total,
         limit=pagination.limit,
         offset=pagination.offset,
+        links=links or None,
     )
 
 @router.get("/{run_id}", response_model=RunOut)

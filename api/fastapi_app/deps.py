@@ -153,7 +153,16 @@ async def read_role(
         role = x_role or "viewer"
         request.state.role = role
         return role
-    if x_role not in {"viewer", "editor", "admin"}:
+
+    allowed = {"viewer", "editor", "admin"}
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        role = x_role or "viewer"
+        if x_role and x_role not in allowed:
+            raise HTTPException(status_code=403, detail="RBAC: rôle requis")
+        request.state.role = role
+        return role
+
+    if x_role not in allowed:
         raise HTTPException(status_code=403, detail="RBAC: rôle requis")
     request.state.role = x_role
     return x_role

@@ -83,7 +83,7 @@ async def list_events(
         )
         for e in rows
     ]
-    set_pagination_headers(
+    links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )
     return Page[EventOut](
@@ -91,4 +91,5 @@ async def list_events(
         total=total,
         limit=pagination.limit,
         offset=pagination.offset,
+        links=links or None,
     )
