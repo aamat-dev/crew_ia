@@ -8,13 +8,14 @@ import { LatencyChart } from "@/components/charts/LatencyChart";
 import { FeedbackChart } from "@/components/charts/FeedbackChart";
 import { Skeleton } from "@/components/ds/Skeleton";
 import { useToast } from "@/components/ds/Toast";
+import { fetchJson } from "@/lib/http";
 
 export default function DashboardPage() {
   const toast = useToast();
 
   const throughput = useQuery({
     queryKey: ["throughput"],
-    queryFn: () => fetch("/api/agents").then((r) => r.json()),
+    queryFn: ({ signal }) => fetchJson("/api/agents", { signal }),
   });
 
   const latency = useQuery({

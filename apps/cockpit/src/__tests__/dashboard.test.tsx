@@ -8,35 +8,46 @@ expect.extend(toHaveNoViolations);
 
 describe("Dashboard", () => {
   beforeEach(() => {
-    global.fetch = jest.fn((url: string) => {
+    global.fetch = jest.fn((url: string): Promise<Response> => {
       if (url.includes("/api/agents")) {
-        return Promise.resolve({
-          json: () =>
-            Promise.resolve([
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
               { date: "1", value: 1 },
               { date: "2", value: 2 },
             ]),
-        }) as any;
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
       }
       if (url.includes("/api/runs")) {
-        return Promise.resolve({
-          json: () =>
-            Promise.resolve([
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
               { date: "1", p50: 1, p95: 2 },
               { date: "2", p50: 1, p95: 2 },
             ]),
-        }) as any;
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
       }
       if (url.includes("/api/feedbacks")) {
-        return Promise.resolve({
-          json: () =>
-            Promise.resolve([
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
               { date: "1", positive: 1, neutral: 1, negative: 1 },
               { date: "2", positive: 2, neutral: 1, negative: 1 },
             ]),
-        }) as any;
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
       }
-      return Promise.resolve({ json: () => Promise.resolve([]) }) as any;
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     });
   });
 

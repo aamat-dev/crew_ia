@@ -1,17 +1,33 @@
 "use client";
-import * as React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { queryClient, setQueryErrorNotifier } from "@/lib/queryClient";
 import { ThemeProvider } from "./ThemeProvider";
-import { ToastProvider } from "./ds/Toast";
+import { ToastProvider, useToast } from "./ds/Toast";
+
+function ToastBridge() {
+  const toast = useToast();
+  useEffect(() => {
+    setQueryErrorNotifier((msg) => toast(msg, "error"));
+  }, [toast]);
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = React.useState(() => new QueryClient());
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <ToastBridge />
+          {children}
+          {process.env.NODE_ENV === "development" && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
+export default Providers;
