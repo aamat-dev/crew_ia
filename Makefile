@@ -328,3 +328,22 @@ db-reset:
 	else \
 		echo "ℹ️  ALEMBIC_DATABASE_URL non défini — migration skip"; \
 	fi
+
+# ---- Cockpit (Next.js) ---------------------------------------
+.PHONY: cockpit cockpit-install cockpit-build cockpit-test
+
+# Lancer le serveur de dev Next.js
+cockpit:
+	@cd apps/cockpit && npm run dev
+
+# Installer les dépendances
+cockpit-install:
+	@cd apps/cockpit && npm install
+
+# Build de production
+cockpit-build:
+	@cd apps/cockpit && npm run build
+
+# Tests côté cockpit (Vitest)
+cockpit-test:
+	@cd apps/cockpit && npm test
