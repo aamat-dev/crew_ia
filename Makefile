@@ -118,6 +118,18 @@ test-all: ensure-venv
 test-recovery: ensure-venv
 	@$(ACTIVATE) && pytest -q -k "recovery or status_store"
 
+.PHONY: migrate-feedbacks
+migrate-feedbacks: ensure-venv
+	@$(ACTIVATE) && alembic upgrade head
+
+.PHONY: test-feedbacks
+test-feedbacks: ensure-venv
+	@$(ACTIVATE) && pytest api/tests/test_feedbacks_api.py -q
+
+.PHONY: ui-feedbacks-e2e
+ui-feedbacks-e2e:
+	@echo "⏭️  Tests e2e UI feedbacks non implémentés"
+
 # ---- Exécution ------------------------------------------------
 # Mode plan JSON explicite
 .PHONY: run

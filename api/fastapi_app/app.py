@@ -20,7 +20,7 @@ load_dotenv()
 import core.log  # configure root logger
 
 from .deps import settings
-from .routes import health, runs, nodes, artifacts, events, tasks, agents
+from .routes import health, runs, nodes, artifacts, events, tasks, agents, feedbacks
 from app.routers import nodes as node_actions
 from app.routers import plans as plan_routes
 from .middleware import RequestIDMiddleware
@@ -127,6 +127,7 @@ app.include_router(tasks.router)
 app.include_router(node_actions.router)
 app.include_router(plan_routes.router)
 app.include_router(agents.router)
+app.include_router(feedbacks.router)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)

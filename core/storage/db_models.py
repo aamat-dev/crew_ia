@@ -7,7 +7,7 @@ from datetime import datetime, UTC
 from typing import Optional, List, Dict
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, DateTime, Enum as SAEnum, Text, String, func, JSON
+from sqlalchemy import Column, DateTime, Enum as SAEnum, Text, String, Integer, func, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 
@@ -112,3 +112,47 @@ class Event(SQLModel, table=True):
     level: str = Field(sa_column=Column(String, nullable=False))
     message: str = Field(sa_column=Column(Text, nullable=False))
     request_id: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True, index=True))
+
+
+class Feedback(SQLModel, table=True):
+    __tablename__ = "feedbacks"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    run_id: uuid.UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("runs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    node_id: uuid.UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("nodes.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    source: str = Field(sa_column=Column(String, nullable=False))
+    reviewer: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    score: int = Field(sa_column=Column(Integer, nullable=False))
+    comment: str = Field(sa_column=Column(Text, nullable=False))
+    meta: Optional[Dict] = Field(
+        default=None, sa_column=Column("metadata", JSON, nullable=True)
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
