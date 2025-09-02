@@ -16,7 +16,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import strict_api_key_auth, get_session
-from ..schemas import TaskRequest, TaskAcceptedResponse
+from ..schemas_base import TaskRequest, TaskAcceptedResponse
 
 from app.models.task import Task, TaskStatus
 from app.schemas.task import TaskCreate, TaskOut

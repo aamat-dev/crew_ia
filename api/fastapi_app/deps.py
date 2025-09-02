@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
 from typing import AsyncGenerator, Sequence
 
-from fastapi import Header, HTTPException, status, Request
+from fastapi import Header, HTTPException, status, Request, Depends
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from sqlalchemy import event
@@ -134,6 +135,44 @@ def _check_api_key(x_api_key: str | None) -> bool:
 def api_key_auth(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> bool:
     """Ancienne dépendance conservée pour compatibilité tests."""
     return _check_api_key(x_api_key)
+
+
+# -------- RBAC minimal ----------------------------------------------------
+FEATURE_RBAC = os.getenv("FEATURE_RBAC", "false").lower() == "true"
+
+
+async def read_role(
+    request: Request, x_role: str | None = Header(default=None, alias="X-Role")
+) -> str:
+    """Lit le rôle depuis ``X-Role`` et le stocke dans ``request.state``.
+
+    Si ``FEATURE_RBAC`` est activé, l'en-tête est obligatoire et doit valoir
+    ``viewer``, ``editor`` ou ``admin``.
+    """
+    if not FEATURE_RBAC:
+        role = x_role or "viewer"
+        request.state.role = role
+        return role
+    if x_role not in {"viewer", "editor", "admin"}:
+        raise HTTPException(status_code=403, detail="RBAC: rôle requis")
+    request.state.role = x_role
+    return x_role
+
+
+def require_role(*allowed: str):
+    """Dépendance vérifiant que ``role`` fait partie de ``allowed``."""
+
+    async def _checker(role: str = Depends(read_role)) -> None:
+        if FEATURE_RBAC and allowed and role not in allowed:
+            raise HTTPException(status_code=403, detail="RBAC: accès refusé")
+
+    return _checker
+
+# X-Request-ID requis pour les mutations (brief)
+async def require_request_id(x_request_id: str | None = Header(default=None, alias="X-Request-ID")) -> str:
+    if not x_request_id:
+        raise HTTPException(status_code=400, detail="X-Request-ID header is required")
+    return x_request_id
 
 
 def strict_api_key_auth(

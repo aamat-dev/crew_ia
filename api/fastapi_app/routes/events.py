@@ -9,7 +9,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import get_session, strict_api_key_auth, cap_date_range
-from ..schemas import Page, EventOut
+from ..schemas_base import Page, EventOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,

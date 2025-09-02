@@ -15,7 +15,7 @@ from ..deps import (
     strict_api_key_auth,
     cap_date_range,
 )
-from ..schemas import Page, RunListItemOut, RunOut, RunSummaryOut
+from ..schemas_base import Page, RunListItemOut, RunOut, RunSummaryOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,

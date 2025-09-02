@@ -12,7 +12,7 @@ from ..deps import (
     to_tz,
     strict_api_key_auth,
 )
-from ..schemas import Page, NodeOut
+from ..schemas_base import Page, NodeOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
