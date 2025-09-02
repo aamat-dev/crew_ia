@@ -1,5 +1,16 @@
 # Utilisation du module QA
 
+## Configuration LLM (OpenAI)
+Variables d'environnement attendues :
+- `OPENAI_API_KEY` (**obligatoire**)
+- `OPENAI_BASE_URL` (optionnel)
+
+Exemple :
+```bash
+export OPENAI_API_KEY=sk-...
+# export OPENAI_BASE_URL=https://api.openai.com/v1   # par défaut
+```
+
 ## Exécution d'une revue automatique
 Après l'exécution d'un nœud, appeler le hook :
 ```python
