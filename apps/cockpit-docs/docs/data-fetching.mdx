@@ -1,0 +1,24 @@
+---
+sidebar_position: 5
+---
+
+# Data Fetching
+
+## Query
+
+Utiliser `@tanstack/react-query` pour la mise en cache.
+
+```ts
+const { data } = useQuery({
+  queryKey: ['runs'],
+  queryFn: fetchRuns,
+});
+```
+
+## Retry & Backoff
+
+Les requêtes échouées sont retentées avec backoff exponentiel.
+
+## Utilitaires HTTP
+
+Wrapper `http` gère les en-têtes communs et les erreurs réseau.
