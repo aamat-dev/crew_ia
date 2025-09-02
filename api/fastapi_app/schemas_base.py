@@ -115,6 +115,7 @@ class RunOut(BaseModel):
     ended_at: Optional[datetime] = None
     meta: Optional[Dict[str, Any]] = None
     summary: Optional[RunSummaryOut] = None
+    dag: Optional['DagOut'] = None
 
 class NodeOut(BaseModel):
     id: UUID
@@ -128,6 +129,16 @@ class NodeOut(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     feedbacks: List[FeedbackOut] = Field(default_factory=list)
+
+class DagEdge(BaseModel):
+    source: UUID
+    target: UUID
+
+class DagOut(BaseModel):
+    nodes: List[NodeOut]
+    edges: List[DagEdge] = Field(default_factory=list)
+
+RunOut.model_rebuild()
 
 class ArtifactOut(BaseModel):
     id: UUID

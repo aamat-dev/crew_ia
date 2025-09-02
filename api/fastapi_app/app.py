@@ -44,7 +44,10 @@ TAGS_METADATA = [
     {"name": "events", "description": "Lecture des événements/logs d'un run."},
     {"name": "tasks", "description": "Déclenchement d’un run ad-hoc et suivi de statut."},
     {"name": "agents", "description": "Gestion des agents, recrutement et matrice modèles."},
-    {"name": "feedbacks", "description": "Feedbacks auto-générés ou humains."},
+    {
+        "name": "feedbacks",
+        "description": "Gestion des feedbacks auto ou humains: création et listing par nœud ou run.",
+    },
 ]
 
 def _build_storage():

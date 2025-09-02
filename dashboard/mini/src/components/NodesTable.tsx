@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { useRunNodes } from '../api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/http';
+import FeedbackBadge from './FeedbackBadge';
 
 export type NodesTableProps = {
   runId: string;
@@ -144,6 +145,7 @@ const NodesTable = ({
                 <span className={`badge status-${node.status}`}>
                   {node.status}
                 </span>
+                <FeedbackBadge feedbacks={node.feedbacks} />
               </td>
               <td>{formatDate(node.started_at)}</td>
               <td>{formatDate(node.ended_at)}</td>

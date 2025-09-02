@@ -15,7 +15,15 @@ from ..deps import (
     strict_api_key_auth,
     cap_date_range,
 )
-from ..schemas_base import Page, RunListItemOut, RunOut, RunSummaryOut
+from ..schemas_base import (
+    Page,
+    RunListItemOut,
+    RunOut,
+    RunSummaryOut,
+    NodeOut,
+    DagOut,
+)
+from ..schemas.feedbacks import FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
@@ -24,7 +32,7 @@ from app.utils.pagination import (
 from ..ordering import apply_order
 
 # Import des modèles ORM existants
-from core.storage.db_models import Run, Node, Artifact, Event  # type: ignore
+from core.storage.db_models import Run, Node, Artifact, Event, Feedback  # type: ignore
 
 router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(strict_api_key_auth)])
 
@@ -138,6 +146,52 @@ async def get_run(
     duration_ms = None
     if started and ended:
         duration_ms = int((ended - started).total_seconds() * 1000)
+    # DAG nodes with feedbacks
+    node_rows = (
+        await session.execute(select(Node).where(Node.run_id == run_id))
+    ).scalars().all()
+    node_ids = [n.id for n in node_rows]
+    fb_map: dict[UUID, list[FeedbackOut]] = {nid: [] for nid in node_ids}
+    if node_ids:
+        fb_rows = (
+            await session.execute(
+                select(Feedback).where(Feedback.node_id.in_(node_ids)).order_by(Feedback.created_at.desc())
+            )
+        ).scalars().all()
+        for f in fb_rows:
+            fb_map[f.node_id].append(
+                FeedbackOut(
+                    id=f.id,
+                    run_id=f.run_id,
+                    node_id=f.node_id,
+                    source=f.source,
+                    reviewer=f.reviewer,
+                    score=f.score,
+                    comment=f.comment,
+                    metadata=f.meta,
+                    created_at=to_tz(f.created_at, tz),
+                    updated_at=to_tz(getattr(f, "updated_at", None), tz),
+                )
+            )
+
+    dag_nodes = [
+        NodeOut(
+            id=n.id,
+            run_id=n.run_id,
+            key=n.key,
+            title=n.title,
+            status=n.status,
+            role=n.role,
+            checksum=n.checksum,
+            deps=n.deps,
+            created_at=to_tz(n.created_at, tz),
+            updated_at=to_tz(n.updated_at, tz),
+            feedbacks=fb_map.get(n.id, []),
+        )
+        for n in node_rows
+    ]
+
+    dag = DagOut(nodes=dag_nodes, edges=[])
 
     return RunOut(
         id=run.id,
@@ -153,6 +207,7 @@ async def get_run(
             events_total=events_total,
             duration_ms=duration_ms,
         ),
+        dag=dag,
     )
 
 @router.get("/{run_id}/summary", response_model=RunSummaryOut)

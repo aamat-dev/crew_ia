@@ -93,7 +93,7 @@ async def list_nodes(
                     comment=f.comment,
                     metadata=f.meta,
                     created_at=to_tz(f.created_at, tz),
-                    updated_at=to_tz(f.updated_at, tz),
+                    updated_at=to_tz(getattr(f, "updated_at", None), tz),
                 )
             )
 

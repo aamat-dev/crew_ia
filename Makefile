@@ -128,7 +128,7 @@ test-feedbacks: ensure-venv
 
 .PHONY: ui-feedbacks-e2e
 ui-feedbacks-e2e:
-	@echo "⏭️  Tests e2e UI feedbacks non implémentés"
+	@cd dashboard/mini && npx playwright test tests-e2e/feedback.spec.ts
 
 # ---- Exécution ------------------------------------------------
 # Mode plan JSON explicite

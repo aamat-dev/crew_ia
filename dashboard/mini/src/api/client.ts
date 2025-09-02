@@ -139,7 +139,7 @@ export const listNodeArtifacts = async (
 
 // PATCH node actions (pause/resume/skip/override)
 export const patchNode = async (nodeId: string, body: Record<string, unknown>, opts: FetchOpts = {}) => {
-  const { requestId } = await fetchJson<unknown>(`/nodes/${nodeId}`, { ...opts, method: 'PATCH', body });
+  const { requestId } = await fetchJson<unknown>(`/nodes/${nodeId}`, { ...opts, method: 'PATCH', body, role: 'editor' });
   return { requestId };
 };
 
