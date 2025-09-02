@@ -13,13 +13,14 @@ from ..deps import (
     strict_api_key_auth,
 )
 from ..schemas_base import Page, NodeOut
+from ..schemas.feedbacks import FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
     set_pagination_headers,
 )
 from ..ordering import apply_order
-from core.storage.db_models import Node  # type: ignore
+from core.storage.db_models import Node, Feedback  # type: ignore
 
 router = APIRouter(prefix="/runs", tags=["nodes"], dependencies=[Depends(strict_api_key_auth)])
 
@@ -70,6 +71,32 @@ async def list_nodes(
     ).limit(pagination.limit).offset(pagination.offset)
 
     rows = (await session.execute(stmt)).scalars().all()
+    node_ids = [n.id for n in rows]
+    fb_map = {nid: [] for nid in node_ids}
+    if node_ids:
+        fb_rows = (
+            await session.execute(
+                select(Feedback)
+                .where(Feedback.node_id.in_(node_ids))
+                .order_by(Feedback.created_at.desc())
+            )
+        ).scalars().all()
+        for f in fb_rows:
+            fb_map[f.node_id].append(
+                FeedbackOut(
+                    id=f.id,
+                    run_id=f.run_id,
+                    node_id=f.node_id,
+                    source=f.source,
+                    reviewer=f.reviewer,
+                    score=f.score,
+                    comment=f.comment,
+                    metadata=f.meta,
+                    created_at=to_tz(f.created_at, tz),
+                    updated_at=to_tz(f.updated_at, tz),
+                )
+            )
+
     items = [
         NodeOut(
             id=n.id,
@@ -81,6 +108,7 @@ async def list_nodes(
             checksum=n.checksum,
             created_at=to_tz(n.created_at, tz),
             updated_at=to_tz(n.updated_at, tz),
+            feedbacks=fb_map.get(n.id, []),
         )
         for n in rows
     ]

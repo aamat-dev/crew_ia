@@ -34,6 +34,23 @@ Pour lister les événements d'un run spécifique :
 curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 ```
 
+### Feedbacks
+
+Créer un feedback manuel :
+
+```
+curl -X POST "http://localhost:8000/feedbacks" \
+ -H 'Content-Type: application/json' \
+ -H 'X-API-Key: test-key' -H 'X-Request-ID: demo-1' -H 'X-Role: editor' \
+ -d '{
+   "run_id": "11111111-1111-1111-1111-111111111111",
+   "node_id": "22222222-2222-2222-2222-222222222222",
+   "source": "human",
+   "score": 35,
+   "comment": "Format JSON invalide"
+ }'
+```
+
 ## Scénario E2E (API + UI)
 
 ### Prérequis

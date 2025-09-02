@@ -3,6 +3,8 @@ from typing import Generic, List, Optional, TypeVar, Any, Dict, Union
 from uuid import UUID
 from datetime import datetime
 
+from .schemas.feedbacks import FeedbackOut
+
 T = TypeVar("T")
 
 class PageLinks(BaseModel):
@@ -125,6 +127,7 @@ class NodeOut(BaseModel):
     deps: Optional[List[str]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    feedbacks: List[FeedbackOut] = Field(default_factory=list)
 
 class ArtifactOut(BaseModel):
     id: UUID

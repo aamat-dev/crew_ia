@@ -2,7 +2,7 @@
 
 from sqlmodel import SQLModel
 
-from core.storage.db_models import Artifact, Event, Node, Run
+from core.storage.db_models import Artifact, Event, Node, Run, Feedback
 from app.models.task import Task
 from app.models.plan import Plan
 from app.models.plan_review import PlanReview
@@ -18,6 +18,7 @@ __all__ = [
     "Node",
     "Artifact",
     "Event",
+    "Feedback",
     "Task",
     "Plan",
     "Assignment",
