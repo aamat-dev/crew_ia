@@ -13,7 +13,10 @@ CHECKLISTS_ALIAS = CHECKLISTS_ROOT / "latest"
 
 def _resolve_checklist_path(node_type: str, version: Optional[str] = None) -> Path:
     if version is None:
-        version_dir = CHECKLISTS_ALIAS.read_text().strip()
+        if CHECKLISTS_ALIAS.is_symlink():
+            version_dir = CHECKLISTS_ALIAS.resolve().name
+        else:
+            version_dir = CHECKLISTS_ALIAS.read_text().strip()
     else:
         version_dir = version
     return CHECKLISTS_ROOT / version_dir / f"qa.{node_type}.v1.json"
