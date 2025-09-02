@@ -5,15 +5,19 @@ interface KpiCardProps {
   title: string;
   value: string;
   className?: string;
+  variant?: "default" | "glass";
 }
 
-export function KpiCard({ title, value, className }: KpiCardProps) {
+export function KpiCard({ title, value, className, variant = "default" }: KpiCardProps) {
   return (
     <div
       role="group"
       aria-label={`KPI ${title}`}
       className={cn(
-        "rounded-md border p-4 shadow-sm bg-background text-foreground",
+        "rounded-md p-4 text-foreground",
+        variant === "glass"
+          ? "glass glass-card"
+          : "border bg-background shadow-sm",
         className
       )}
     >

@@ -83,18 +83,21 @@ export default function DashboardPage() {
               value={throughputLast}
               delta={throughputDelta}
               icon={Activity}
+              variant="glass"
             />
             <KpiCard
               title="Latence p95"
               value={`${latencyLast}ms`}
               delta={latencyDelta}
               icon={Timer}
+              variant="glass"
             />
             <KpiCard
               title="Feedback positif"
               value={`${feedbackLastRatio.toFixed(0)}%`}
               delta={feedbackDelta}
               icon={ThumbsUp}
+              variant="glass"
             />
           </>
         ) : (

@@ -7,7 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 export function Header() {
   return (
     <header
-      className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background/60 px-4 backdrop-blur-md shadow-sm"
+      className="glass glass-muted sticky top-0 z-10 flex h-14 items-center justify-between border-b px-4"
       role="banner"
     >
       <div role="search" className="flex-1">

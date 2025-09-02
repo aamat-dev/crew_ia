@@ -32,7 +32,7 @@ export function AppShell({ children }: AppShellProps) {
     <ToastProvider>
       <div className="flex min-h-screen bg-background text-foreground">
         <aside
-          className="sticky top-0 flex h-screen w-16 flex-col items-center border-r bg-background/60 p-2 backdrop-blur-md shadow-lg rounded-r-xl"
+          className="glass glass-muted sticky top-0 flex h-screen w-16 flex-col items-center border-r p-2 rounded-r-xl"
         >
           <nav
             className="mt-4 flex flex-col items-center gap-2"
