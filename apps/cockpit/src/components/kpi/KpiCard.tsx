@@ -10,9 +10,10 @@ interface KpiCardProps {
   delta: number;
   icon: LucideIcon;
   className?: string;
+  variant?: "default" | "glass";
 }
 
-export function KpiCard({ title, value, delta, icon: Icon, className }: KpiCardProps) {
+export function KpiCard({ title, value, delta, icon: Icon, className, variant = "default" }: KpiCardProps) {
   const reduceMotion = useReducedMotion();
   const deltaPositive = delta >= 0;
   const deltaIcon = deltaPositive ? ArrowUp : ArrowDown;
@@ -27,7 +28,10 @@ export function KpiCard({ title, value, delta, icon: Icon, className }: KpiCardP
       animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
       whileHover={reduceMotion ? {} : { scale: 1.03 }}
       className={cn(
-        "rounded-md border p-4 shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+        "rounded-md p-4 text-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+        variant === "glass"
+          ? "glass glass-card"
+          : "border bg-background shadow-sm",
         className
       )}
     >
