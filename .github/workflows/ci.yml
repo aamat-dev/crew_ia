@@ -227,6 +227,36 @@ jobs:
               repo: context.repo.repo,
               body: `Preview Vercel : ${url}`
             });
+  perf-budgets:
+    needs: vercel-deploy-pr
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Lighthouse
+        run: npm install -g lighthouse chrome-launcher
+      - name: Vérifier les budgets de perf
+        env:
+          PREVIEW_URL: ${{ needs.vercel-deploy-pr.outputs.preview-url }}
+        run: node scripts/lh-ci.mjs
+      - name: Commenter le rapport budgets
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('lh-budgets-report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
 
   e2e-preview:
     needs:

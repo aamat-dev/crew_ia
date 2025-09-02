@@ -1,0 +1,44 @@
+{
+  "/dashboard": {
+    "metrics": {
+      "lcp": 2500,
+      "inp": 200,
+      "cls": 0.1,
+      "tti": 3000
+    },
+    "transferSize": {
+      "js": 180,
+      "css": 60,
+      "total": 350
+    },
+    "requests": 25
+  },
+  "/runs": {
+    "metrics": {
+      "lcp": 2500,
+      "inp": 200,
+      "cls": 0.1,
+      "tti": 3000
+    },
+    "transferSize": {
+      "js": 180,
+      "css": 60,
+      "total": 350
+    },
+    "requests": 25
+  },
+  "/performance": {
+    "metrics": {
+      "lcp": 2500,
+      "inp": 200,
+      "cls": 0.1,
+      "tti": 3000
+    },
+    "transferSize": {
+      "js": 180,
+      "css": 60,
+      "total": 350
+    },
+    "requests": 25
+  }
+}
