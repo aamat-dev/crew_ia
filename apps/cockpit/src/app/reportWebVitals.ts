@@ -1,4 +1,6 @@
-export function reportWebVitals(metric: any) {
+import type { NextWebVitalsMetric } from "next/app";
+
+export function reportWebVitals(metric: NextWebVitalsMetric) {
   if (process.env.NODE_ENV !== "production") {
     return;
   }
@@ -26,7 +28,7 @@ export function reportWebVitals(metric: any) {
         headers: { "Content-Type": "application/json" },
       });
     }
-  } catch (err) {
+  } catch {
     // Erreurs ignorées
   }
 }
