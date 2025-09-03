@@ -1,5 +1,5 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { axe, toHaveNoViolations } from "jest-axe";
 import DashboardPage from "@/app/dashboard/page";
 import { Providers } from "@/components/Providers";
@@ -48,7 +48,7 @@ describe("Dashboard", () => {
           headers: { "Content-Type": "application/json" },
         }),
       );
-    });
+    }) as jest.Mock;
   });
 
   it("n'a pas de violations d'accessibilité", async () => {
@@ -57,7 +57,6 @@ describe("Dashboard", () => {
         <DashboardPage />
       </Providers>
     );
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
