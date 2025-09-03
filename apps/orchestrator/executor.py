@@ -644,10 +644,17 @@ async def _run_single_node(
                 node_dbid = getattr(node, "db_id", None)
             except Exception:
                 node_dbid = None
-            try:
-                await _maybe_auto_review(storage, run_id, node_id_txt, str(node_dbid) if node_dbid else None, result or {})
-            except Exception:
-                pass
+            if not dry_run:
+                try:
+                    await _maybe_auto_review(
+                        storage,
+                        run_id,
+                        node_id_txt,
+                        str(node_dbid) if node_dbid else None,
+                        result or {},
+                    )
+                except Exception:
+                    pass
             if node.type == "manage" and isinstance(result, dict):
                 for assignment in result.get("assignments", []) or []:
                     node_id = assignment.get("node_id")
