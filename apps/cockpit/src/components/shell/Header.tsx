@@ -21,11 +21,11 @@ export function Header({
   React.useEffect(() => {
     const input = searchRef.current;
     if (!input) return;
-    Array.from(input.attributes).forEach((attr) => {
-      if (attr.name.startsWith("data-dashlane")) {
+    for (const attr of Array.from(input.attributes)) {
+      if (attr.name.startsWith("data-dashlane-")) {
         input.removeAttribute(attr.name);
       }
-    });
+    }
   }, [searchRef]);
   return (
     <header
