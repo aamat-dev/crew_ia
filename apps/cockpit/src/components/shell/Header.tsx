@@ -51,7 +51,7 @@ export function Header({
         <button
           aria-label="Ouvrir la palette de commandes"
           onClick={() => onCommandPaletteOpenChange(true)}
-          className="relative hidden h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex"
+          className="relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <CommandIcon className="h-5 w-5" />
           <kbd className="pointer-events-none absolute -bottom-1 -right-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">⌘K</kbd>
