@@ -136,6 +136,7 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-ring: hsl(var(--ring));
+  --color-focus: hsl(var(--focus-ring));
   --color-ring-foreground: hsl(var(--ring-foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
@@ -173,7 +174,7 @@ body {
 }
 
 :focus-visible {
-  outline: var(--focus-width) solid hsl(var(--focus-ring));
+  outline: var(--focus-width) solid var(--color-focus);
   outline-offset: var(--outline-offset);
 }
 
