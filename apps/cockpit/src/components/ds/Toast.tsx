@@ -2,21 +2,35 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+type ToastType = "default" | "error";
+
+interface ToastItem {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
 interface ToastContextValue {
-  add: (message: string) => void;
+  add: (message: string, type?: ToastType) => void;
 }
 
 const ToastContext = React.createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = React.useState<Array<{ id: number; message: string }>>([]);
+  const [toasts, setToasts] = React.useState<ToastItem[]>([]);
 
-  const add = (message: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+  const add = (message: string, type: ToastType = "default") => {
+    let id: number | null = null;
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === message)) return prev;
+      id = Date.now();
+      return [...prev, { id, message, type }];
+    });
+    if (id !== null) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 3000);
+    }
   };
 
   return (
@@ -28,7 +42,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role="alert"
             className={cn(
-              "rounded bg-destructive px-4 py-2 text-destructive-foreground shadow"
+              "rounded px-4 py-2 shadow",
+              t.type === "error"
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-primary text-primary-foreground",
             )}
           >
             {t.message}
