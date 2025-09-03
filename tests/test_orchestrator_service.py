@@ -39,13 +39,21 @@ async def test_start(storage, monkeypatch):
 
     async def fake_agent(node):
         calls.append(node.id)
-        return {"markdown": node.id, "llm": {"provider": "openai", "model_used": "x", "prompts": {"final": node.llm.get("prompt", "")}}}
+        prompts = getattr(getattr(node, "llm", {}), "get", lambda *a, **k: "")("prompt", "")
+        return {
+            "markdown": node.id,
+            "llm": {
+                "provider": "openai",
+                "model_used": "x",
+                "prompts": {"final": prompts},
+            },
+        }
 
     monkeypatch.setattr("apps.orchestrator.executor.agent_runner", fake_agent)
     svc = OrchestratorService(storage)
     run_id = await svc.start("p1")
     await svc.wait()
-    assert calls == ["n1", "n2"]
+    assert calls == ["n1", "auto-review", "n2", "auto-review"]
     side = json.loads((Path(os.getenv("RUNS_ROOT")) / run_id / "nodes" / "n1" / "artifact_n1.llm.json").read_text())
     assert side["dry_run"] is False
 
@@ -70,7 +78,15 @@ async def test_dry_run(storage, monkeypatch):
 @pytest.mark.asyncio
 async def test_override(storage, monkeypatch):
     async def fake_agent(node):
-        return {"markdown": node.id, "llm": {"provider": "openai", "model_used": "x", "prompts": {"final": node.llm.get("prompt", "")}}}
+        prompts = getattr(getattr(node, "llm", {}), "get", lambda *a, **k: "")("prompt", "")
+        return {
+            "markdown": node.id,
+            "llm": {
+                "provider": "openai",
+                "model_used": "x",
+                "prompts": {"final": prompts},
+            },
+        }
 
     monkeypatch.setattr("apps.orchestrator.executor.agent_runner", fake_agent)
     svc = OrchestratorService(storage)
@@ -97,6 +113,6 @@ async def test_pause_resume_skip(storage, monkeypatch):
     svc.skip("n2")
     await svc.resume()
     await svc.wait()
-    assert calls == ["n1"]
+    assert calls == ["n1", "auto-review"]
     side = json.loads((Path(os.getenv("RUNS_ROOT")) / run_id / "nodes" / "n2" / "artifact_n2.llm.json").read_text())
     assert side["dry_run"] is True
