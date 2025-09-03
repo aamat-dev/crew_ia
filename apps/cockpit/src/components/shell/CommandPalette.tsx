@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
+import { DialogTitle } from "@radix-ui/react-dialog";
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", shortcut: "D" },
@@ -42,6 +43,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       label="Palette de commandes"
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 p-4 backdrop-blur-sm"
     >
+      <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
       <div className="w-full max-w-md overflow-hidden rounded-lg bg-background text-foreground shadow-lg">
         <div className="flex items-center border-b px-3">
           <Command.Input
