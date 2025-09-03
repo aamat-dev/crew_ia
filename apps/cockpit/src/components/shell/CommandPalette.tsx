@@ -25,6 +25,16 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  React.useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    Array.from(input.attributes).forEach((attr) => {
+      if (attr.name.startsWith("data-dashlane")) {
+        input.removeAttribute(attr.name);
+      }
+    });
+  }, []);
+
   return (
     <Command.Dialog
       open={open}
@@ -38,6 +48,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             ref={inputRef}
             placeholder="Rechercher..."
             className="flex-1 bg-transparent py-3 text-sm outline-none"
+            suppressHydrationWarning
           />
         </div>
         <Command.List className="max-h-60 overflow-y-auto p-2">
