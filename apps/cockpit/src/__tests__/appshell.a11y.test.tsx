@@ -2,7 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { AppShell } from "@/components/shell/AppShell";
-import { KpiCard } from "@/components/ds/KpiCard";
+import { KpiCard } from "@/components/kpi/KpiCard";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn() }),

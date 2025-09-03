@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const vital = vitalSchema.parse(data);
     addVital(vital);
     return NextResponse.json({ ok: true });
-  } catch (err) {
+  } catch {
     return new NextResponse("Bad Request", { status: 400 });
   }
 }
