@@ -4,42 +4,35 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:a11y": "jest -t accessibilité"
+    "lint": "next lint",
+    "test": "vitest run --environment=jsdom src/__tests__/dashboard.test.tsx"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
     "@tanstack/react-query": "^5.62.7",
+    "@tanstack/react-query-devtools": "^5.85.9",
+    "@tanstack/react-virtual": "^3.13.12",
     "cmdk": "^1.1.1",
     "framer-motion": "^11.1.2",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
-    "next-themes": "^0.4.6",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "recharts": "^2.13.0"
+    "next-themes": "^0.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "^3.1.2",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@swc/jest": "^0.2.36",
-    "@tailwindcss/postcss": "^4",
-    "@tanstack/react-query-devtools": "^5.85.9",
-    "@testing-library/jest-dom": "^6.8.0",
-    "@testing-library/react": "^16.3.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "axe-core": "^4.10.3",
-    "eslint": "^9",
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^20.14.12",
+    "@types/react": "^18.3.11",
+    "eslint": "^9.12.0",
     "eslint-config-next": "15.5.2",
-    "jest": "^30.1.3",
-    "jest-axe": "^10.0.0",
-    "jest-environment-jsdom": "^30.1.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "jsdom": "^25.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.0.5"
   }
 }

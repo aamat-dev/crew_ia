@@ -12,6 +12,7 @@ env/
 artifacts/
 *.md
 !README.md
+!docs/*.md
 
 # Caches / temporaires Python
 __pycache__/
@@ -40,3 +41,4 @@ test_api*
 .envrc
 test_metrics.db
 node_modules/
+.docusaurus/
