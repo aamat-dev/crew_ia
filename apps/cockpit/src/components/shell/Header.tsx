@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { Input } from "@/components/ds/Input";
-import { Bell, CircleHelp } from "lucide-react";
+import { Bell, CircleHelp, Command as CommandIcon } from "lucide-react";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -47,6 +47,14 @@ export function Header({
           className="relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Bell className="h-5 w-5" />
+        </button>
+        <button
+          aria-label="Ouvrir la palette de commandes"
+          onClick={() => onCommandPaletteOpenChange(true)}
+          className="relative hidden h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex"
+        >
+          <CommandIcon className="h-5 w-5" />
+          <kbd className="pointer-events-none absolute -bottom-1 -right-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">⌘K</kbd>
         </button>
         <ThemeToggle />
         <button
