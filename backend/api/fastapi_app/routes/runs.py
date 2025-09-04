@@ -27,7 +27,6 @@ from ..schemas.feedbacks import FeedbackOut
 from app.utils.pagination import (
     PaginationParams,
     pagination_params,
-    set_pagination_headers,
 )
 from ..ordering import apply_order
 
@@ -38,6 +37,7 @@ router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(strict_a
 
 # Helpers
 ORDERABLE_FIELDS = {
+    "created_at": Run.created_at,
     "started_at": Run.started_at,
     "ended_at": Run.ended_at,
     "title": Run.title,
@@ -74,13 +74,18 @@ async def list_runs(
 
     total = (
         await session.execute(
-            select(func.count(Run.id)).select_from(Run).where(and_(*where_clauses)) if where_clauses
+            select(func.count(Run.id)).select_from(Run).where(and_(*where_clauses))
+            if where_clauses
             else select(func.count(Run.id)).select_from(Run)
         )
     ).scalar_one()
 
     stmt = apply_order(
-        base, pagination.order_by, pagination.order_dir, ORDERABLE_FIELDS, "-started_at"
+        base,
+        pagination.order_by,
+        pagination.order_dir,
+        ORDERABLE_FIELDS,
+        "-created_at",
     ).limit(pagination.limit).offset(pagination.offset)
     runs = (await session.execute(stmt)).scalars().all()
 
@@ -95,15 +100,29 @@ async def list_runs(
         for r in runs
     ]
 
-    links = set_pagination_headers(
-        response, request, total, pagination.limit, pagination.offset
-    )
+    limit = pagination.limit
+    offset = pagination.offset
+    links_header: list[str] = []
+    links_dict: dict[str, str] = {}
+    if offset > 0:
+        prev_offset = max(offset - limit, 0)
+        prev_url = str(request.url.include_query_params(offset=prev_offset, limit=limit))
+        links_header.append(f"<{prev_url}>; rel=\"prev\"")
+        links_dict["prev"] = prev_url
+    if offset + limit < total:
+        next_url = str(request.url.include_query_params(offset=offset + limit, limit=limit))
+        links_header.append(f"<{next_url}>; rel=\"next\"")
+        links_dict["next"] = next_url
+    if links_header:
+        response.headers["Link"] = ", ".join(links_header)
+    response.headers["X-Total-Count"] = str(total)
+
     return Page[RunListItemOut](
         items=items,
         total=total,
-        limit=pagination.limit,
-        offset=pagination.offset,
-        links=links or None,
+        limit=limit,
+        offset=offset,
+        links=links_dict or None,
     )
 
 @router.get("/{run_id}", response_model=RunOut)
