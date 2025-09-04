@@ -18,8 +18,8 @@ from dotenv import load_dotenv
 # ===============================
 # 1) Charger .env
 # ===============================
-ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-EXAMPLE_PATH = Path(__file__).resolve().parent.parent / ".env.example"
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+EXAMPLE_PATH = Path(__file__).resolve().parents[2] / ".env.example"
 
 # Permet d'ignorer complètement le chargement de .env (utile en tests CI)
 SKIP_DOTENV = os.getenv("CONFIG_SKIP_DOTENV", "").strip() in {"1", "true", "yes", "on"}
