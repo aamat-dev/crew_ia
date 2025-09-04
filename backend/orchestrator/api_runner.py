@@ -193,12 +193,15 @@ async def run_task(
         if meta:
             meta_payload.update(meta)
 
+        # Expose LLM metadata à la fois à la racine et dans "meta" pour la
+        # rétro‑compatibilité des consommateurs d'événements.
         payload = {
             "run_id": run_id,
             "node_id": str(node_id) if node_id else None,
             "node_key": node_key,
             "status": node_status.value.upper(),
             "checksum": getattr(node, "checksum", None),
+            **meta_payload,
             "meta": meta_payload,
         }
 
