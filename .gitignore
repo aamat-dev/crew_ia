@@ -1,44 +1,69 @@
-# Environnements virtuels
-.venv/
-venv/
-ENV/
-env/
-
-# Config privée
-.env
-
-# Artifacts générés
-.runs/
-artifacts/
-*.md
-!README.md
-!docs/*.md
-
-# Caches / temporaires Python
+# --- Python / venv ---
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+*.so
 *.egg-info/
-build/
-dist/
+.eggs/
+.installed.cfg
+*.manifest
+*.spec
+.venv/
+.envrc
 
-# Logs
+# --- Environnements & secrets ---
+.env
+.env.*.local
+*.secret
+*.key
+*.pem
+
+# --- Bases de données locales ---
+*.db
+*.sqlite3
+app.db
+pgdata/
+dump.sql
+
+# --- Alembic ---
+backend/migrations/__pycache__/
+backend/migrations/*.pyc
+# ⚠️ on garde backend/migrations/versions/*.py pour versionner les migrations
+
+# --- Logs & traces ---
 *.log
+*.out
+*.err
 logs/
+coverage/
+htmlcov/
+pytest_cache/
+.cache/
 
-# Fichiers d’éditeur
+# --- Frontend (Next.js / Cockpit) ---
+frontend/cockpit/.next/
+frontend/cockpit/out/
+frontend/cockpit/node_modules/
+frontend/cockpit/.turbo/
+frontend/cockpit/.swc/
+frontend/cockpit/.vercel/
+
+# --- JS / Yarn / npm ---
+*.tgz
+yarn-error.log
+.pnpm-debug.log
+# ⚠️ on garde package-lock.json pour des builds reproductibles
+
+# --- IDE / OS ---
 .vscode/
 .idea/
-
-# Système
+*.iml
 .DS_Store
 Thumbs.db
 
-# Assets binaires
-*.ico
-
-# Tests
-test_api*
-.envrc
-test_metrics.db
-node_modules/
-.docusaurus/
+# --- Docker ---
+*.pid
+*.sock
+.docker/
+docker-compose.override.yml
