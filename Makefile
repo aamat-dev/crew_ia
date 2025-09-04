@@ -7,7 +7,8 @@ PYTHON              ?= python3
 PIP                 ?= pip
 VENV_DIR            ?= .venv
 PYTHONPATH         ?= backend
-ACTIVATE            := PYTHONPATH=$(PYTHONPATH) . $(VENV_DIR)/bin/activate
+# Ensure PYTHONPATH is exported so subsequent commands (like uvicorn) can import the API.
+ACTIVATE            := export PYTHONPATH=$(PYTHONPATH); . $(VENV_DIR)/bin/activate
 REQ_FILE            ?= requirements.txt
 ENV_FILE            ?= .env
 UVICORN := .venv/bin/uvicorn
