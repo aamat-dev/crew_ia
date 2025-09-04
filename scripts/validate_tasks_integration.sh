@@ -24,6 +24,7 @@ require awk
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR%/scripts}"
 cd "$ROOT_DIR"
+export PYTHONPATH=backend
 
 # Charge .env si présent, sinon valeurs par défaut adaptées aux tests (SQLite)
 if [ -f ".env" ]; then
@@ -184,7 +185,7 @@ if [ "${RUN_PYTEST:-1}" = "1" ]; then
   if command -v pytest >/dev/null 2>&1; then
     log "Exécution des tests API (pytest)…"
     # Priorité à vos nouveaux tests API; ajuster le chemin si besoin
-    PYTHONWARNINGS=ignore pytest -q api/tests -k test_tasks_e2e || {
+    PYTHONWARNINGS=ignore pytest -q backend/tests/api/fastapi -k test_tasks_e2e || {
       echo "---- LOGS UVICORN ----"; tail -n +1 /tmp/crew_api.log || true; die "Tests pytest échoués"
     }
     ok "Tests pytest OK."

@@ -6,7 +6,8 @@ SHELL := /bin/bash
 PYTHON              ?= python3
 PIP                 ?= pip
 VENV_DIR            ?= .venv
-ACTIVATE            := . $(VENV_DIR)/bin/activate
+PYTHONPATH         ?= backend
+ACTIVATE            := PYTHONPATH=$(PYTHONPATH) . $(VENV_DIR)/bin/activate
 REQ_FILE            ?= requirements.txt
 ENV_FILE            ?= .env
 
@@ -34,8 +35,8 @@ help:
 	@echo "  clean-venv          -> supprime le venv"
 	@echo "  deps-update        -> met à jour les dépendances"
 	@echo "  test                -> pytest (rapide)"
-	@echo "  test-extra          -> pytest tests_extra (si présents)"
-	@echo "  test-all            -> pytest tests + tests_extra (si présents)"
+	@echo "  test-extra          -> pytest backend/tests/extra (si présents)"
+	@echo "  test-all            -> pytest backend/tests + backend/tests/extra (si présents)"
 	@echo "  test-recovery       -> pytest -k 'recovery or status_store' (si présent)"
 	@echo "  run                 -> exécute avec un plan JSON (DEFAULT_TASK_JSON)"
 	@echo "  run-supervisor      -> génère le plan via superviseur et exécute"
@@ -108,11 +109,11 @@ test: ensure-venv
 
 .PHONY: test-extra
 test-extra:
-	pytest tests_extra -v
+	PYTHONPATH=$(PYTHONPATH) pytest backend/tests/extra -v
 
 .PHONY: test-all
 test-all: ensure-venv
-	@$(ACTIVATE) && pytest -q && pytest tests_extra -v
+	@$(ACTIVATE) && pytest -q && pytest backend/tests/extra -v
 
 .PHONY: test-recovery
 test-recovery: ensure-venv
@@ -137,12 +138,12 @@ run: ensure-venv
 	@if [ ! -f "$(DEFAULT_TASK_JSON)" ]; then \
 		echo "❌ Plan JSON manquant: $(DEFAULT_TASK_JSON)"; exit 1; \
 	fi
-	@$(ACTIVATE) && $(PYTHON) -m apps.orchestrator.main --task-file "$(DEFAULT_TASK_JSON)" $(RUN_ARGS)
+	@$(ACTIVATE) && $(PYTHON) -m orchestrator.main --task-file "$(DEFAULT_TASK_JSON)" $(RUN_ARGS)
 
 # Mode superviseur (génère un plan via LLM)
 .PHONY: run-supervisor
 run-supervisor: ensure-venv
-	@$(ACTIVATE) && $(PYTHON) -m apps.orchestrator.main \
+	@$(ACTIVATE) && $(PYTHON) -m orchestrator.main \
 		--use-supervisor \
 		--title $(SUP_TITLE) \
 		--description $(SUP_DESC) \
@@ -153,7 +154,7 @@ run-supervisor: ensure-venv
 .PHONY: run-ollama
 run-ollama: ensure-venv
 	@LLM_DEFAULT_PROVIDER=ollama LLM_DEFAULT_MODEL=llama3.1:8b \
-	$(ACTIVATE) && $(PYTHON) -m apps.orchestrator.main \
+	$(ACTIVATE) && $(PYTHON) -m orchestrator.main \
 		--use-supervisor \
 		--title $(SUP_TITLE) \
 		--description $(SUP_DESC) \
@@ -163,7 +164,7 @@ run-ollama: ensure-venv
 .PHONY: run-openai
 run-openai: ensure-venv
 	@LLM_DEFAULT_PROVIDER=openai LLM_DEFAULT_MODEL=gpt-4o-mini \
-	$(ACTIVATE) && $(PYTHON) -m apps.orchestrator.main \
+	$(ACTIVATE) && $(PYTHON) -m orchestrator.main \
 		--use-supervisor \
 		--title $(SUP_TITLE) \
 		--description $(SUP_DESC) \
@@ -206,11 +207,11 @@ api-run-metrics: ensure-venv
 
 .PHONY: api-run-prod
 api-run-prod: ensure-venv
-        @$(ACTIVATE) && uvicorn $(API_MODULE) --host 0.0.0.0 --port $(API_PORT) --workers 2
+	@$(ACTIVATE) && uvicorn $(API_MODULE) --host 0.0.0.0 --port $(API_PORT) --workers 2
 
 .PHONY: api-migrate
 api-migrate: ensure-venv
-	@$(ACTIVATE) && alembic upgrade head
+	@$(ACTIVATE) && alembic -c backend/migrations/alembic.ini upgrade head
 
 .PHONY: migrate-fil8
 migrate-fil8:
@@ -218,31 +219,31 @@ migrate-fil8:
 
 .PHONY: seed-agents
 seed-agents:
-	poetry run python scripts/seed_agents.py
+	PYTHONPATH=$(PYTHONPATH) poetry run python scripts/seed_agents.py
 
 .PHONY: test-fil8
 test-fil8:
-	pytest -q tests -k "agents or recruit or matrix or rbac" --cov=api --cov-report=term --cov-report=xml --cov-report=html
+	PYTHONPATH=$(PYTHONPATH) pytest -q backend/tests -k "agents or recruit or matrix or rbac" --cov=api --cov-report=term --cov-report=xml --cov-report=html
 
 .PHONY: api-test
 api-test: ensure-venv
-	@if [ -d api/tests ]; then \
-		PYTHONWARNINGS=ignore $(ACTIVATE) && pytest -q api/tests; \
+	@if [ -d backend/tests/api/fastapi ]; then \
+	        PYTHONWARNINGS=ignore $(ACTIVATE) && pytest -q backend/tests/api/fastapi; \
 	else \
-		echo "⏭️  Pas de dossier api/tests — skip"; \
+	        echo "⏭️  Pas de dossier backend/tests/api/fastapi — skip"; \
 	fi
 
 .PHONY: api-e2e
 api-e2e: ensure-venv
-	@$(ACTIVATE) && pytest -q api/tests
+	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi
 
 .PHONY: api-e2e-happy
 api-e2e-happy: ensure-venv
-	@$(ACTIVATE) && pytest -q api/tests/test_tasks_happy_e2e.py
+	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi/test_tasks_happy_e2e.py
 
 .PHONY: api-e2e-meta
 api-e2e-meta: ensure-venv
-	@$(ACTIVATE) && pytest -q api/tests/test_tasks_meta_e2e.py
+	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi/test_tasks_meta_e2e.py
 
 # ---- Scripts divers -----------------------------------------
 .PHONY: task-plan-start
@@ -252,16 +253,16 @@ task-plan-start: ensure-venv
 # ---- Validation ----------------------------------
 .PHONY: validate validate-all validate-strict validate-non-uuid
 validate: ensure-venv
-	@$(ACTIVATE) && python tools/validate_sidecars.py
+	@$(ACTIVATE) && python backend/tools/validate_sidecars.py
 
 validate-all: ensure-venv
-	@$(ACTIVATE) && python tools/validate_sidecars.py --all
+	@$(ACTIVATE) && python backend/tools/validate_sidecars.py --all
 
 validate-strict: ensure-venv
-	@$(ACTIVATE) && python tools/validate_sidecars.py --strict
+	@$(ACTIVATE) && python backend/tools/validate_sidecars.py --strict
 
 validate-non-uuid: ensure-venv
-	@$(ACTIVATE) && python tools/validate_sidecars.py --non-uuid
+	@$(ACTIVATE) && python backend/tools/validate_sidecars.py --non-uuid
 
 # ---- Mini Dashboard ---------------------------
 .PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-test dash-mini-e2e dash-mini-e2e-ci dash-mini-ci-local ui-run-e2e
@@ -334,16 +335,16 @@ db-reset:
 
 # Lancer le serveur de dev Next.js
 cockpit:
-	@cd apps/cockpit && npm run dev
+	@cd frontend/cockpit && npm run dev
 
 # Installer les dépendances
 cockpit-install:
-	@cd apps/cockpit && npm install
+	@cd frontend/cockpit && npm install
 
 # Build de production
 cockpit-build:
-	@cd apps/cockpit && npm run build
+	@cd frontend/cockpit && npm run build
 
 # Tests côté cockpit (Vitest)
 cockpit-test:
-	@cd apps/cockpit && npm test
+	@cd frontend/cockpit && npm test
