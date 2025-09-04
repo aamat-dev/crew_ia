@@ -116,17 +116,18 @@ if metrics_enabled():
 # Origines autorisées via variable d'env ALLOWED_ORIGINS (CSV)
 ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+    ).split(",")
     if origin.strip()
 ]
-CORS_ALLOW_METHODS = ["GET", "POST", "PATCH", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID", "X-Role"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=CORS_ALLOW_METHODS,
-    allow_headers=CORS_ALLOW_HEADERS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Link", "X-Total-Count"],
 )
 
 # -------- Routes --------
