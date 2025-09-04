@@ -10,7 +10,7 @@ PYTHONPATH         ?= backend
 ACTIVATE            := PYTHONPATH=$(PYTHONPATH) . $(VENV_DIR)/bin/activate
 REQ_FILE            ?= requirements.txt
 ENV_FILE            ?= .env
-
+UVICORN := .venv/bin/uvicorn
 RUNS_ROOT           ?= .runs
 DEFAULT_TASK_JSON   ?= examples/task_rapport_80p.json
 RUN_ARGS            ?=
@@ -197,8 +197,8 @@ env-check: ensure-venv
 
 # ---- API (FastAPI) -------------------------------------------
 .PHONY: api-run
-api-run: ensure-venv
-		@$(ACTIVATE) && uvicorn $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT) --env-file $(ENV_FILE)
+api-run:
+	$(ACTIVATE) && $(UVICORN) api.fastapi_app.app:app --reload --host 127.0.0.1 --port 8000
 
 .PHONY: api-run-metrics
 api-run-metrics: ensure-venv

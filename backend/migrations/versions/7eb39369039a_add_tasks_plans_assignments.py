@@ -40,7 +40,7 @@ def upgrade() -> None:
 
     op.create_table(
         "tasks",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
         sa.Column("title", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column(
@@ -70,7 +70,7 @@ def upgrade() -> None:
 
     op.create_table(
         "plans",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
         sa.Column("task_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
             "status",
@@ -108,7 +108,7 @@ def upgrade() -> None:
 
     op.create_table(
         "assignments",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
         sa.Column("plan_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("node_id", sa.Text(), nullable=False),
         sa.Column("role", sa.Text(), nullable=False),
