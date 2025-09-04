@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..deps import get_session, strict_api_key_auth, cap_date_range
 from ..schemas_base import Page, EventOut
-from app.utils.pagination import (
+from backend.api.utils.pagination import (
     PaginationParams,
     pagination_params,
     set_pagination_headers,

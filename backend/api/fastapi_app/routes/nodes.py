@@ -14,7 +14,7 @@ from ..deps import (
 )
 from ..schemas_base import Page, NodeOut
 from ..schemas.feedbacks import FeedbackOut
-from app.utils.pagination import (
+from backend.api.utils.pagination import (
     PaginationParams,
     pagination_params,
     set_pagination_headers,

@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.fastapi_app.deps import get_session
-from api.fastapi_app.models.run import Run
-from api.fastapi_app.models.node import Node
-from api.fastapi_app.models.feedback import Feedback
+from backend.api.fastapi_app.deps import get_session
+from backend.api.fastapi_app.models.run import Run
+from backend.api.fastapi_app.models.node import Node
+from backend.api.fastapi_app.models.feedback import Feedback
 
 router = APIRouter(prefix="/runs", tags=["qa"])
 

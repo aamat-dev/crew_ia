@@ -22,7 +22,7 @@ SUP_DESC            ?= "Décomposer la production d'un rapport de 80 pages."
 SUP_ACCEPTANCE      ?= --acceptance "structure claire" --acceptance "pas de cycles"
 
 # API
-API_MODULE          ?= api.fastapi_app.app:app
+API_MODULE          ?= backend.api.fastapi_app.app:app
 API_HOST            ?= 0.0.0.0
 API_PORT            ?= 8000
 

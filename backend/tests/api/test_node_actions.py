@@ -3,7 +3,7 @@ import uuid
 import pytest
 from fastapi import HTTPException
 
-from app.services import orchestrator_adapter
+from backend.orchestrator import orchestrator_adapter
 
 
 @pytest.mark.asyncio

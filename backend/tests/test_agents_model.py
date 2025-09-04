@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 
-from api.fastapi_app.models.agent import Agent
+from backend.api.fastapi_app.models.agent import Agent
 
 
 @pytest.mark.asyncio

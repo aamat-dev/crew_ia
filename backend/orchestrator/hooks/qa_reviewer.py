@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from core.llm import call_json  # doit retourner un dict JSON
-from api.fastapi_app.clients.feedbacks import create_feedback  # POST /feedbacks
+from backend.api.fastapi_app.clients.feedbacks import create_feedback  # POST /feedbacks
 
 CHECKLISTS_ROOT = Path("quality/checklists")
 CHECKLISTS_ALIAS = CHECKLISTS_ROOT / "latest"

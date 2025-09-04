@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.plan import Plan, PlanStatus
-from app.models.plan_review import PlanReview
-from app.models.assignment import Assignment
-from app.schemas.assignment import AssignmentsPayload, AssignmentsResponse
-from api.fastapi_app.deps import get_db, strict_api_key_auth
+from backend.core.models import Plan, PlanStatus
+from backend.core.models import PlanReview
+from backend.core.models import Assignment
+from backend.api.schemas.assignment import AssignmentsPayload, AssignmentsResponse
+from backend.api.fastapi_app.deps import get_db, strict_api_key_auth
 
 router = APIRouter(
     prefix="/plans",

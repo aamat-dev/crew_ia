@@ -6,8 +6,8 @@ from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
 import sentry_sdk
 
-from api.fastapi_app.app import app
-from api.fastapi_app.observability import init_sentry, SentryContextMiddleware
+from backend.api.fastapi_app.app import app
+from backend.api.fastapi_app.observability import init_sentry, SentryContextMiddleware
 from orchestrator import executor
 from core.planning.task_graph import PlanNode, TaskGraph
 

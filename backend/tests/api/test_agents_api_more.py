@@ -4,7 +4,7 @@ import datetime as dt
 import pytest
 from sqlalchemy import insert
 
-from api.fastapi_app.models.agent import Agent, AgentModelsMatrix
+from backend.api.fastapi_app.models.agent import Agent, AgentModelsMatrix
 
 
 @pytest.mark.asyncio

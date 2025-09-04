@@ -19,7 +19,7 @@ from ..schemas_base import (
 from ..schemas.prompting import RecruitRequest, RecruitResponse
 from ..services.recruit_service import RecruitService
 from ..models.agent import Agent, AgentModelsMatrix
-from app.utils.pagination import PaginationParams, pagination_params, set_pagination_headers
+from backend.api.utils.pagination import PaginationParams, pagination_params, set_pagination_headers
 from ..ordering import apply_order
 
 router = APIRouter(prefix="/agents", tags=["agents"], dependencies=[Depends(strict_api_key_auth)])

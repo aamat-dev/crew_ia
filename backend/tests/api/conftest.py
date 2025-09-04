@@ -13,11 +13,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import delete, insert
 
 # --- importe l'app et les deps ---
-from api.fastapi_app.app import app
-from api.fastapi_app import deps as api_deps  # <-- contient get_db et (probablement) les deps d'auth
+from backend.api.fastapi_app.app import app
+from backend.api.fastapi_app import deps as api_deps  # <-- contient get_db et (probablement) les deps d'auth
 
 # --- importe tes modèles & Base ---
-from api.database.models import Base, Run, Node, Artifact, Event
+from backend.api.database.models import Base, Run, Node, Artifact, Event
 
 
 # ---------- Engine & Session de test (SQLite fichier) ----------

@@ -10,7 +10,7 @@ from sqlmodel import SQLModel
 # Modèles existants
 from core.storage.db_models import Run, Node, Artifact, Event  # noqa: F401
 # Modèles de l'application
-from app.db.base import Base  # noqa: F401
+from backend.api.database.models import Base  # noqa: F401
 from dotenv import load_dotenv
 load_dotenv()  # charge le .env tôt
 

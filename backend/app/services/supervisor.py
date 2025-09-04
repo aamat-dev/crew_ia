@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import List
 
-from app.models.task import Task
-from app.models.plan import PlanStatus
-from app.schemas.plan import (
+from backend.core.models import Task
+from backend.core.models import PlanStatus
+from backend.api.schemas.plan import (
     PlanNode,
     PlanGraph,
     PlanGenerationResult,
