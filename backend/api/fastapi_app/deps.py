@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import AsyncGenerator, Sequence
 
 from fastapi import Header, HTTPException, status, Request, Depends
@@ -70,9 +71,12 @@ def _setup_db_pool_metrics(engine: AsyncEngine) -> None:
         logger.debug("db_pool_in_use: échec de l'attachement des hooks", exc_info=True)
 
 
+ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"
     )
 
     # Provide sensible defaults so the API can start without mandatory
