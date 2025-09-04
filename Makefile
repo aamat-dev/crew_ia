@@ -198,7 +198,7 @@ env-check: ensure-venv
 # ---- API (FastAPI) -------------------------------------------
 .PHONY: api-run
 api-run:
-	$(ACTIVATE) && $(UVICORN) api.fastapi_app.app:app --reload --host 127.0.0.1 --port 8000
+    $(ACTIVATE) && $(UVICORN) $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT)
 
 .PHONY: api-run-metrics
 api-run-metrics: ensure-venv
