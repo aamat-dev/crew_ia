@@ -11,7 +11,7 @@ used for testing.
 ```
 API_KEY=test-key
 DATABASE_URL=sqlite+aiosqlite:///./app.db
-CORS_ORIGINS=
+ALLOWED_ORIGINS=
 ```
 
 2. Start the API with Uvicorn (loads variables from `.env`):
@@ -85,7 +85,7 @@ Workflow complet :
 
 ### Tests E2E UI (Playwright)
 
-1. Lancer le front en mode dev ou preview :
+1. Lancer le front en mode dev ou preview (dashboard/mini – **déprécié**) :
    ```bash
    (cd dashboard/mini && npm i && npm run dev)
    # repérez l'URL, par ex. http://localhost:5173
@@ -173,7 +173,7 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
-- `CORS_ORIGINS` — origines autorisées pour CORS.
+- `ALLOWED_ORIGINS` — origines autorisées pour CORS.
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 - `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
 - `FEEDBACK_REVIEW_TIMEOUT_MS` — délai d'attente de l'auto‑review en ms (défaut 3500).
@@ -200,7 +200,7 @@ Décommentez le bloc correspondant à votre contexte pour obtenir une configurat
 
 
 - API : `make api-run` (dev) ou `make api-run-prod` (prod).
-- CLI : `python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
+- CLI : `python -m orchestrator.main --use-supervisor --title "Rapport 80p"` pour générer un plan via le superviseur (cf. [`apps/orchestrator/main.py`](apps/orchestrator/main.py)).
 
 ### Commandes de test
 
@@ -215,7 +215,7 @@ Décommentez le bloc correspondant à votre contexte pour obtenir une configurat
 - **CLI** : lancer l'orchestrateur en générant le plan :
 
   ```
-  python -m apps.orchestrator.main --use-supervisor --title "Rapport 80p"
+  python -m orchestrator.main --use-supervisor --title "Rapport 80p"
   ```
 
 ### Schéma textuel du flux
@@ -227,7 +227,7 @@ Supervisor → Manager → Exécutants → sidecars
 ## Authentication & CORS
 
 All endpoints except `/health` require the `X-API-Key` header. Origins allowed
-for CORS are configured via the `CORS_ORIGINS` variable in `.env` (comma separated
+for CORS are configured via the `ALLOWED_ORIGINS` variable in `.env` (comma separated
 list).
 
 ## Database migrations
@@ -274,15 +274,15 @@ scrape_configs:
 - Rétro‑compatibilité assurée par [`_normalize_llm_sidecar`](apps/orchestrator/api_runner.py).
 
 ### Fichiers
-- Schéma : [`schemas/llm_sidecar.schema.json`](schemas/llm_sidecar.schema.json)
-- Exemples : [`schemas/examples/llm_sidecar.valid.json`](schemas/examples/llm_sidecar.valid.json), [`schemas/examples/llm_sidecar.invalid.json`](schemas/examples/llm_sidecar.invalid.json)
-- CLI : [`tools/validate_sidecars.py`](tools/validate_sidecars.py)
+- Schéma : [`backend/schemas/llm_sidecar.schema.json`](backend/schemas/llm_sidecar.schema.json)
+- Exemples : [`backend/schemas/examples/llm_sidecar.valid.json`](backend/schemas/examples/llm_sidecar.valid.json), [`backend/schemas/examples/llm_sidecar.invalid.json`](backend/schemas/examples/llm_sidecar.invalid.json)
+- CLI : [`backend/tools/validate_sidecars.py`](backend/tools/validate_sidecars.py)
 
 ### Commandes
 ```bash
 make validate
 make validate-strict
-python tools/validate_sidecars.py --since <run_id|timestamp>
+python backend/tools/validate_sidecars.py --since <run_id|timestamp>
 ```
 
 ### CI
@@ -321,11 +321,13 @@ Exemple de sidecar valide :
 
 ## Cockpit front-end
 
-Un tableau de bord Next.js est disponible dans `apps/cockpit`.
+Un tableau de bord Next.js est disponible dans `frontend/cockpit`.
+
+> **Note :** le projet `dashboard/mini` est désormais **déprécié**.
 Pour le démarrer en développement :
 
 ```bash
-cd apps/cockpit
+cd frontend/cockpit
 npm run dev
 ```
 
