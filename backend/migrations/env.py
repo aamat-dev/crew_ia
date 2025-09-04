@@ -14,6 +14,11 @@ from app.db.base import Base  # noqa: F401
 from dotenv import load_dotenv
 load_dotenv()  # charge le .env tôt
 
+# Si tu veux forcer alembic à lire l'URL depuis l'env:
+db_url = os.getenv("ALEMBIC_DATABASE_URL")
+if db_url:
+    context.config.set_main_option("sqlalchemy.url", db_url)
+
 # Alembic Config object
 config = context.config
 
@@ -25,9 +30,14 @@ def _sync_url() -> str:
     Récupère l'URL de BDD pour Alembic (driver *synchrone*).
 
     Priorité :
-      1) DATABASE_URL_SYNC (si défini)
-      2) DATABASE_URL converti (remplace 'postgresql+asyncpg' -> 'postgresql+psycopg')
+      1) ALEMBIC_DATABASE_URL (si défini)
+      2) DATABASE_URL_SYNC (si défini)
+      3) DATABASE_URL converti (remplace 'postgresql+asyncpg' -> 'postgresql+psycopg')
     """
+    env_alembic = os.getenv("ALEMBIC_DATABASE_URL")
+    if env_alembic:
+        return env_alembic
+
     env_sync = os.getenv("DATABASE_URL_SYNC")
     if env_sync:
         return env_sync
@@ -40,7 +50,7 @@ def _sync_url() -> str:
         return env
 
     raise RuntimeError(
-        "Aucune URL de BDD trouvée. Définis DATABASE_URL ou DATABASE_URL_SYNC (dans .env)."
+        "Aucune URL de BDD trouvée. Définis ALEMBIC_DATABASE_URL, DATABASE_URL ou DATABASE_URL_SYNC (dans .env).",
     )
 
 def run_migrations_offline() -> None:
