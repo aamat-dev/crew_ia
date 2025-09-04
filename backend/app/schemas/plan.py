@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.plan import PlanStatus
+from backend.core.models import PlanStatus
 
 
 class PlanNode(BaseModel):

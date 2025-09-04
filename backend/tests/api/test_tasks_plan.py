@@ -3,11 +3,11 @@ import uuid
 import pytest
 from sqlalchemy import insert, select
 
-from app.models.task import Task, TaskStatus
-from app.models.plan import Plan, PlanStatus
-from app.models.plan_review import PlanReview
-from app.schemas.plan import PlanGraph, PlanNode, PlanGenerationResult
-import api.fastapi_app.routes.tasks as tasks_routes
+from backend.core.models import Task, TaskStatus
+from backend.core.models import Plan, PlanStatus
+from backend.core.models import PlanReview
+from backend.api.schemas.plan import PlanGraph, PlanNode, PlanGenerationResult
+import backend.api.fastapi_app.routes.tasks as tasks_routes
 
 
 @pytest.mark.asyncio

@@ -15,7 +15,7 @@ async def test_rate_limit_returns_429(async_client, monkeypatch):
         return uuid.uuid4()
 
     monkeypatch.setattr(
-        "api.fastapi_app.routes.tasks.schedule_run", fake_schedule_run
+        "backend.api.fastapi_app.routes.tasks.schedule_run", fake_schedule_run
     )
 
     payload = {"title": "R", "task_spec": {"type": "demo"}}

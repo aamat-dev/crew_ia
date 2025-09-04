@@ -11,9 +11,9 @@ async def _create_client_and_metrics(monkeypatch, enabled: str):
     monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///./test_metrics.db")
 
     import core.telemetry.metrics as metrics
-    import api.fastapi_app.deps as deps
-    import api.fastapi_app.middleware.metrics as mw_metrics
-    import api.fastapi_app.app as app_module
+    import backend.api.fastapi_app.deps as deps
+    import backend.api.fastapi_app.middleware.metrics as mw_metrics
+    import backend.api.fastapi_app.app as app_module
 
     importlib.reload(metrics)
     importlib.reload(deps)

@@ -6,9 +6,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 
-from api.fastapi_app.deps import strict_api_key_auth
-from app.schemas.node_actions import NodeActionRequest, NodeActionResponse
-from app.services import orchestrator_adapter
+from backend.api.fastapi_app.deps import strict_api_key_auth
+from backend.api.schemas.node_actions import NodeActionRequest, NodeActionResponse
+from backend.orchestrator import orchestrator_adapter
 
 router = APIRouter(prefix="/nodes", tags=["nodes"], dependencies=[Depends(strict_api_key_auth)])
 

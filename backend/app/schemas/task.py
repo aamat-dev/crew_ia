@@ -6,7 +6,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.task import TaskStatus
+from backend.core.models import TaskStatus
 
 
 class TaskCreate(BaseModel):

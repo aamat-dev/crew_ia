@@ -1,6 +1,6 @@
 import pytest
-from api.fastapi_app import deps
-from api.fastapi_app.routes import agents as agents_routes
+from backend.api.fastapi_app import deps
+from backend.api.fastapi_app.routes import agents as agents_routes
 
 
 class DummyRecruit:

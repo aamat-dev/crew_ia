@@ -7,8 +7,8 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "backend"))
 
 from sqlalchemy import select
 
-from api.fastapi_app.models.agent import AgentTemplate, AgentModelsMatrix
-from api.fastapi_app.deps import get_sessionmaker
+from backend.api.fastapi_app.models.agent import AgentTemplate, AgentModelsMatrix
+from backend.api.fastapi_app.deps import get_sessionmaker
 
 
 async def seed_templates(path: str = "seeds/agent_templates.json") -> None:

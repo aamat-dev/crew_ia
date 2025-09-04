@@ -77,7 +77,7 @@ fi
 
 # ========= Étape 2 : Lancement API (uvicorn) =========
 log "Lancement de l’API (uvicorn) en arrière-plan…"
-UVICORN_CMD=(uvicorn api.fastapi_app.app:app --host "$API_HOST" --port "$API_PORT")
+UVICORN_CMD=(uvicorn backend.api.fastapi_app.app:app --host "$API_HOST" --port "$API_PORT")
 if [ -f ".env" ]; then
   UVICORN_CMD+=(--env-file .env)
 fi

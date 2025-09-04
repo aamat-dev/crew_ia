@@ -18,15 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..deps import strict_api_key_auth, get_session
 from ..schemas_base import TaskRequest, TaskAcceptedResponse
 
-from app.models.task import Task, TaskStatus
-from app.schemas.task import TaskCreate, TaskOut
+from backend.core.models import Task, TaskStatus
+from backend.api.schemas.task import TaskCreate, TaskOut
 
-from app.models.plan import Plan, PlanStatus
-from app.schemas.plan import PlanCreateResponse
-from app.services.supervisor import generate_plan
-from app.services import orchestrator_adapter
+from backend.core.models import Plan, PlanStatus
+from backend.api.schemas.plan import PlanCreateResponse
+from backend.core.services.supervisor import generate_plan
+from backend.orchestrator import orchestrator_adapter
 
-from core.services.orchestrator_service import schedule_run
+from backend.core.services.orchestrator_service import schedule_run
 
 router = APIRouter(
     prefix="/tasks",

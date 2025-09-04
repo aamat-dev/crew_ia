@@ -3,9 +3,9 @@ import datetime as dt
 import pytest
 from sqlalchemy import insert, delete
 
-from api.fastapi_app.models.run import Run
-from api.fastapi_app.models.node import Node
-from api.fastapi_app.models.feedback import Feedback
+from backend.api.fastapi_app.models.run import Run
+from backend.api.fastapi_app.models.node import Node
+from backend.api.fastapi_app.models.feedback import Feedback
 
 
 @pytest.mark.asyncio

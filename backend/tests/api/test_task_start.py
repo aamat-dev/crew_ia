@@ -3,8 +3,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.task import Task, TaskStatus
-from app.models.plan import Plan, PlanStatus
+from backend.core.models import Task, TaskStatus
+from backend.core.models import Plan, PlanStatus
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,5 @@
 import pytest
-from api.fastapi_app import deps
+from backend.api.fastapi_app import deps
 
 
 @pytest.mark.asyncio

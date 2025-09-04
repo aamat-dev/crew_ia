@@ -17,7 +17,7 @@ from ..deps import (
     to_tz,
 )
 from ..schemas_base import Page
-from app.utils.pagination import (
+from backend.api.utils.pagination import (
     PaginationParams,
     pagination_params,
     set_pagination_headers,
