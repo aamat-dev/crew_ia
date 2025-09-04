@@ -51,6 +51,11 @@ class Run(SQLModel, table=True):
         sa_column=Column("metadata", JSON, nullable=True),
     )
 
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+    )
+
 
 class Node(SQLModel, table=True):
     __tablename__ = "nodes"
