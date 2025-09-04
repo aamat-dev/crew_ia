@@ -188,18 +188,19 @@ async def run_task(
             # micro‑retry: laisse le temps à l’exécuteur d’écrire le sidecar
             await anyio.sleep(0.35)
             meta = _read_llm_sidecar_fs(run_id, node_key) or {}
+        duration_ms = int((ended - node_started_at.get(node_key, ended)).total_seconds() * 1000)
+        meta_payload: Dict[str, Any] = {"duration_ms": duration_ms}
+        if meta:
+            meta_payload.update(meta)
 
         payload = {
             "run_id": run_id,
+            "node_id": str(node_id) if node_id else None,
             "node_key": node_key,
             "status": node_status.value.upper(),
             "checksum": getattr(node, "checksum", None),
+            "meta": meta_payload,
         }
-        if meta:
-            for k in ("provider", "model", "latency_ms", "usage", "prompts"):
-                v = meta.get(k)
-                if v is not None:
-                    payload[k] = v
 
         event_type = (
             EventType.NODE_COMPLETED
@@ -211,9 +212,9 @@ async def run_task(
                 "NODE_COMPLETED run_id=%s node=%s provider=%s model=%s latency_ms=%s",
                 run_id,
                 node_key,
-                payload.get("provider"),
-                payload.get("model"),
-                payload.get("latency_ms"),
+                meta_payload.get("provider"),
+                meta_payload.get("model"),
+                meta_payload.get("latency_ms"),
             )
         await event_publisher.emit(event_type, payload, request_id=request_id)
 
