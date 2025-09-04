@@ -23,7 +23,7 @@ SUP_ACCEPTANCE      ?= --acceptance "structure claire" --acceptance "pas de cycl
 
 # API
 API_MODULE          ?= api.fastapi_app.app:app
-API_HOST            ?= 127.0.0.1
+API_HOST            ?= 0.0.0.0
 API_PORT            ?= 8000
 
 # ---- Help (target par défaut) --------------------------------

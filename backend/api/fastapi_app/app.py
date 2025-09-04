@@ -124,6 +124,7 @@ CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-API-Key", "X-Request-I
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=CORS_ALLOW_METHODS,
     allow_headers=CORS_ALLOW_HEADERS,
 )
