@@ -325,9 +325,9 @@ db-reset:
 	@docker compose up -d postgres pgadmin
 	@sleep 3
 	@if [ -n "$$ALEMBIC_DATABASE_URL" ]; then \
-		$(ACTIVATE) && alembic upgrade head; \
+	 $(ACTIVATE) && alembic -c backend/migrations/alembic.ini upgrade head; \
 	else \
-		echo "ℹ️  ALEMBIC_DATABASE_URL non défini — migration skip"; \
+	 echo "ℹ️  ALEMBIC_DATABASE_URL non défini — migration skip"; \
 	fi
 
 # ---- Cockpit (Next.js) ---------------------------------------
