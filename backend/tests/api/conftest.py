@@ -97,6 +97,7 @@ def _clear_auth_overrides():
         "api_key_auth",
         "strict_api_key_auth",
     }
+    # Supprime toute override dont le nom est dans le set
     for dep in list(app.dependency_overrides.keys()):
         if getattr(dep, "__name__", None) in possible_auth_deps:
             del app.dependency_overrides[dep]
@@ -136,13 +137,13 @@ async def client_noauth(_dispose_engine) -> AsyncClient:
     Après utilisation, les overrides d'auth sont rétablis pour ne pas
     polluer les autres tests.
     """
+    # purges les overrides d'auth avant toute requête
+    _clear_auth_overrides()
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.database_url = _TEST_DB_URL
     api_deps.settings.api_key = "test-key"
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
-    # enlève les overrides d'auth pour forcer la vraie auth
-    _clear_auth_overrides()
 
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
