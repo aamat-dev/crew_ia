@@ -4,7 +4,17 @@ from datetime import datetime, UTC
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, DateTime, Enum as SAEnum, JSON, String, Text, func, Integer
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    JSON,
+    String,
+    Text,
+    func,
+    Integer,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlmodel import Field, SQLModel
 
@@ -59,6 +69,9 @@ class Run(SQLModel, table=True):
 
 class Node(SQLModel, table=True):
     __tablename__ = "nodes"
+    __table_args__ = (
+        UniqueConstraint("run_id", "key", name="uq_nodes_run_key"),
+    )
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
@@ -146,4 +159,3 @@ class Feedback(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
     )
-

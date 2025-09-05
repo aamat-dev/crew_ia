@@ -7,8 +7,8 @@ from typing import List, Optional, Any, Dict
 from contextlib import asynccontextmanager
 
 from sqlalchemy import text, select, update
-from sqlalchemy.dialects.postgresql import insert, JSONB
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert, JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
@@ -38,6 +38,8 @@ class PostgresAdapter:
             poolclass=NullPool,       # 1 connexion par session (tests/outils)
             pool_pre_ping=True,
         )
+        if self._engine.dialect.name != "postgresql":
+            raise RuntimeError("PostgreSQL required")
         # IMPORTANT: expire_on_commit=False pour matérialiser avant fermeture
         self._sessionmaker = async_sessionmaker(
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
@@ -119,23 +121,52 @@ class PostgresAdapter:
 
     async def save_node(self, node: Optional[Node] = None, **kwargs) -> Node:
         obj = self._coalesce_obj(Node, node, kwargs)
-        async with self.session() as s:
-            try:
-                existing = await s.get(Node, obj.id) if obj.id else None
-                if existing:
-                    data = obj.model_dump() if hasattr(obj, "model_dump") else obj.dict()
-                    for k, v in data.items():
-                        setattr(existing, k, v)
-                    await s.flush()
-                    await s.commit()
-                    return existing
-                s.add(obj)
-                await s.flush()
-                await s.commit()
-                return obj
-            except Exception:
-                await s.rollback()
-                raise
+        # Assure un ID et reflète la valeur sur l'objet
+        new_id = obj.id or uuid.uuid4()
+        obj.id = new_id
+        payload = {
+            "id": new_id,
+            "run_id": obj.run_id,
+            "key": obj.key,
+            "title": obj.title,
+            "status": obj.status.value if isinstance(obj.status, NodeStatus) else obj.status,
+            "role": obj.role,
+            "deps": obj.deps,
+            "checksum": obj.checksum,
+        }
+        # created_at : si non fourni, délègue au serveur (now())
+        if getattr(obj, "created_at", None) is None:
+            payload["created_at"] = sa.func.now()
+        else:
+            payload["created_at"] = obj.created_at
+        if getattr(obj, "updated_at", None) is not None:
+            payload["updated_at"] = obj.updated_at
+
+        nodes = Node.__table__
+        insert_stmt = insert(nodes).values(**payload)
+        excluded = insert_stmt.excluded
+        stmt = (
+            insert_stmt.on_conflict_do_update(
+                index_elements=[nodes.c.run_id, nodes.c.key],
+                set_={
+                    "run_id": excluded.run_id,
+                    "key": excluded.key,
+                    "title": excluded.title,
+                    "status": excluded.status,
+                    "role": excluded.role,
+                    "deps": excluded.deps,
+                    "checksum": excluded.checksum,
+                    "updated_at": sa.func.now(),
+                },
+            ).returning(*nodes.c)
+        )
+
+        async with self._engine.begin() as conn:
+            result = await conn.execute(stmt)
+            row = result.fetchone()
+        node = Node(**row._mapping) if row else obj
+        obj.id = node.id
+        return node
 
     async def ensure_node(
         self,
