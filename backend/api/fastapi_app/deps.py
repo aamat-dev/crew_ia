@@ -188,13 +188,33 @@ async def require_request_id(x_request_id: str | None = Header(default=None, ali
     return x_request_id
 
 
-def strict_api_key_auth(
+# Auth API key ---------------------------------------------------------------
+def require_api_key(
     request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
 ) -> bool:
-    """Vérifie la clé API sauf si un override explicite est défini."""
+    """Vérifie la clé API.
+
+    - Les requêtes ``OPTIONS`` (preflight CORS) sont toujours autorisées.
+    - L'endpoint ``/health`` est accessible sans authentification.
+    - Si un override est défini (tests), la vérification est ignorée.
+    """
+
+    # Autoriser les preflight CORS
+    if request.method == "OPTIONS":
+        return True
+
+    # Exempter /health
+    if request.url.path == "/health":
+        return True
+
     if api_key_auth in request.app.dependency_overrides:
         return True
+
     return _check_api_key(x_api_key)
+
+
+# Compatibilité ascendante
+strict_api_key_auth = require_api_key
 
 
 # Timezone optionnelle pour formatage
