@@ -252,6 +252,7 @@ async def run_task(
                 status=final_status,
                 started_at=started,
                 ended_at=ended,
+                meta={"request_id": request_id},
             )
         )
         await event_publisher.emit(
