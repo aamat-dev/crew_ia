@@ -13,6 +13,9 @@ async def test_cors_preview(monkeypatch):
     original = os.getenv("ALLOWED_ORIGINS")
     monkeypatch.setenv("ALLOWED_ORIGINS", f"{origin},{other_origin}")
 
+    import backend.api.fastapi_app.deps as deps
+    deps.get_settings.cache_clear()
+    deps.settings = deps.get_settings()
     import backend.api.fastapi_app.app as app_module
     importlib.reload(app_module)
     app = app_module.app
@@ -42,4 +45,6 @@ async def test_cors_preview(monkeypatch):
         monkeypatch.setenv("ALLOWED_ORIGINS", original)
     else:
         monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    deps.get_settings.cache_clear()
+    deps.settings = deps.get_settings()
     importlib.reload(app_module)
