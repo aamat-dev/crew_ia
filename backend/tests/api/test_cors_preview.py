@@ -3,6 +3,7 @@ import importlib
 import pytest
 from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
+from ..conftest import reset_settings_env
 
 
 @pytest.mark.asyncio
@@ -11,11 +12,9 @@ async def test_cors_preview(monkeypatch):
     other_origin = "https://user.github.io"
     import os
     original = os.getenv("ALLOWED_ORIGINS")
-    monkeypatch.setenv("ALLOWED_ORIGINS", f"{origin},{other_origin}")
-
-    import backend.api.fastapi_app.deps as deps
-    deps.get_settings.cache_clear()
-    deps.settings = deps.get_settings()
+    reset_settings_env(
+        monkeypatch, ALLOWED_ORIGINS=f"{origin},{other_origin}"
+    )
     import backend.api.fastapi_app.app as app_module
     importlib.reload(app_module)
     app = app_module.app
@@ -42,9 +41,10 @@ async def test_cors_preview(monkeypatch):
         assert header in allow_headers
 
     if original is not None:
-        monkeypatch.setenv("ALLOWED_ORIGINS", original)
+        reset_settings_env(monkeypatch, ALLOWED_ORIGINS=original)
     else:
         monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
-    deps.get_settings.cache_clear()
-    deps.settings = deps.get_settings()
+        import backend.api.fastapi_app.deps as deps
+        deps.get_settings.cache_clear()
+        deps.settings = deps.get_settings()
     importlib.reload(app_module)

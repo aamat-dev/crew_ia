@@ -77,6 +77,7 @@ def _disable_auth_overrides():
         "get_bearer_user",
         "get_api_key_user",
         "api_key_auth",
+        "strict_api_key_auth",
     ]
     for name in possible_auth_deps:
         dep = getattr(api_deps, name, None)
@@ -86,7 +87,7 @@ def _disable_auth_overrides():
 
 
 def _clear_auth_overrides():
-    possible_auth_deps = [
+    possible_auth_deps = {
         "get_current_user",
         "require_auth",
         "require_api_key",
@@ -94,10 +95,10 @@ def _clear_auth_overrides():
         "get_bearer_user",
         "get_api_key_user",
         "api_key_auth",
-    ]
-    for name in possible_auth_deps:
-        dep = getattr(api_deps, name, None)
-        if dep is not None and dep in app.dependency_overrides:
+        "strict_api_key_auth",
+    }
+    for dep in list(app.dependency_overrides.keys()):
+        if getattr(dep, "__name__", None) in possible_auth_deps:
             del app.dependency_overrides[dep]
 
 
