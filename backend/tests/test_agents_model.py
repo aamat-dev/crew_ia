@@ -33,7 +33,7 @@ async def test_unique_agent_name(db_session):
     await db_session.commit()
 
     a1 = Agent(name="dup", role="manager", domain="frontend")
-    a2 = Agent(name="dup", role="manager", domain="backend")
+    a2 = Agent(name="dup", role="manager", domain="frontend")
     db_session.add(a1)
     await db_session.commit()
     db_session.add(a2)
