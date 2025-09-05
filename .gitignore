@@ -40,6 +40,7 @@ coverage/
 htmlcov/
 pytest_cache/
 .cache/
+.runs/
 
 # --- Frontend (Next.js / Cockpit) ---
 frontend/cockpit/.next/
