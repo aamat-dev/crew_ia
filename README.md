@@ -11,7 +11,8 @@ used for testing.
 ```
 API_KEY=test-key
 DATABASE_URL=sqlite+aiosqlite:///./app.db
-ALLOWED_ORIGINS=
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+API_URL=http://127.0.0.1:8000
 ```
 
 2. Start the API with Uvicorn (loads variables from `.env`):
@@ -23,7 +24,7 @@ make api-run
 3. Query the API (replace the API key if you changed it):
 
 ```
-curl -H "X-API-Key: test-key" http://localhost:8000/runs
+curl -H "X-API-Key: test-key" http://127.0.0.1:8000/runs
 ```
 
 > **Note :** Après un `git pull`, lancez `make deps-update` pour installer les nouvelles dépendances.
@@ -31,7 +32,7 @@ curl -H "X-API-Key: test-key" http://localhost:8000/runs
 Pour lister les événements d'un run spécifique :
 
 ```
-curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
+curl -H "X-API-Key: test-key" "http://127.0.0.1:8000/events?run_id=<RUN_ID>"
 ```
 
 ### Feedbacks
@@ -39,7 +40,7 @@ curl -H "X-API-Key: test-key" "http://localhost:8000/events?run_id=<RUN_ID>"
 Créer un feedback manuel :
 
 ```
-curl -X POST "http://localhost:8000/feedbacks" \
+curl -X POST "http://127.0.0.1:8000/feedbacks" \
  -H 'Content-Type: application/json' \
  -H 'X-API-Key: test-key' -H 'X-Request-ID: demo-1' -H 'X-Role: editor' \
  -d '{
@@ -109,7 +110,7 @@ Variables d'environnement minimales :
 ```
 API_KEY=test-key
 DATABASE_URL=sqlite+aiosqlite:///./app.db
-API_URL=http://localhost:8000
+API_URL=http://127.0.0.1:8000
 ```
 
 ### Étapes (local)
@@ -173,7 +174,8 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
-- `ALLOWED_ORIGINS` — origines autorisées pour CORS.
+- `ALLOWED_ORIGINS` — origines autorisées pour CORS (par défaut `http://localhost:3000,http://localhost:5173`).
+- `API_URL` — URL de base publique de l'API.
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 - `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
 - `FEEDBACK_REVIEW_TIMEOUT_MS` — délai d'attente de l'auto‑review en ms (défaut 3500).
@@ -209,7 +211,7 @@ Décommentez le bloc correspondant à votre contexte pour obtenir une configurat
   ```
   curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
        -d '{"title":"Demo","task_spec":{"type":"demo"}}' \
-       http://localhost:8000/tasks
+       http://127.0.0.1:8000/tasks
   ```
 
 - **CLI** : lancer l'orchestrateur en générant le plan :
@@ -258,7 +260,7 @@ make db-upgrade
 scrape_configs:
   - job_name: 'crew_ia_api'
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['127.0.0.1:8000']
     metrics_path: /metrics
 ```
 
