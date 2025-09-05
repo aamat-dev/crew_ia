@@ -87,7 +87,10 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./app.db", alias="DATABASE_URL"
     )
     api_key: str = Field(default="test-key", alias="API_KEY")
-    allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
+    allowed_origins_raw: str = Field(
+        default="http://localhost:3000,http://localhost:5173",
+        alias="ALLOWED_ORIGINS",
+    )
     artifacts_dir: str = Field(default=".runs", alias="ARTIFACTS_DIR")  # ← ajouté
 
     @property

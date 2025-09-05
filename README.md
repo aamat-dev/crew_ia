@@ -110,6 +110,7 @@ Variables d'environnement minimales :
 API_KEY=test-key
 DATABASE_URL=sqlite+aiosqlite:///./app.db
 API_URL=http://localhost:8000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
 ### Étapes (local)
