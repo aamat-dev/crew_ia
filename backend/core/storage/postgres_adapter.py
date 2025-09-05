@@ -7,6 +7,8 @@ from typing import List, Optional, Any, Dict
 from contextlib import asynccontextmanager
 
 from sqlalchemy import text, select, update
+from sqlalchemy.dialects.postgresql import insert, JSONB
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
@@ -40,6 +42,7 @@ class PostgresAdapter:
         self._sessionmaker = async_sessionmaker(
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
+        self._runs = Run.__table__
 
     # ---------- Infra utilitaires ----------
 
@@ -67,23 +70,36 @@ class PostgresAdapter:
 
     async def save_run(self, run: Optional[Run] = None, **kwargs) -> Run:
         obj = self._coalesce_obj(Run, run, kwargs)
-        async with self.session() as s:
-            try:
-                existing = await s.get(Run, obj.id) if obj.id else None
-                if existing:
-                    data = obj.model_dump() if hasattr(obj, "model_dump") else obj.dict()
-                    for k, v in data.items():
-                        setattr(existing, k, v)
-                    await s.flush()
-                    await s.commit()
-                    return existing
-                s.add(obj)
-                await s.flush()
-                await s.commit()
-                return obj
-            except Exception:
-                await s.rollback()
-                raise
+        payload = {
+            "id": obj.id,
+            "title": obj.title,
+            "status": obj.status.value if isinstance(obj.status, RunStatus) else obj.status,
+            "started_at": obj.started_at,
+            "ended_at": obj.ended_at,
+            "meta": obj.meta or {},
+        }
+
+        insert_stmt = insert(self._runs).values(**payload)
+        excluded = insert_stmt.excluded
+        empty_json = sa.cast(sa.text("'{}'"), JSONB)
+        existing_meta = sa.func.coalesce(sa.cast(self._runs.c.meta, JSONB), empty_json)
+        incoming_meta = sa.func.coalesce(sa.cast(excluded.meta, JSONB), empty_json)
+        stmt = (
+            insert_stmt.on_conflict_do_update(
+                index_elements=[self._runs.c.id],
+                set_={
+                    "title": sa.func.coalesce(excluded.title, self._runs.c.title),
+                    "status": excluded.status,
+                    "started_at": sa.func.coalesce(excluded.started_at, self._runs.c.started_at),
+                    "ended_at": excluded.ended_at,
+                    "meta": existing_meta.op("||")(incoming_meta),
+                },
+            ).returning(*self._runs.c)
+        )
+        async with self._engine.begin() as conn:
+            result = await conn.execute(stmt)
+            row = result.fetchone()
+        return Run(**row._mapping) if row else obj
 
     async def get_run(self, run_id: uuid.UUID) -> Optional[Run]:
         async with self.session() as s:
