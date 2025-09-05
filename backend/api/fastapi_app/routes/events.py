@@ -90,6 +90,7 @@ async def list_events(
     ]
     db_request_id = next((e.request_id for e in items if e.request_id), None)
     run_request_id = None
+    fs_request_id = None
     run_row = await session.get(Run, run_id)
     if run_row and run_row.meta:
         meta_dict = run_row.meta
@@ -98,29 +99,27 @@ async def list_events(
                 meta_dict = json.loads(meta_dict)
             except Exception:
                 meta_dict = {}
+        if not isinstance(meta_dict, dict):
+            meta_dict = {}
         run_request_id = meta_dict.get("request_id")
-    if db_request_id is None:
-        db_request_id = run_request_id
-    if db_request_id is None:
-        # Lecture de secours depuis le fichier run.json
-        try:
-            runs_root = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir))
-            meta_json = json.loads((runs_root / str(run_id) / "run.json").read_text())
-            db_request_id = meta_json.get("meta", {}).get("request_id")
-        except Exception:
-            db_request_id = None
-    if db_request_id:
+    try:
+        runs_root = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir))
+        meta_json = json.loads((runs_root / str(run_id) / "run.json").read_text())
+        fs_request_id = meta_json.get("meta", {}).get("request_id")
+    except Exception:
+        fs_request_id = None
+    chosen_request_id = db_request_id or run_request_id or fs_request_id
+    if chosen_request_id:
         # Injecte le request_id manquant dans les événements NODE_COMPLETED
         for e in items:
             if e.level == "NODE_COMPLETED" and not e.request_id:
                 try:
-                    meta_e = json.loads(e.message)
+                    meta_e = json.loads(e.message) if e.message else {}
                 except Exception:
-                    continue
-                if "request_id" not in meta_e:
-                    meta_e["request_id"] = db_request_id
-                    e.message = json.dumps(meta_e)
-                e.request_id = db_request_id
+                    meta_e = {}
+                meta_e.setdefault("request_id", chosen_request_id)
+                e.message = json.dumps(meta_e)
+                e.request_id = chosen_request_id
     # Fallback: si aucun NODE_COMPLETED en base, on reconstruit depuis les artifacts *.llm.json
     if run_id and not any(e.level == "NODE_COMPLETED" for e in items):
         base = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir)) / str(run_id) / "nodes"
@@ -134,9 +133,8 @@ async def list_events(
                 usage = meta.get("usage") or {}
                 usage.setdefault("completion_tokens", 0)
                 meta["usage"] = usage
-                req_id = db_request_id or run_request_id
-                if req_id and "request_id" not in meta:
-                    meta["request_id"] = req_id
+                if chosen_request_id and "request_id" not in meta:
+                    meta["request_id"] = chosen_request_id
                 node_key = llm_path.parent.name
                 try:
                     node_uuid = UUID(node_key)

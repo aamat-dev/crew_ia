@@ -264,6 +264,8 @@ async def run_task(
             {"run_id": run_id},
             request_id=request_id,
         )
+        # Laisse immédiatement le contrôle pour que le polling voie l'état final
+        await anyio.sleep(0)
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
         if os.getenv("SENTRY_DSN"):
@@ -289,6 +291,7 @@ async def run_task(
             {"run_id": run_id, "error_class": e.__class__.__name__, "message": str(e)},
             request_id=request_id,
         )
+        await anyio.sleep(0)
     finally:
         if not metrics_recorded:
             if metrics_enabled():
