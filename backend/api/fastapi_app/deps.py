@@ -209,10 +209,13 @@ def require_api_key(
         return True
     # Bypass pour les tests utilisant dependency_overrides
     try:
-        if api_key_auth in request.app.dependency_overrides:
+        override_target = globals().get("api_key_auth", strict_api_key_auth)
+        if (
+            override_target in request.app.dependency_overrides
+            or strict_api_key_auth in request.app.dependency_overrides
+        ):
             return True
     except Exception:
-        # l'app peut ne pas être initialisée
         pass
     return _check_api_key(x_api_key)
 
