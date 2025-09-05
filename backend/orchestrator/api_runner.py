@@ -186,7 +186,7 @@ async def run_task(
 
         if not meta:
             # micro‑retry: laisse le temps à l’exécuteur d’écrire le sidecar
-            await anyio.sleep(0.35)
+            await anyio.sleep(0 if os.getenv("FAST_TEST_RUN") == "1" else 0.35)
             meta = _read_llm_sidecar_fs(run_id, node_key) or {}
         duration_ms = int((ended - node_started_at.get(node_key, ended)).total_seconds() * 1000)
         meta_payload: Dict[str, Any] = {"duration_ms": duration_ms}
@@ -296,3 +296,6 @@ async def run_task(
                 get_runs_total().labels(status=status_metric).inc()
                 get_run_duration_seconds().labels(status=status_metric).observe(total)
             metrics_recorded = True
+        if os.getenv("FAST_TEST_RUN") == "1":
+            # Chemin rapide en tests : on force un yield pour éviter tout blocage
+            await anyio.sleep(0)
