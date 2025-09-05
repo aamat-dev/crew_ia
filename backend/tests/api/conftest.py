@@ -1,48 +1,85 @@
 # tests_api/conftest.py
 import asyncio
 import datetime as dt
+import os
 import uuid
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, text
 
 # --- importe l'app et les deps ---
 from backend.api.fastapi_app.app import app
 from backend.api.fastapi_app import deps as api_deps  # <-- contient get_db et (probablement) les deps d'auth
 
 # --- importe tes modèles & Base ---
-from backend.api.database.models import Base, Run, Node, Artifact, Event
+from core.storage.db_models import Run, Node, Artifact, Event
 
 
-# ---------- Engine & Session de test (SQLite fichier) ----------
-# NB: on évite sqlite in-memory (connexions multiples) et on prend un fichier local de test
-_TEST_DB_URL = "sqlite+aiosqlite:///./test_api.db"
-
-engine = create_async_engine(_TEST_DB_URL, future=True, echo=False)
-TestingSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+# ---------- Engine & Session de test (PostgreSQL) ----------
+TestingSessionLocal = sessionmaker(class_=AsyncSession, expire_on_commit=False)
+engine = None
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def _dispose_engine():
-    """
-    Crée le schéma au début de la session de tests, le détruit à la fin.
-    """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
+async def pg_test_db():
+    """Instancie une base PostgreSQL dédiée aux tests et applique les migrations."""
+    admin_url = os.getenv(
+        "POSTGRES_ADMIN_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+    )
+    db_name = f"crew_test_{uuid.uuid4().hex}"
+
+    admin_engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
+    async with admin_engine.begin() as conn:
+        await conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+    await admin_engine.dispose()
+
+    test_db_url = admin_url.rsplit("/", 1)[0] + f"/{db_name}"
+    sync_url = test_db_url.replace("postgresql+asyncpg", "postgresql+psycopg")
+
+    from alembic import command
+    from alembic.config import Config
+
+    ini = Path(__file__).resolve().parents[3] / "backend" / "migrations" / "alembic.ini"
+    config = Config(str(ini))
+    config.set_main_option("sqlalchemy.url", sync_url)
+    await asyncio.to_thread(command.upgrade, config, "head")
+
+    global engine
+    engine = create_async_engine(test_db_url)
+    TestingSessionLocal.configure(bind=engine)
+
+    mp = pytest.MonkeyPatch()
+    mp.setenv("DATABASE_URL", test_db_url)
+    mp.setenv("ALEMBIC_DATABASE_URL", sync_url)
+    api_deps.settings.database_url = test_db_url
+
+    try:
+        yield test_db_url
+    finally:
+        await engine.dispose()
+        admin_engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
+        async with admin_engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=:db AND pid <> pg_backend_pid()"
+                ),
+                {"db": db_name},
+            )
+            await conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+        await admin_engine.dispose()
+        mp.undo()
 
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncSession:
+async def db_session(pg_test_db) -> AsyncSession:
     """
     Fournit une session SQLAlchemy Async par test.
     """
@@ -53,7 +90,7 @@ async def db_session() -> AsyncSession:
 # ---------- Override des deps FastAPI ----------
 async def _override_get_db():
     """
-    Dépendance FastAPI get_db -> renvoie une session liée à notre SQLite de test.
+    Dépendance FastAPI get_db -> renvoie une session liée à la base PG de test.
     (scope=requête côté FastAPI)
     """
     async with TestingSessionLocal() as session:
@@ -104,7 +141,7 @@ def _clear_auth_overrides():
 
 
 @pytest_asyncio.fixture
-async def client(_dispose_engine) -> AsyncClient:
+async def client(pg_test_db) -> AsyncClient:
     """
     Client httpx avec:
       - schema DB test via override get_db
@@ -112,7 +149,6 @@ async def client(_dispose_engine) -> AsyncClient:
       - gestion correcte du lifespan app (startup/shutdown)
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
-    api_deps.settings.database_url = _TEST_DB_URL
     api_deps.settings.api_key = "test-key"
     # branche get_db
     app.dependency_overrides[api_deps.get_db] = _override_get_db
@@ -131,7 +167,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
     return client
 
 @pytest_asyncio.fixture
-async def client_noauth(_dispose_engine) -> AsyncClient:
+async def client_noauth(pg_test_db) -> AsyncClient:
     """
     Client httpx avec auth ACTIVE (pas d’override) pour tester les 401.
     Après utilisation, les overrides d'auth sont rétablis pour ne pas
@@ -140,7 +176,6 @@ async def client_noauth(_dispose_engine) -> AsyncClient:
     # purges les overrides d'auth avant toute requête
     _clear_auth_overrides()
     # utilise la base de test pour les deps et l'adaptateur de stockage
-    api_deps.settings.database_url = _TEST_DB_URL
     api_deps.settings.api_key = "test-key"
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
