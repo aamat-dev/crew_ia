@@ -15,6 +15,14 @@ except ImportError:  # pragma: no cover - fallback when package not on path
     from tests.api.conftest import _dispose_engine  # noqa: F401
 
 
+def reset_settings_env(monkeypatch, **env):
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    import backend.api.fastapi_app.deps as deps
+    deps.get_settings.cache_clear()
+    deps.settings = deps.get_settings()
+
+
 @pytest.fixture(autouse=True)
 async def _empty_matrix(db_session):
     await db_session.execute(sa.text("DELETE FROM agent_models_matrix"))

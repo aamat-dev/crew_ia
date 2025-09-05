@@ -114,10 +114,9 @@ if metrics_enabled():
 
 # CORS
 # Origines autorisées via variable d'env ALLOWED_ORIGINS (CSV)
-ALLOWED_ORIGINS = settings.allowed_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -138,7 +137,7 @@ app.include_router(node_actions.router, dependencies=protected)
 app.include_router(plans.router, dependencies=protected)
 app.include_router(agents.router, dependencies=protected)
 app.include_router(feedbacks.router, dependencies=protected)
-app.include_router(qa_router)
+app.include_router(qa_router, dependencies=protected)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)
