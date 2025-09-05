@@ -126,23 +126,18 @@ app.add_middleware(
 
 # -------- Routes --------
 # Auth: toutes les routes sensibles exigent une clé API, /health reste public
+protected = [Depends(strict_api_key_auth)]
 app.include_router(health.router)
-app.include_router(runs.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(nodes.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(
-    artifacts.router_nodes, dependencies=[Depends(strict_api_key_auth)]
-)
-app.include_router(
-    artifacts.router_artifacts, dependencies=[Depends(strict_api_key_auth)]
-)
-app.include_router(events.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(tasks.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(
-    node_actions.router, dependencies=[Depends(strict_api_key_auth)]
-)
-app.include_router(plans.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(agents.router, dependencies=[Depends(strict_api_key_auth)])
-app.include_router(feedbacks.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(runs.router, dependencies=protected)
+app.include_router(nodes.router, dependencies=protected)
+app.include_router(artifacts.router_nodes, dependencies=protected)
+app.include_router(artifacts.router_artifacts, dependencies=protected)
+app.include_router(events.router, dependencies=protected)
+app.include_router(tasks.router, dependencies=protected)
+app.include_router(node_actions.router, dependencies=protected)
+app.include_router(plans.router, dependencies=protected)
+app.include_router(agents.router, dependencies=protected)
+app.include_router(feedbacks.router, dependencies=protected)
 app.include_router(qa_router)
 
 # Redirection vers Swagger
