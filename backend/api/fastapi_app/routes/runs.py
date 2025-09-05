@@ -2,6 +2,9 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
+import os
+import json
+from pathlib import Path
 from sqlalchemy import join
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
@@ -14,6 +17,7 @@ from ..deps import (
     to_tz,
     strict_api_key_auth,
     cap_date_range,
+    settings,
 )
 from ..schemas_base import (
     Page,
@@ -134,6 +138,21 @@ async def get_run(
     run = (await session.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+
+    # Normalise le type (Enum -> str) pour une comparaison fiable
+    status = run.status.value if hasattr(run.status, "value") else run.status
+    if status == "running":
+        # Fallback rapide: si le fichier run.json indique une fin de run,
+        # on expose son statut final
+        try:
+            runs_root = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir))
+            meta = json.loads((runs_root / str(run_id) / "run.json").read_text())
+            if isinstance(meta, dict) and meta.get("ended_at"):
+                s = (meta.get("status") or "completed").lower()
+                if s in ("completed", "failed"):
+                    status = s
+        except Exception:
+            pass
 
     # Counters
     nodes_q = select(func.count()).select_from(Node).where(Node.run_id == run_id)
@@ -266,7 +285,7 @@ async def get_run(
     return RunOut(
         id=run.id,
         title=run.title,
-        status=run.status,
+        status=status,
         started_at=to_tz(started, tz),
         ended_at=to_tz(ended, tz),
         summary=RunSummaryOut(
