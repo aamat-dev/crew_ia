@@ -8,7 +8,10 @@ from asgi_lifespan import LifespanManager
 async def _create_client_and_metrics(monkeypatch, enabled: str):
     monkeypatch.setenv("METRICS_ENABLED", enabled)
     monkeypatch.setenv("STORAGE_ORDER", "file")
-    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///./test_metrics.db")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+    )
 
     import core.telemetry.metrics as metrics
     import backend.api.fastapi_app.deps as deps
