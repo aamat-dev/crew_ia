@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 
 # Configuration du logger structuré dès le démarrage de l'application
 import core.log  # noqa: F401
@@ -18,7 +18,7 @@ load_dotenv()
 
 import core.log  # configure root logger
 
-from .deps import settings
+from .deps import settings, strict_api_key_auth
 from .routes import (
     health,
     runs,
@@ -125,18 +125,24 @@ app.add_middleware(
 )
 
 # -------- Routes --------
-# Auth: all routes require API key except /health
+# Auth: toutes les routes sensibles exigent une clé API, /health reste public
 app.include_router(health.router)
-app.include_router(runs.router)
-app.include_router(nodes.router)
-app.include_router(artifacts.router_nodes)
-app.include_router(artifacts.router_artifacts)
-app.include_router(events.router)
-app.include_router(tasks.router)
-app.include_router(node_actions.router)
-app.include_router(plans.router)
-app.include_router(agents.router)
-app.include_router(feedbacks.router)
+app.include_router(runs.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(nodes.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(
+    artifacts.router_nodes, dependencies=[Depends(strict_api_key_auth)]
+)
+app.include_router(
+    artifacts.router_artifacts, dependencies=[Depends(strict_api_key_auth)]
+)
+app.include_router(events.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(tasks.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(
+    node_actions.router, dependencies=[Depends(strict_api_key_auth)]
+)
+app.include_router(plans.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(agents.router, dependencies=[Depends(strict_api_key_auth)])
+app.include_router(feedbacks.router, dependencies=[Depends(strict_api_key_auth)])
 app.include_router(qa_router)
 
 # Redirection vers Swagger
