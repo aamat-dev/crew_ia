@@ -173,7 +173,8 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
-- `ALLOWED_ORIGINS` — origines autorisées pour CORS.
+- `API_URL` — URL de base de l'API.
+- `ALLOWED_ORIGINS` — origines autorisées pour CORS (défaut `http://localhost:3000,http://localhost:5173`).
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 - `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
 - `FEEDBACK_REVIEW_TIMEOUT_MS` — délai d'attente de l'auto‑review en ms (défaut 3500).

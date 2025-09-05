@@ -20,3 +20,20 @@ async def test_cors_options_localhost(client: AsyncClient):
     allow_headers = response.headers.get("access-control-allow-headers", "").lower()
     for header in ("content-type", "authorization", "x-api-key", "x-request-id"):
         assert header in allow_headers
+
+
+@pytest.mark.asyncio
+async def test_cors_options_next(client: AsyncClient):
+    response = await client.options(
+        "/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type,Authorization,X-API-Key,X-Request-ID",
+        },
+    )
+    assert response.status_code == 200
+    assert (
+        response.headers.get("access-control-allow-origin")
+        == "http://localhost:3000"
+    )
