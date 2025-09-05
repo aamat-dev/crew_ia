@@ -17,7 +17,7 @@ class Agent(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
-    name: str = Field(sa_column=Column(Text, nullable=False, unique=True))
+    name: str = Field(sa_column=Column(Text, nullable=False))
     role: str = Field(sa_column=Column(Text, nullable=False))
     domain: str = Field(sa_column=Column(Text, nullable=False))
     prompt_system: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
@@ -50,7 +50,7 @@ class Agent(SQLModel, table=True):
     __table_args__ = (
         Index("ix_agents_role_domain", "role", "domain"),
         Index("ix_agents_is_active", "is_active"),
-        UniqueConstraint("name", name="uq_agents_name"),
+        UniqueConstraint("name", "role", "domain", name="uq_agents_name_role_domain"),
     )
 
 

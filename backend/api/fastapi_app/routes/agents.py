@@ -79,13 +79,26 @@ async def create_agent(
     session: AsyncSession = Depends(get_session),
     _req_id: str = Depends(require_request_id),
 ):
+    # Vérifie l'existence d'un agent actif portant le même trio (name, role, domain)
+    exists_stmt = (
+        select(Agent)
+        .where(Agent.name == payload.name)
+        .where(Agent.role == payload.role)
+        .where(Agent.domain == payload.domain)
+        .where(Agent.is_active.is_(True))
+        .limit(1)
+    )
+    exists = (await session.execute(exists_stmt)).scalar_one_or_none()
+    if exists:
+        raise HTTPException(status_code=409, detail="agent already exists")
+
     agent = Agent(**payload.model_dump())
     session.add(agent)
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
-        raise HTTPException(status_code=409, detail="agent name exists")
+        raise HTTPException(status_code=409, detail="agent already exists") from e
     await session.refresh(agent)
     return AgentOut.model_validate(agent)
 
