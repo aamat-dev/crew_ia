@@ -21,8 +21,6 @@ __pycache__/
 
 # --- Bases de données locales ---
 *.db
-*.sqlite3
-app.db
 pgdata/
 dump.sql
 

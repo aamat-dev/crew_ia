@@ -10,7 +10,8 @@ used for testing.
 
 ```
 API_KEY=test-key
-DATABASE_URL=sqlite+aiosqlite:///./app.db
+DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
+ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 API_URL=http://127.0.0.1:8000
 ```
@@ -109,7 +110,8 @@ Variables d'environnement minimales :
 
 ```
 API_KEY=test-key
-DATABASE_URL=sqlite+aiosqlite:///./app.db
+DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
+ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
 API_URL=http://127.0.0.1:8000
 ```
 
