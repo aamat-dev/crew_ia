@@ -239,6 +239,7 @@ async def run_task(
         )
 
         ended = dt.datetime.now(dt.timezone.utc)
+        # ...............................................................
         final_status = (
             RunStatus.completed if res.get("status") == "succeeded" else RunStatus.failed
         )
@@ -255,6 +256,12 @@ async def run_task(
                 meta={"request_id": request_id},
             )
         )
+        # Force la visibilité immédiate de l’update (SQLite/test)
+        try:
+            await storage.get_run(UUID(run_id))  # no-op logique, mais force le flush/commit
+        except Exception:
+            pass
+
         await event_publisher.emit(
             (
                 EventType.RUN_COMPLETED
@@ -264,7 +271,7 @@ async def run_task(
             {"run_id": run_id},
             request_id=request_id,
         )
-        # Laisse immédiatement le contrôle pour que le polling voie l'état final
+        # Laisse tout de suite la main pour que le polling voie l’état final
         await anyio.sleep(0)
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
@@ -286,6 +293,11 @@ async def run_task(
                 meta={"request_id": request_id},
             )
         )
+        # Même stratégie en cas d’échec
+        try:
+            await storage.get_run(UUID(run_id))
+        except Exception:
+            pass
         await event_publisher.emit(
             EventType.RUN_FAILED,
             {"run_id": run_id, "error_class": e.__class__.__name__, "message": str(e)},
