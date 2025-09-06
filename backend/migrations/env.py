@@ -8,9 +8,8 @@ from sqlmodel import SQLModel
 
 # --- Importe tes modèles pour que SQLModel.metadata soit peuplé ---
 # Modèles existants
-from core.storage.db_models import Run, Node, Artifact, Event  # noqa: F401
+from core.storage.db_models import Run, Node, Artifact, Event, Feedback  # noqa: F401
 # Modèles de l'application
-from backend.api.database.models import Base  # noqa: F401
 from dotenv import load_dotenv
 load_dotenv()  # charge le .env tôt
 

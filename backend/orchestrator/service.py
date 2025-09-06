@@ -29,7 +29,13 @@ class OrchestratorService:
         # timestamps pour calculer la durée des nœuds
         self._node_started_at: Dict[str, datetime] = {}
 
-    def override(self, node_key: str, *, prompt: str | None = None, params: Dict[str, Any] | None = None) -> None:
+    def override(
+        self,
+        node_key: str,
+        *,
+        prompt: str | None = None,
+        params: Dict[str, Any] | None = None,
+    ) -> None:
         self._overrides[node_key] = {"prompt": prompt, "params": params}
 
     def skip(self, node_key: str) -> None:
@@ -54,14 +60,25 @@ class OrchestratorService:
         self.run_id = str(run_uuid)
         now = datetime.now(timezone.utc)
         await self.storage.save_run(
-            Run(id=run_uuid, title=plan_spec.get("title") or plan_id, status=RunStatus.running, started_at=now)
+            Run(
+                id=run_uuid,
+                title=plan_spec.get("title") or plan_id,
+                status=RunStatus.running,
+                started_at=now,
+            )
         )
 
         for n in dag.nodes.values():
             nid = uuid.uuid4()
             self._node_ids[n.id] = nid
             await self.storage.save_node(
-                Node(id=nid, run_id=run_uuid, key=n.id, title=n.title, status=NodeStatus.pending)
+                Node(
+                    id=nid,
+                    run_id=run_uuid,
+                    key=n.id,
+                    title=n.title,
+                    status=NodeStatus.pending,
+                )
             )
 
         async def on_start(node, node_key):
@@ -75,7 +92,7 @@ class OrchestratorService:
                         key=node_key,
                         title=getattr(node, "title", node_key),
                         status=NodeStatus.running,
-                        started_at=now_start,
+                        updated_at=now_start,
                     )
                 )
                 # mémorise pour calculer la durée
@@ -92,7 +109,11 @@ class OrchestratorService:
                         run_id=run_uuid,
                         key=node_key,
                         title=getattr(node, "title", node_key),
-                        status=NodeStatus.completed if status == "completed" else NodeStatus.failed,
+                        status=(
+                            NodeStatus.completed
+                            if status == "completed"
+                            else NodeStatus.failed
+                        ),
                         updated_at=now_end,
                     )
                 )
@@ -118,6 +139,7 @@ class OrchestratorService:
                     level=level,
                     message=message,
                 )
+
         async def _runner():
             final_status = RunStatus.failed
             try:

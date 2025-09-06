@@ -10,8 +10,9 @@ pydantic-settings
 networkx
 sqlmodel
 SQLAlchemy
-aiosqlite
 asyncpg
+psycopg[binary]
+alembic
 httpx
 asgi-lifespan
 pytest

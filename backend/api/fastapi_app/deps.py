@@ -10,6 +10,7 @@ from fastapi import Header, HTTPException, status, Request, Depends
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from sqlalchemy import event
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -80,11 +81,11 @@ class Settings(BaseSettings):
     )
 
     # Provide sensible defaults so the API can start without mandatory
-    # environment variables. Tests override the database connection so a
-    # lightweight SQLite URL is sufficient here and a fixed API key keeps
-    # the authentication logic enabled.
+    # environment variables. Tests override the database connection and a
+    # fixed API key keeps the authentication logic enabled.
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./app.db", alias="DATABASE_URL"
+        default="postgresql+asyncpg://crew:crew@localhost:5432/crew",
+        alias="DATABASE_URL",
     )
     api_key: str = Field(default="test-key", alias="API_KEY")
     allowed_origins_raw: str = Field(
@@ -105,6 +106,11 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+if make_url(settings.database_url).get_backend_name() != "postgresql":
+    raise RuntimeError(
+        f"Unsupported database dialect: {settings.database_url}"
+    )
 
 # SQLAlchemy async engine/session (lecture seule côté API)
 engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)

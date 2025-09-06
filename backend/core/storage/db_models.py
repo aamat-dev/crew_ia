@@ -4,8 +4,17 @@ from datetime import datetime, UTC
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, DateTime, Enum as SAEnum, JSON, String, Text, func, Integer
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    String,
+    Text,
+    func,
+    Integer,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlmodel import Field, SQLModel
 
 
@@ -37,7 +46,9 @@ class Run(SQLModel, table=True):
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
     title: str = Field(sa_column=Column(String, nullable=False))
-    status: RunStatus = Field(sa_column=Column(SAEnum(RunStatus, name="runstatus"), nullable=False))
+    status: RunStatus = Field(
+        sa_column=Column(SAEnum(RunStatus, name="runstatus"), nullable=False)
+    )
     started_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
@@ -48,32 +59,47 @@ class Run(SQLModel, table=True):
     )
     meta: Optional[Dict] = Field(
         default=None,
-        sa_column=Column("metadata", JSON, nullable=True),
+        sa_column=Column("metadata", JSONB, nullable=True),
     )
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
     )
 
 
 class Node(SQLModel, table=True):
     __tablename__ = "nodes"
+    __table_args__ = (UniqueConstraint("run_id", "key", name="uq_nodes_run_key"),)
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
-    run_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
-    key: Optional[str] = Field(default=None, sa_column=Column(String, index=True))
+    run_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True)
+    )
+    key: str = Field(sa_column=Column(String, nullable=False, index=True))
     title: str = Field(sa_column=Column(String, nullable=False))
-    status: NodeStatus = Field(sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False))
-    role: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True, index=True))
-    deps: Optional[List[str]] = Field(default=None, sa_column=Column(JSON, nullable=True))
-    checksum: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
+    status: NodeStatus = Field(
+        sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False)
+    )
+    role: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
+    deps: Optional[List[str]] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
+    checksum: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
     )
     updated_at: Optional[datetime] = Field(
         default=None,
@@ -88,14 +114,20 @@ class Artifact(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
-    node_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
+    node_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True)
+    )
     type: str = Field(sa_column=Column(String, nullable=False))
     path: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     content: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
-    summary: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
+    summary: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
     )
 
 
@@ -114,7 +146,9 @@ class Event(SQLModel, table=True):
     )
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
     )
     level: str = Field(sa_column=Column(String, nullable=False))
     message: str = Field(sa_column=Column(Text, nullable=False))
@@ -130,20 +164,25 @@ class Feedback(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
-    run_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
-    node_id: uuid.UUID = Field(sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True))
+    run_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True)
+    )
+    node_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True)
+    )
     source: str = Field(sa_column=Column(String, nullable=False))
     reviewer: str = Field(sa_column=Column(String, nullable=False))
     score: Optional[int] = Field(default=None, sa_column=Column(Integer, nullable=True))
     comment: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     meta: Optional[Dict] = Field(
-        default=None, sa_column=Column("metadata", JSON, nullable=True)
+        default=None, sa_column=Column("metadata", JSONB, nullable=True)
     )
     evaluation: Optional[Dict[str, Any]] = Field(
-        default=None, sa_column=Column(JSON, nullable=True)
+        default=None, sa_column=Column(JSONB, nullable=True)
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False
+        ),
     )
-

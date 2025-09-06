@@ -26,7 +26,7 @@ ROOT_DIR="${SCRIPT_DIR%/scripts}"
 cd "$ROOT_DIR"
 export PYTHONPATH=backend
 
-# Charge .env si présent, sinon valeurs par défaut adaptées aux tests (SQLite)
+# Charge .env si présent, sinon valeurs par défaut adaptées aux tests (PostgreSQL)
 if [ -f ".env" ]; then
   API_KEY="$(grep -E '^API_KEY=' .env | cut -d= -f2- | tr -d '"')" || true
   DB_URL="$(grep -E '^ALEMBIC_DATABASE_URL=' .env | cut -d= -f2- | tr -d '"')" || true
@@ -34,8 +34,8 @@ if [ -f ".env" ]; then
 else
   warn ".env introuvable à la racine du projet — utilisation des valeurs par défaut."
   API_KEY="test-key"
-  DB_URL="sqlite:///./test_api.db"
-  ASYNC_DB_URL="sqlite+aiosqlite:///./test_api.db"
+  DB_URL="postgresql+psycopg://crew:crew@localhost:5432/crew"
+  ASYNC_DB_URL="postgresql+asyncpg://crew:crew@localhost:5432/crew"
 fi
 API_HOST="127.0.0.1"
 API_PORT="8000"
@@ -44,6 +44,7 @@ BASE_URL="http://${API_HOST}:${API_PORT}"
 export API_KEY
 export DATABASE_URL="$ASYNC_DB_URL"
 export DATABASE_URL_SYNC="$DB_URL"
+export ALEMBIC_DATABASE_URL="$DB_URL"
 
 test -n "${API_KEY:-}" || die "API_KEY manquante"
 test -n "${DB_URL:-}" || warn "ALEMBIC_DATABASE_URL manquant (ok si DB déjà migrée)."
@@ -58,11 +59,11 @@ else
   warn "docker compose absent ou pas de docker-compose.yml — je suppose une DB Postgres déjà joignable."
 fi
 
-if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}" && [[ "$DB_URL" != sqlite* ]]; then
-  log "Mise à niveau du schéma (alembic upgrade head)…"
-  alembic upgrade head
+if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}"; then
+  log "Mise à niveau du schéma (alembic -c backend/migrations/alembic.ini upgrade head)…"
+  alembic -c backend/migrations/alembic.ini upgrade head
 else
-  warn "Aucune migration Alembic exécutée (SQLite ou alembic absent) — création directe du schéma."
+  warn "Aucune migration Alembic exécutée (alembic absent ?) — création directe du schéma."
   python - <<'PY'
 import os, asyncio
 from core.storage.postgres_adapter import PostgresAdapter

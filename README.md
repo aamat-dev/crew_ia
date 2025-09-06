@@ -10,7 +10,8 @@ used for testing.
 
 ```
 API_KEY=test-key
-DATABASE_URL=sqlite+aiosqlite:///./app.db
+DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
+ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 API_URL=http://127.0.0.1:8000
 ```
@@ -109,7 +110,8 @@ Variables d'environnement minimales :
 
 ```
 API_KEY=test-key
-DATABASE_URL=sqlite+aiosqlite:///./app.db
+DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
+ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
 API_URL=http://127.0.0.1:8000
 ```
 
@@ -118,7 +120,8 @@ API_URL=http://127.0.0.1:8000
 1. Appliquer les migrations :
 
    ```bash
-   make api-migrate
+   ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew \
+     alembic -c backend/migrations/alembic.ini upgrade head
    ```
 
 2. Démarrer l'API (terminal séparé) :
@@ -174,6 +177,7 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 
 - `API_KEY` — clé requise sur toutes les requêtes API.
 - `DATABASE_URL` — URL de connexion asynchrone à la base.
+- `ALEMBIC_DATABASE_URL` — URL de connexion synchrone utilisée par Alembic.
 - `API_URL` — URL de base de l'API.
 - `ALLOWED_ORIGINS` — origines autorisées pour CORS (défaut `http://localhost:3000,http://localhost:5173`).
 
@@ -235,11 +239,12 @@ list).
 
 ## Database migrations
 
-Alembic is used for schema migrations. Set `ALEMBIC_DATABASE_URL` and run:
+Alembic est utilisé pour les migrations de schéma. Pour appliquer les
+migrations localement :
 
-```
-make db-revision msg="add table"
-make db-upgrade
+```bash
+ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew \
+  alembic -c backend/migrations/alembic.ini upgrade head
 ```
 
 ## Make targets
