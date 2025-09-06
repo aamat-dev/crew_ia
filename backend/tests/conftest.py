@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-import anyio
 
 try:
     from tests.api.conftest import *  # noqa: F401,F403
@@ -43,15 +42,3 @@ def artifacts_tmpdir(tmp_path, monkeypatch):
     monkeypatch.setenv("ARTIFACTS_DIR", str(runs_dir))
     yield runs_dir
 
-
-async def wait_status(client, run_id: str, expect: str, timeout: float = 2.0):
-    """Attend qu'un run atteigne le statut souhaité ou expire."""
-    import time
-
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        resp = await client.get(f"/runs/{run_id}")
-        if resp.status_code == 200 and resp.json().get("status") == expect:
-            return True
-        await anyio.sleep(0.05)
-    return False

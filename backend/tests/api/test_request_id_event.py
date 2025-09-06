@@ -1,4 +1,5 @@
-import asyncio, json, pytest, uuid
+import json, pytest, uuid
+from ..conftest import wait_status
 from sqlalchemy import delete, select
 from api.database.models import Run, Node, Artifact, Event
 
@@ -15,11 +16,8 @@ async def test_request_id_propagation(async_client, db_session):
     run_id = r.json()["run_id"]
     run_uuid = uuid.UUID(run_id)
 
-    for _ in range(80):
-        rs = await async_client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
-        if rs.json()["status"] in ("completed", "failed"):
-            break
-        await asyncio.sleep(0.05)
+    assert await wait_status(async_client, run_id, "completed", timeout=5.0)
+    rs = await async_client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
 
     events = await async_client.get("/events", params={"run_id": run_id}, headers={"X-API-Key": "test-key"})
     assert events.status_code == 200
