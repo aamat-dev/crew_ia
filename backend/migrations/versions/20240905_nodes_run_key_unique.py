@@ -2,13 +2,15 @@
 
 from alembic import op
 
+# Identifiants Alembic
 revision = "20240905_nodes_run_key_unique"
-down_revision = "c894e2b67dc8"
+down_revision = "c894e2b67dc8"  # <-- ajustez si besoin
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
+    # Normalise d'abord les doublons éventuels (évite l'échec lors de la création de la contrainte)
     op.execute(
         """
         WITH d AS (
@@ -23,6 +25,7 @@ def upgrade() -> None:
         WHERE n.ctid = d.ctid AND d.rn > 1;
         """
     )
+    # Contrainte d’unicité (run_id, key)
     op.create_unique_constraint("uq_nodes_run_key", "nodes", ["run_id", "key"])
 
 

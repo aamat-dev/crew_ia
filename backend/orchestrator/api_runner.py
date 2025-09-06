@@ -258,7 +258,7 @@ async def run_task(
                 meta={"request_id": request_id},
             )
         )
-        # Force la visibilité immédiate de l’update (SQLite/test)
+        # Force la visibilité immédiate de l’update lors des tests
         try:
             await storage.get_run(
                 UUID(run_id)

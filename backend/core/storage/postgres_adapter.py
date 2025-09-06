@@ -56,6 +56,8 @@ class PostgresAdapter:
             poolclass=NullPool,  # 1 connexion par session (tests/outils)
             pool_pre_ping=True,
         )
+        if self._engine.dialect.name != "postgresql":
+            raise RuntimeError("PostgreSQL required")
         # IMPORTANT: expire_on_commit=False pour matérialiser avant fermeture
         self._sessionmaker = async_sessionmaker(
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
@@ -145,48 +147,51 @@ class PostgresAdapter:
 
     # ---------- Nodes ----------
 
-    async def save_node(self, node: Optional[Node] = None, **kwargs) -> Node:
-        obj = self._coalesce_obj(Node, node, kwargs)
-        # Assure un ID et le reflète sur l'objet
-        new_id = obj.id or uuid.uuid4()
-        obj.id = new_id
-        payload = {
-            "id": new_id,
-            "run_id": obj.run_id,
-            "key": obj.key,
-            "title": obj.title,
-            "status": (
-                obj.status.value if isinstance(obj.status, NodeStatus) else obj.status
-            ),
-            "role": obj.role,
-            "deps": obj.deps,
-            "checksum": obj.checksum,
-        }
-        # Laisse created_at au défaut DB si non fourni
-        if getattr(obj, "created_at", None) is not None:
-            payload["created_at"] = obj.created_at
-        if getattr(obj, "updated_at", None) is not None:
-            payload["updated_at"] = obj.updated_at
+async def save_node(self, node: Optional[Node] = None, **kwargs) -> Node:
+    obj = self._coalesce_obj(Node, node, kwargs)
+    # Assure un ID et le reflète sur l'objet
+    new_id = obj.id or uuid.uuid4()
+    obj.id = new_id
 
-        insert_stmt = insert(self._nodes).values(**payload)
-        excluded = insert_stmt.excluded
-        stmt = insert_stmt.on_conflict_do_update(
-            index_elements=[self._nodes.c.run_id, self._nodes.c.key],
-            set_={
-                "run_id": excluded.run_id,
-                "key": excluded.key,
-                "title": excluded.title,
-                "status": excluded.status,
-                "role": excluded.role,
-                "deps": excluded.deps,
-                "checksum": excluded.checksum,
-                "updated_at": sa.func.now(),
-            },
-        ).returning(*self._nodes.c)
-        async with self._engine.begin() as conn:
-            result = await conn.execute(stmt)
-            row = result.fetchone()
-        return Node(**row._mapping) if row else obj
+    payload = {
+        "id": new_id,
+        "run_id": obj.run_id,
+        "key": obj.key,
+        "title": obj.title,
+        "status": obj.status.value if isinstance(obj.status, NodeStatus) else obj.status,
+        "role": obj.role,
+        "deps": obj.deps,
+        "checksum": obj.checksum,
+    }
+
+    # Laisse created_at au défaut DB si non fourni
+    if getattr(obj, "created_at", None) is not None:
+        payload["created_at"] = obj.created_at
+    if getattr(obj, "updated_at", None) is not None:
+        payload["updated_at"] = obj.updated_at
+
+    insert_stmt = insert(self._nodes).values(**payload)
+    excluded = insert_stmt.excluded
+    stmt = insert_stmt.on_conflict_do_update(
+        index_elements=[self._nodes.c.run_id, self._nodes.c.key],
+        set_={
+            "run_id": excluded.run_id,
+            "key": excluded.key,
+            "title": excluded.title,
+            "status": excluded.status,
+            "role": excluded.role,
+            "deps": excluded.deps,
+            "checksum": excluded.checksum,
+            "updated_at": sa.func.now(),
+        },
+    ).returning(*self._nodes.c)
+
+    async with self._engine.begin() as conn:
+        result = await conn.execute(stmt)
+        row = result.fetchone()
+
+    return Node(**row._mapping) if row else obj
+
 
     async def ensure_node(
         self,

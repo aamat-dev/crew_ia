@@ -1,37 +1,46 @@
-# alembic/env.py
+# backend/migrations/env.py
 from __future__ import annotations
+
 import os
+import sys
+from pathlib import Path
+from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlmodel import SQLModel
 
-# --- Importe tes modèles pour que SQLModel.metadata soit peuplé ---
-# Modèles existants
-from core.storage.db_models import Run, Node, Artifact, Event, Feedback  # noqa: F401
-# Modèles de l'application
-from dotenv import load_dotenv
-load_dotenv()  # charge le .env tôt
-
-# Si tu veux forcer alembic à lire l'URL depuis l'env:
-db_url = os.getenv("ALEMBIC_DATABASE_URL")
-if db_url:
-    context.config.set_main_option("sqlalchemy.url", db_url)
-
-# Alembic Config object
+# --- Alembic config ---
 config = context.config
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
-# Cible des migrations
+# --- Assure que Python voit le projet ---
+# env.py est dans backend/migrations → parents[2] = racine du repo
+ROOT = Path(__file__).resolve().parents[2]
+# On ajoute le repo root (pour importer "backend.*") et "backend/" (pour importer "core.*")
+for p in (ROOT, ROOT / "backend"):
+    sp = str(p)
+    if sp not in sys.path:
+        sys.path.insert(0, sp)
+
+# --- Charge le .env tôt (pour ALEMBIC_DATABASE_URL, etc.) ---
+from dotenv import load_dotenv
+load_dotenv()
+
+# --- Importe les modèles pour peupler SQLModel.metadata ---
+from core.storage.db_models import Run, Node, Artifact, Event, Feedback  # noqa: F401
+
+# --- Cible des migrations ---
 target_metadata = SQLModel.metadata
+
 
 def _sync_url() -> str:
     """
-    Récupère l'URL de BDD pour Alembic (driver *synchrone*).
-
-    Priorité :
-      1) ALEMBIC_DATABASE_URL (si défini)
-      2) DATABASE_URL_SYNC (si défini)
-      3) DATABASE_URL converti (remplace 'postgresql+asyncpg' -> 'postgresql+psycopg')
+    Récupère l'URL DB synchrone pour Alembic (priorité env).
+    1) ALEMBIC_DATABASE_URL
+    2) DATABASE_URL_SYNC
+    3) DATABASE_URL converti (asyncpg -> psycopg)
     """
     env_alembic = os.getenv("ALEMBIC_DATABASE_URL")
     if env_alembic:
@@ -43,18 +52,23 @@ def _sync_url() -> str:
 
     env = os.getenv("DATABASE_URL")
     if env:
-        # SQLAlchemy 2.x : driver sync moderne = 'postgresql+psycopg'
         if env.startswith("postgresql+asyncpg"):
             return env.replace("postgresql+asyncpg", "postgresql+psycopg", 1)
         return env
 
+    # fallback éventuel: valeur dans alembic.ini
+    ini_url = config.get_main_option("sqlalchemy.url")
+    if ini_url:
+        return ini_url
+
     raise RuntimeError(
-        "Aucune URL de BDD trouvée. Définis ALEMBIC_DATABASE_URL, DATABASE_URL ou DATABASE_URL_SYNC (dans .env).",
+        "Aucune URL de BDD trouvée. Définis ALEMBIC_DATABASE_URL ou DATABASE_URL(_SYNC)."
     )
+
 
 def run_migrations_offline() -> None:
     url = _sync_url()
-    config.set_main_option("sqlalchemy.url", url)  # <—
+    config.set_main_option("sqlalchemy.url", url)
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -66,9 +80,10 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     url = _sync_url()
-    config.set_main_option("sqlalchemy.url", url)  # <—
+    config.set_main_option("sqlalchemy.url", url)
     connectable = create_engine(url, poolclass=pool.NullPool, future=True)
     with connectable.connect() as connection:
         context.configure(
@@ -79,6 +94,7 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

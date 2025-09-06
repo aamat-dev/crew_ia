@@ -64,6 +64,8 @@ if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}"; then
   alembic -c backend/migrations/alembic.ini upgrade head
 else
   warn "Aucune migration Alembic exécutée (alembic absent ?) — création directe du schéma."
+fi
+
   python - <<'PY'
 import os, asyncio
 from core.storage.postgres_adapter import PostgresAdapter
