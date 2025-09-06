@@ -12,7 +12,8 @@ from asgi_lifespan import LifespanManager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import delete, insert, text
+from sqlalchemy import delete, text
+from sqlalchemy.dialects.postgresql import insert
 
 # --- importe l'app et les deps ---
 from backend.api.fastapi_app.app import app
