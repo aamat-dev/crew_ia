@@ -1,3 +1,4 @@
+
 """make nodes.key non-nullable"""
 
 from alembic import op

@@ -25,6 +25,7 @@ def upgrade() -> None:
         WHERE n.ctid = d.ctid AND d.rn > 1;
         """
     )
+
     # Contrainte d’unicité (run_id, key)
     op.create_unique_constraint("uq_nodes_run_key", "nodes", ["run_id", "key"])
 
