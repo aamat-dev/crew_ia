@@ -79,7 +79,10 @@ class Node(SQLModel, table=True):
     run_id: uuid.UUID = Field(
         sa_column=Column(PGUUID(as_uuid=True), nullable=False)
     )
-    key: str = Field(sa_column=Column(String, nullable=False))
+    # Les tests insèrent des nodes sans 'key'
+    key: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
     title: str = Field(sa_column=Column(String, nullable=False))
 
     status: NodeStatus = Field(

@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.storage.db_models import Run, RunStatus, Node, NodeStatus, Event
 
-ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR") or ".runs")
+
+def artifacts_root() -> Path:
+    return Path(os.getenv("ARTIFACTS_DIR") or ".runs")
 
 
 def utcnow() -> datetime:
@@ -69,8 +71,8 @@ def make_callbacks(
         if node_obj:
             node_obj.status = node_status
             node_obj.updated_at = now
-        meta = {}
-        node_dir = ARTIFACTS_DIR / str(run_id) / "nodes" / node_key
+        meta: dict[str, Any] = {}
+        node_dir = artifacts_root() / str(run_id) / "nodes" / node_key
         if node_dir.is_dir():
             for p in node_dir.glob("*.llm.json"):
                 try:
@@ -109,12 +111,26 @@ def make_callbacks(
     return on_node_start, on_node_end
 
 
-async def finalize_run(session: AsyncSession, run: Run, result: Any) -> None:
-    status_val = (result or {}).get("status")
-    if status_val in {"success", "completed", "ok", "done"}:
-        run.status = RunStatus.completed
-    else:
-        run.status = RunStatus.failed
+async def finalize_run(
+    session: AsyncSession,
+    run: Run,
+    result: Any,
+    request_id: str | None = None,
+) -> None:
+    # Par défaut: si pas d'exception et pas d’indication d’échec claire → completed
+    status_val = None
+    if isinstance(result, dict):
+        status_val = str(result.get("status") or "").lower()
+    ok = status_val in {None, "", "success", "completed", "ok", "done"}
+    run.status = RunStatus.completed if ok else RunStatus.failed
     run.ended_at = utcnow()
     session.add(run)
+    session.add(
+        Event(
+            run_id=run.id,
+            level="RUN_COMPLETED" if run.status == RunStatus.completed else "RUN_FAILED",
+            message=json.dumps({"request_id": request_id} if request_id else {}),
+            request_id=request_id,
+        )
+    )
     await session.commit()
