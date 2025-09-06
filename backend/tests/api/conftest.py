@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import delete, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.pool import NullPool
 
 # --- importe l'app et les deps ---
 from backend.api.fastapi_app.app import app
@@ -32,10 +33,19 @@ engine = None
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def pg_test_db():
     """Instancie une base PostgreSQL dédiée aux tests et applique les migrations."""
-    admin_url = os.getenv(
-        "POSTGRES_ADMIN_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
-    )
+    # 1) si POSTGRES_ADMIN_URL est fourni, on l'utilise
+    admin_url = os.getenv("POSTGRES_ADMIN_URL")
+    if not admin_url:
+        # 2) sinon on tente de dériver depuis DATABASE_URL (même host/port/user/pass -> db "postgres")
+        db_url = os.getenv("DATABASE_URL", "")
+        if db_url:
+            # sécurise le protocole asyncpg pour l'admin
+            db_url = db_url.replace("postgresql+psycopg", "postgresql+asyncpg")
+            base = db_url.rsplit("/", 1)[0]
+            admin_url = f"{base}/postgres"
+        else:
+            # 3) fallbacks connus de dev
+            admin_url = "postgresql+asyncpg://crew:crew@localhost:5432/postgres"
     db_name = f"crew_test_{uuid.uuid4().hex}"
 
     admin_engine = create_async_engine(
@@ -61,7 +71,11 @@ async def pg_test_db():
     await asyncio.to_thread(command.upgrade, config, "head")
 
     global engine
-    engine = create_async_engine(test_db_url, pool_pre_ping=True)
+    engine = create_async_engine(
+        test_db_url,
+        pool_pre_ping=True,
+        poolclass=NullPool,      # <<< clé pour éviter le reuse cross-event-loop
+    )
     TestingSessionLocal.configure(bind=engine)
     api_deps.settings.database_url = test_db_url
 
