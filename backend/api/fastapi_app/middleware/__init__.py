@@ -1,3 +1,4 @@
-from .request_id import RequestIDMiddleware
+from .request_id import RequestIdMiddleware
+from .access import AccessLogMiddleware
 
-__all__ = ["RequestIDMiddleware"]
+__all__ = ["RequestIdMiddleware", "AccessLogMiddleware"]

@@ -1,6 +1,7 @@
 # api/fastapi_app/routes/tasks.py
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -24,9 +25,10 @@ from backend.api.schemas.task import TaskCreate, TaskOut
 from backend.core.models import Plan, PlanStatus
 from backend.api.schemas.plan import PlanCreateResponse
 from backend.core.services.supervisor import generate_plan
-from backend.orchestrator import orchestrator_adapter
-
-from backend.core.services.orchestrator_service import schedule_run
+from orchestrator.api_runner import run_graph
+from core.planning.task_graph import TaskGraph
+from core.storage.db_models import Run, RunStatus
+from ..utils.run_flow import utcnow, make_callbacks, finalize_run
 
 router = APIRouter(
     prefix="/tasks",
@@ -139,25 +141,45 @@ async def create_task(
         if not body.task_file.lower().endswith(".json"):
             raise HTTPException(status_code=400, detail="task_file must be a .json file")
 
-    request_id = x_request_id or body.request_id
+    request_id = x_request_id or body.request_id or getattr(request.state, "request_id", None)
 
-    try:
-        run_id: UUID = await schedule_run(
-            task_spec=task_spec,
-            options=body.options,
-            app_state=request.app.state,
-            title=body.title,
-            task_file=body.task_file,
-            request_id=request_id,
-        )
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    if task_spec is None and body.task_file:
+        try:
+            with open(body.task_file, "r", encoding="utf-8") as f:
+                task_spec = json.load(f)
+        except FileNotFoundError:
+            raise HTTPException(status_code=400, detail=f"task_file not found: {body.task_file}")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="task_file must be a .json file")
+
+    if task_spec is None:
+        raise HTTPException(status_code=400, detail="Missing task spec")
+
+    dag = TaskGraph.from_plan(task_spec)
+    storage = request.app.state.storage
+
+    run = Run(title=body.title, status=RunStatus.running, started_at=utcnow(), meta={"request_id": request_id})
+    session.add(run)
+    await session.commit()
+    await session.refresh(run)
+
+    on_start, on_end = make_callbacks(session, run.id, request_id)
+
+    res = await run_graph(
+        dag,
+        storage=storage,
+        run_id=str(run.id),
+        override_completed=set(getattr(body.options, "override", []) or []),
+        dry_run=bool(getattr(body.options, "dry_run", False)),
+        on_node_start=on_start,
+        on_node_end=on_end,
+    )
+
+    await finalize_run(session, run, res)
 
     response.status_code = status.HTTP_202_ACCEPTED
-    response.headers["Location"] = f"/runs/{run_id}"
-    return TaskAcceptedResponse(run_id=str(run_id), location=f"/runs/{run_id}")
+    response.headers["Location"] = f"/runs/{run.id}"
+    return TaskAcceptedResponse(run_id=run.id, location=f"/runs/{run.id}")
 
 
 @router.post("/{task_id}/plan", response_model=PlanCreateResponse, status_code=status.HTTP_201_CREATED)
@@ -203,6 +225,7 @@ async def generate_task_plan(
 @router.post("/{task_id}/start", status_code=status.HTTP_202_ACCEPTED)
 async def start_task_run(
     task_id: UUID,
+    request: Request,
     dry_run: bool = False,
     session: AsyncSession = Depends(get_session),
 ):
@@ -219,12 +242,36 @@ async def start_task_run(
     if plan is None or plan.status != PlanStatus.ready:
         raise HTTPException(status_code=409, detail="Plan not ready")
 
-    run_id = await orchestrator_adapter.start(plan.id, dry_run)
+    request_id = getattr(request.state, "request_id", None)
+    run = Run(title=task.title, status=RunStatus.running, started_at=utcnow(), meta={"request_id": request_id})
+    session.add(run)
+    await session.commit()
+    await session.refresh(run)
 
     if not dry_run:
-        task.run_id = run_id
+        task.run_id = run.id
         task.status = TaskStatus.running
         session.add(task)
         await session.commit()
 
-    return {"run_id": str(run_id), "dry_run": dry_run}
+    dag = TaskGraph.from_plan(plan.graph)
+    storage = request.app.state.storage
+    on_start, on_end = make_callbacks(session, run.id, request_id)
+
+    res = await run_graph(
+        dag,
+        storage=storage,
+        run_id=str(run.id),
+        override_completed=set(),
+        dry_run=dry_run,
+        on_node_start=on_start,
+        on_node_end=on_end,
+    )
+
+    await finalize_run(session, run, res)
+    if not dry_run:
+        task.status = TaskStatus.completed if run.status == RunStatus.completed else TaskStatus.failed
+        session.add(task)
+        await session.commit()
+
+    return {"run_id": str(run.id), "dry_run": dry_run}

@@ -32,7 +32,8 @@ from .routes import (
     plans,
 )
 from .routes.qa_report import router as qa_router
-from .middleware import RequestIDMiddleware
+from .middleware.request_id import RequestIdMiddleware
+from .middleware.access import AccessLogMiddleware
 from .middleware.metrics import MetricsMiddleware
 from .observability import (
     metrics_enabled,
@@ -97,7 +98,8 @@ app = FastAPI(
 )
 
 # -------- Middlewares --------
-app.add_middleware(RequestIDMiddleware)                # X-Request-ID propagation
+app.add_middleware(RequestIdMiddleware)                # X-Request-ID propagation
+app.add_middleware(AccessLogMiddleware)                # access logs
 if init_sentry():
     app.add_middleware(SentryContextMiddleware)        # Sentry annotations
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
