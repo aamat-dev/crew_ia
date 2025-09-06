@@ -155,6 +155,9 @@ class Event(SQLModel, table=True):
     request_id: Optional[str] = Field(
         default=None, sa_column=Column(String, nullable=True, index=True)
     )
+    extra: Optional[Dict] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
 
 
 class Feedback(SQLModel, table=True):

@@ -1,3 +1,1 @@
-from .request_id import RequestIDMiddleware
-
-__all__ = ["RequestIDMiddleware"]
+__all__: list[str] = []
