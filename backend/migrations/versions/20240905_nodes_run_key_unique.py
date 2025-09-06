@@ -1,6 +1,7 @@
 """unicité run_id, key pour nodes"""
 
 from alembic import op
+from sqlalchemy import inspect
 
 # Identifiants Alembic
 revision = "20240905_nodes_run_key_unique"
@@ -27,8 +28,14 @@ def upgrade() -> None:
     )
 
     # Contrainte d’unicité (run_id, key)
-    op.create_unique_constraint("uq_nodes_run_key", "nodes", ["run_id", "key"])
+    bind = op.get_bind()
+    existing = [c["name"] for c in inspect(bind).get_unique_constraints("nodes")]
+    if "uq_nodes_run_key" not in existing:
+        op.create_unique_constraint("uq_nodes_run_key", "nodes", ["run_id", "key"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_nodes_run_key", "nodes", type_="unique")
+    bind = op.get_bind()
+    existing = [c["name"] for c in inspect(bind).get_unique_constraints("nodes")]
+    if "uq_nodes_run_key" in existing:
+        op.drop_constraint("uq_nodes_run_key", "nodes", type_="unique")
