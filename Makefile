@@ -122,7 +122,7 @@ test-recovery: ensure-venv
 
 .PHONY: migrate-feedbacks
 migrate-feedbacks: ensure-venv
-	@$(ACTIVATE) && alembic upgrade head
+	@$(ACTIVATE) && alembic -c backend/migrations/alembic.ini upgrade head
 
 .PHONY: test-feedbacks
 test-feedbacks: ensure-venv
@@ -216,7 +216,7 @@ api-migrate: ensure-venv
 
 .PHONY: migrate-fil8
 migrate-fil8:
-	poetry run alembic upgrade head
+	poetry run alembic -c backend/migrations/alembic.ini upgrade head
 
 .PHONY: seed-agents
 seed-agents:
@@ -349,3 +349,11 @@ cockpit-build:
 # Tests côté cockpit (Vitest)
 cockpit-test:
 	@cd frontend/cockpit && npm test
+
+.PHONY: db-revision
+db-revision:
+	@alembic -c backend/migrations/alembic.ini revision -m "$(msg)" --autogenerate
+
+.PHONY: db-upgrade
+db-upgrade:
+	@alembic -c backend/migrations/alembic.ini upgrade head

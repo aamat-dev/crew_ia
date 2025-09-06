@@ -40,7 +40,7 @@ class DbTracker:
             Run(
                 id=self.run_db.id,
                 title=self.run_db.title,
-                status=RunStatus.succeeded if success else RunStatus.failed,
+                status=RunStatus.completed if success else RunStatus.failed,
                 started_at=self.run_db.started_at,
                 ended_at=datetime.now(timezone.utc),
                 meta=self.run_db.meta,
@@ -55,10 +55,10 @@ class DbTracker:
         node_db = await self.pg.save_node(
             Node(
                 run_id=self.run_db.id,
-                key=node.id,                 # clé logique du plan
+                key=node.id,  # clé logique du plan
                 title=getattr(node, "title", node.id),
                 status=NodeStatus.running,
-                started_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
                 deps=getattr(node, "deps", []) or [],
                 checksum=getattr(node, "checksum", None),
             )
@@ -77,8 +77,8 @@ class DbTracker:
                 run_id=self.run_db.id,
                 key=node.id,
                 title=getattr(node, "title", node.id),
-                status=NodeStatus.succeeded if success else NodeStatus.failed,
-                ended_at=datetime.now(timezone.utc),
+                status=NodeStatus.completed if success else NodeStatus.failed,
+                updated_at=datetime.now(timezone.utc),
             )
         )
 

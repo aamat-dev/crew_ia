@@ -81,8 +81,9 @@ class Settings(BaseSettings):
     )
 
     # Provide sensible defaults so the API can start without mandatory
-    # environment variables. Tests override the database connection and
-    # a fixed API key keeps the authentication logic enabled.
+    # environment variables. Tests override the database connection and a
+    # fixed API key keeps the authentication logic enabled.
+
     database_url: str = Field(
         default="postgresql+asyncpg://crew:crew@localhost:5432/crew",
         alias="DATABASE_URL",
@@ -109,8 +110,13 @@ settings = get_settings()
 
 url = make_url(settings.database_url)
 if url.get_backend_name() != "postgresql":
-    logger.error("DATABASE_URL doit utiliser le dialecte postgresql: %s", settings.database_url)
-    raise RuntimeError("Unsupported database dialect")
+    # Masque le mot de passe pour éviter toute fuite dans les logs
+    safe_url = url.render_as_string(hide_password=True)
+    logger.error(
+        "DATABASE_URL doit utiliser le dialecte 'postgresql' (actuel: %s)",
+        safe_url,
+    )
+    raise RuntimeError("Unsupported database dialect: expected 'postgresql'")
 
 # SQLAlchemy async engine/session (lecture seule côté API)
 engine: AsyncEngine = create_async_engine(settings.database_url, pool_pre_ping=True)

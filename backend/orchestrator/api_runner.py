@@ -67,6 +67,7 @@ def _extract_llm_meta_from_artifacts(artifacts: list[dict]) -> dict:
             return out
     return {}
 
+
 def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> dict:
     base = runs_root or os.getenv("ARTIFACTS_DIR") or os.getenv("RUNS_ROOT") or ".runs"
     node_dir = Path(base) / run_id / "nodes" / node_key
@@ -126,7 +127,7 @@ async def run_task(
                 title=getattr(node, "title", "")
                 or (node.get("title") if isinstance(node, dict) else ""),
                 status=NodeStatus.running,
-                started_at=now,
+                updated_at=now,
                 checksum=getattr(node, "checksum", None)
                 or (node.get("checksum") if isinstance(node, dict) else None),
             )
@@ -165,7 +166,6 @@ async def run_task(
                 title=getattr(node, "title", "")
                 or (node.get("title") if isinstance(node, dict) else ""),
                 status=node_status,
-                started_at=node_started_at.get(node_key),
                 updated_at=ended,
                 checksum=getattr(node, "checksum", None)
                 or (node.get("checksum") if isinstance(node, dict) else None),
@@ -188,7 +188,9 @@ async def run_task(
             # micro‑retry: laisse le temps à l’exécuteur d’écrire le sidecar
             await anyio.sleep(0 if os.getenv("FAST_TEST_RUN") == "1" else 0.35)
             meta = _read_llm_sidecar_fs(run_id, node_key) or {}
-        duration_ms = int((ended - node_started_at.get(node_key, ended)).total_seconds() * 1000)
+        duration_ms = int(
+            (ended - node_started_at.get(node_key, ended)).total_seconds() * 1000
+        )
         meta_payload: Dict[str, Any] = {"duration_ms": duration_ms}
         if meta:
             meta_payload.update(meta)
@@ -241,11 +243,11 @@ async def run_task(
         ended = dt.datetime.now(dt.timezone.utc)
         # ...............................................................
         final_status = (
-            RunStatus.completed if res.get("status") == "succeeded" else RunStatus.failed
+            RunStatus.completed
+            if res.get("status") == "succeeded"
+            else RunStatus.failed
         )
-        status_metric = (
-            "completed" if final_status == RunStatus.completed else "failed"
-        )
+        status_metric = "completed" if final_status == RunStatus.completed else "failed"
         await storage.save_run(
             run=Run(
                 id=UUID(run_id),
@@ -258,7 +260,9 @@ async def run_task(
         )
         # Force la visibilité immédiate de l’update lors des tests
         try:
-            await storage.get_run(UUID(run_id))  # no-op logique, mais force le flush/commit
+            await storage.get_run(
+                UUID(run_id)
+            )  # no-op logique, mais force le flush/commit
         except Exception:
             pass
 
@@ -277,6 +281,7 @@ async def run_task(
         log.exception("Background run failed for run_id=%s", run_id)
         if os.getenv("SENTRY_DSN"):
             import sentry_sdk
+
             with sentry_sdk.push_scope() as scope:
                 if run_id:
                     scope.set_tag("run_id", run_id)
