@@ -2,7 +2,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # Remplace par l’ID auto-généré par Alembic
-revision = '<REMPLIR>'
+revision = '188976e12962'
 down_revision = '83c6c56308fb'
 branch_labels = None
 depends_on = None
