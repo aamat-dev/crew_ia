@@ -1,7 +1,8 @@
 import pytest
 import datetime as dt
 import uuid
-from sqlalchemy import insert, delete
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert
 from api.database.models import Run
 
 @pytest.mark.asyncio

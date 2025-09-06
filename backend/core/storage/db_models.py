@@ -19,7 +19,6 @@ from sqlmodel import Field, SQLModel
 
 # ---------------- Enums ----------------
 
-
 class RunStatus(str, Enum):
     pending = "pending"
     running = "running"
@@ -82,18 +81,18 @@ class Node(SQLModel, table=True):
     )
     key: str = Field(sa_column=Column(String, nullable=False, index=True))
     title: str = Field(sa_column=Column(String, nullable=False))
-status: NodeStatus = Field(
-    sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False)
-)
-role: Optional[str] = Field(
-    default=None, sa_column=Column(String, nullable=True, index=True)
-)
-deps: Optional[List[str]] = Field(
-    default=None, sa_column=Column(JSONB, nullable=True)
-)
-checksum: Optional[str] = Field(
-    default=None, sa_column=Column(String, nullable=True)
-)
+    status: NodeStatus = Field(
+        sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False)
+    )
+    role: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
+    deps: Optional[List[str]] = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
+    checksum: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

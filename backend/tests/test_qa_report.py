@@ -1,7 +1,8 @@
 import datetime as dt
 import uuid
 import pytest
-from sqlalchemy import insert, delete
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert
 
 from backend.api.fastapi_app.models.run import Run
 from backend.api.fastapi_app.models.node import Node

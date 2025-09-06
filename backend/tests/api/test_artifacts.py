@@ -2,7 +2,8 @@ import uuid
 import datetime as dt
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import insert, delete
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert
 from api.database.models import Artifact
 
 pytestmark = pytest.mark.asyncio
