@@ -44,6 +44,7 @@ BASE_URL="http://${API_HOST}:${API_PORT}"
 export API_KEY
 export DATABASE_URL="$ASYNC_DB_URL"
 export DATABASE_URL_SYNC="$DB_URL"
+export ALEMBIC_DATABASE_URL="$DB_URL"
 
 test -n "${API_KEY:-}" || die "API_KEY manquante"
 test -n "${DB_URL:-}" || warn "ALEMBIC_DATABASE_URL manquant (ok si DB déjà migrée)."
@@ -59,10 +60,12 @@ else
 fi
 
 if command -v alembic >/dev/null 2>&1 && test -n "${DB_URL:-}"; then
-  log "Mise à niveau du schéma (alembic upgrade head)…"
-  alembic upgrade head
+  log "Mise à niveau du schéma (alembic -c backend/migrations/alembic.ini upgrade head)…"
+  alembic -c backend/migrations/alembic.ini upgrade head
 else
-  warn "Aucune migration Alembic exécutée (alembic absent) — création directe du schéma."
+  warn "Aucune migration Alembic exécutée (alembic absent ?) — création directe du schéma."
+fi
+
   python - <<'PY'
 import os, asyncio
 from core.storage.postgres_adapter import PostgresAdapter

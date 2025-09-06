@@ -43,5 +43,6 @@ Retourne les statistiques globales, par type de nœud et la liste des feedbacks.
 ## Migration de base de données
 Appliquer les migrations (dont l'ajout du champ `evaluation`) :
 ```bash
-DATABASE_URL=<url_postgres> alembic upgrade head
+ALEMBIC_DATABASE_URL=<url_postgres_sync_psycopg> \
+  alembic -c backend/migrations/alembic.ini upgrade head
 ```

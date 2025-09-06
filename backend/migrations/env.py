@@ -24,12 +24,16 @@ for p in (ROOT, ROOT / "backend"):
     if sp not in sys.path:
         sys.path.insert(0, sp)
 
+# --- Charge le .env tôt (pour ALEMBIC_DATABASE_URL, etc.) ---
+from dotenv import load_dotenv
+load_dotenv()
+
 # --- Importe les modèles pour peupler SQLModel.metadata ---
-# (toute la DDL vient d'ici)
-from core.storage import db_models as _  # noqa: F401
+from core.storage.db_models import Run, Node, Artifact, Event, Feedback  # noqa: F401
 
 # --- Cible des migrations ---
 target_metadata = SQLModel.metadata
+
 
 def _sync_url() -> str:
     """
@@ -61,6 +65,7 @@ def _sync_url() -> str:
         "Aucune URL de BDD trouvée. Définis ALEMBIC_DATABASE_URL ou DATABASE_URL(_SYNC)."
     )
 
+
 def run_migrations_offline() -> None:
     url = _sync_url()
     config.set_main_option("sqlalchemy.url", url)
@@ -75,6 +80,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     url = _sync_url()
     config.set_main_option("sqlalchemy.url", url)
@@ -88,6 +94,7 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

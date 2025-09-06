@@ -36,13 +36,19 @@ async def pg_test_db():
     )
     db_name = f"crew_test_{uuid.uuid4().hex}"
 
-    admin_engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
+    admin_engine = create_async_engine(
+        admin_url, isolation_level="AUTOCOMMIT", pool_pre_ping=True
+    )
     async with admin_engine.begin() as conn:
         await conn.execute(text(f'CREATE DATABASE "{db_name}"'))
     await admin_engine.dispose()
 
     test_db_url = admin_url.rsplit("/", 1)[0] + f"/{db_name}"
     sync_url = test_db_url.replace("postgresql+asyncpg", "postgresql+psycopg")
+
+    mp = pytest.MonkeyPatch()
+    mp.setenv("DATABASE_URL", test_db_url)
+    mp.setenv("ALEMBIC_DATABASE_URL", sync_url)
 
     from alembic import command
     from alembic.config import Config
@@ -53,19 +59,17 @@ async def pg_test_db():
     await asyncio.to_thread(command.upgrade, config, "head")
 
     global engine
-    engine = create_async_engine(test_db_url)
+    engine = create_async_engine(test_db_url, pool_pre_ping=True)
     TestingSessionLocal.configure(bind=engine)
-
-    mp = pytest.MonkeyPatch()
-    mp.setenv("DATABASE_URL", test_db_url)
-    mp.setenv("ALEMBIC_DATABASE_URL", sync_url)
     api_deps.settings.database_url = test_db_url
 
     try:
         yield test_db_url
     finally:
         await engine.dispose()
-        admin_engine = create_async_engine(admin_url, isolation_level="AUTOCOMMIT")
+        admin_engine = create_async_engine(
+            admin_url, isolation_level="AUTOCOMMIT", pool_pre_ping=True
+        )
         async with admin_engine.begin() as conn:
             await conn.execute(
                 text(

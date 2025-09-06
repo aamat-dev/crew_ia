@@ -1,3 +1,6 @@
+
+"""make nodes.key non-nullable"""
+
 from alembic import op
 import sqlalchemy as sa
 

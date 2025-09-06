@@ -11,6 +11,8 @@ networkx
 sqlmodel
 SQLAlchemy
 asyncpg
+psycopg[binary]
+alembic
 httpx
 asgi-lifespan
 pytest
