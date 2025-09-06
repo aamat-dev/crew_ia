@@ -1,6 +1,7 @@
 import uuid
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from api.database.models import Plan, Task, Assignment
 

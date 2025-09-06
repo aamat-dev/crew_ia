@@ -1,7 +1,8 @@
 import uuid
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from backend.core.models import Task, TaskStatus
 from backend.core.models import Plan, PlanStatus

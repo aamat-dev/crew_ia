@@ -19,7 +19,6 @@ from sqlmodel import Field, SQLModel
 
 # ---------------- Enums ----------------
 
-
 class RunStatus(str, Enum):
     pending = "pending"
     running = "running"
