@@ -77,10 +77,11 @@ class Node(SQLModel, table=True):
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
     run_id: uuid.UUID = Field(
-        sa_column=Column(PGUUID(as_uuid=True), nullable=False, index=True)
+        sa_column=Column(PGUUID(as_uuid=True), nullable=False)
     )
-    key: str = Field(sa_column=Column(String, nullable=False, index=True))
+    key: str = Field(sa_column=Column(String, nullable=False))
     title: str = Field(sa_column=Column(String, nullable=False))
+
     status: NodeStatus = Field(
         sa_column=Column(SAEnum(NodeStatus, name="nodestatus"), nullable=False)
     )

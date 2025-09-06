@@ -2,6 +2,7 @@
 import asyncio
 import datetime as dt
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -288,3 +289,28 @@ async def seed_sample(db_session: AsyncSession):
         await db_session.execute(delete(Node).where(Node.run_id == run_id))
         await db_session.execute(delete(Run).where(Run.id == run_id))
         await db_session.commit()
+
+
+# Helper de polling simple/robuste pour les runs
+
+
+async def wait_status(
+    client,
+    run_id: str,
+    target: str = "completed",
+    timeout: float = 5.0,
+    interval: float = 0.05,
+) -> bool:
+    """Attend qu'un run atteigne le statut cible dans le délai imparti."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        r = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
+        st = (r.json() or {}).get("status")
+        if target == "completed":
+            if st in ("completed", "failed"):
+                return True
+        else:
+            if st == target:
+                return True
+        await asyncio.sleep(interval)
+    return False

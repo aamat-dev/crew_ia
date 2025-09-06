@@ -1,4 +1,5 @@
-import asyncio, json, pytest
+import json, pytest
+from ..conftest import wait_status
 
 import uuid
 from sqlalchemy import delete, select
@@ -22,11 +23,8 @@ async def test_post_tasks_and_follow(async_client, db_session):
     run_uuid = uuid.UUID(rid)
 
     # poll jusqu'à fin
-    for _ in range(80):
-        rs = await async_client.get(f"/runs/{rid}", headers={"X-API-Key":"test-key"})
-        if rs.json()["status"] in ("completed","failed"):
-            break
-        await asyncio.sleep(0.05)
+    assert await wait_status(async_client, rid, "completed", timeout=5.0)
+    rs = await async_client.get(f"/runs/{rid}", headers={"X-API-Key":"test-key"})
 
     # checks de base
     nodes = await async_client.get(f"/runs/{rid}/nodes", headers={"X-API-Key":"test-key"})

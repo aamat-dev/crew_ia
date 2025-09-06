@@ -1,5 +1,5 @@
-import asyncio
 import pytest
+from ..conftest import wait_status
 
 @pytest.mark.asyncio
 async def test_create_and_follow_task(client):
@@ -16,12 +16,9 @@ async def test_create_and_follow_task(client):
     assert body["location"] == f"/runs/{run_id}"
 
     # Poll jusqu'à completion
-    for _ in range(60):
-        rr = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
-        assert rr.status_code == 200
-        if rr.json()["status"] in ("completed", "failed"):
-            break
-        await asyncio.sleep(0.05)
+    assert await wait_status(client, run_id, "completed", timeout=5.0)
+    rr = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
+    assert rr.status_code == 200
     assert rr.json()["status"] == "completed"
 
     # Noeuds + artifacts

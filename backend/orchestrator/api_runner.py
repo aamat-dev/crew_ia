@@ -148,6 +148,7 @@ async def run_task(
             },
             request_id=request_id,
         )
+        await anyio.sleep(0)
 
     async def on_node_end(node, node_key: str, status: str):
         ended = dt.datetime.now(dt.timezone.utc)
@@ -222,6 +223,7 @@ async def run_task(
                 meta_payload.get("latency_ms"),
             )
         await event_publisher.emit(event_type, payload, request_id=request_id)
+        await anyio.sleep(0)
 
     try:
         await event_publisher.emit(
@@ -229,6 +231,7 @@ async def run_task(
             {"run_id": run_id, "title": title},
             request_id=request_id,
         )
+        await anyio.sleep(0)
 
         res = await run_graph(
             dag,
@@ -242,9 +245,11 @@ async def run_task(
 
         ended = dt.datetime.now(dt.timezone.utc)
         # ...............................................................
+        status_val = (res or {}).get("status")
+        success_markers = {"succeeded", "success", "completed", "ok", True}
         final_status = (
             RunStatus.completed
-            if res.get("status") == "succeeded"
+            if status_val in success_markers
             else RunStatus.failed
         )
         status_metric = "completed" if final_status == RunStatus.completed else "failed"
@@ -258,6 +263,7 @@ async def run_task(
                 meta={"request_id": request_id},
             )
         )
+        await anyio.sleep(0)
         # Force la visibilité immédiate de l’update lors des tests
         try:
             await storage.get_run(
@@ -298,6 +304,7 @@ async def run_task(
                 meta={"request_id": request_id},
             )
         )
+        await anyio.sleep(0)
         # Même stratégie en cas d’échec
         try:
             await storage.get_run(UUID(run_id))

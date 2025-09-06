@@ -1,11 +1,10 @@
-import asyncio
 import json
-import time
 
 import pytest
 import uuid
 from sqlalchemy import delete, select
 from api.database.models import Run, Node, Artifact, Event
+from ..conftest import wait_status
 
 
 @pytest.mark.asyncio
@@ -40,12 +39,8 @@ async def test_events_include_llm_metadata(async_client, monkeypatch, tmp_path, 
     run_id = r.json()["run_id"]
     run_uuid = uuid.UUID(run_id)
 
-    deadline = time.monotonic() + 10.0  # 10s max
-    while time.monotonic() < deadline:
-        rs = await async_client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
-        if rs.json().get("status") in ("completed", "failed"):
-            break
-        await asyncio.sleep(0.05)
+    assert await wait_status(async_client, run_id, "completed", timeout=5.0)
+    rs = await async_client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
 
     events = await async_client.get(
         "/events", params={"run_id": run_id}, headers={"X-API-Key": "test-key"}
