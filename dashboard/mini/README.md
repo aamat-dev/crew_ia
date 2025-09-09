@@ -103,3 +103,7 @@ Les appels API sont mockés dans le test et seules les routes UI sont vérifiée
 - Recherche en temps réel.
 - Mode sombre.
 - Édition des runs.
+> DEPRECATED — Ce mini-dashboard (Vite) est conservé provisoirement pour la transition.
+> Le cockpit officiel vit désormais sous `frontend/cockpit` (Next.js).
+> Merci d'ouvrir les nouveaux développements UI dans `frontend/cockpit` et de
+> limiter l'usage de ce dossier aux besoins de migration/tests E2E.

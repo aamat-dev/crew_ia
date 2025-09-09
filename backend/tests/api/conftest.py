@@ -13,9 +13,9 @@ from asgi_lifespan import LifespanManager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import delete, text
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import delete, text, insert
 from sqlalchemy.pool import NullPool
+from sqlmodel import SQLModel
 
 # --- importe l'app et les deps ---
 from backend.api.fastapi_app.app import app
@@ -33,18 +33,16 @@ engine = None
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def pg_test_db():
     """Instancie une base PostgreSQL dédiée aux tests et applique les migrations."""
-    # 1) si POSTGRES_ADMIN_URL est fourni, on l'utilise
+    global engine
+    # --- Mode PostgreSQL ---
     admin_url = os.getenv("POSTGRES_ADMIN_URL")
     if not admin_url:
-        # 2) sinon on tente de dériver depuis DATABASE_URL (même host/port/user/pass -> db "postgres")
         db_url = os.getenv("DATABASE_URL", "")
         if db_url:
-            # sécurise le protocole asyncpg pour l'admin
             db_url = db_url.replace("postgresql+psycopg", "postgresql+asyncpg")
             base = db_url.rsplit("/", 1)[0]
             admin_url = f"{base}/postgres"
         else:
-            # 3) fallbacks connus de dev
             admin_url = "postgresql+asyncpg://crew:crew@localhost:5432/postgres"
     db_name = f"crew_test_{uuid.uuid4().hex}"
 
@@ -70,7 +68,6 @@ async def pg_test_db():
     config.set_main_option("sqlalchemy.url", sync_url)
     await asyncio.to_thread(command.upgrade, config, "head")
 
-    global engine
     engine = create_async_engine(
         test_db_url,
         pool_pre_ping=True,
@@ -104,7 +101,13 @@ async def db_session(pg_test_db) -> AsyncSession:
     Fournit une session SQLAlchemy Async par test.
     """
     async with TestingSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            try:
+                await session.rollback()
+            except Exception:
+                pass
 
 
 # ---------- Override des deps FastAPI ----------
@@ -170,8 +173,9 @@ async def client(pg_test_db) -> AsyncClient:
     """
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.api_key = "test-key"
-    # branche get_db
+    # branche get_db/get_session
     app.dependency_overrides[api_deps.get_db] = _override_get_db
+    app.dependency_overrides[api_deps.get_session] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
     # neutralise l'auth
     _disable_auth_overrides()
@@ -198,6 +202,7 @@ async def client_noauth(pg_test_db) -> AsyncClient:
     # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.api_key = "test-key"
     app.dependency_overrides[api_deps.get_db] = _override_get_db
+    app.dependency_overrides[api_deps.get_session] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
 
     async with LifespanManager(app):

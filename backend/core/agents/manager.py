@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from .schemas import PlanNodeModel, ManagerOutput, parse_manager_json
 from .registry import resolve_agent, AgentSpec
-from .recruiter import recruit
+from .recruiter import arecruit
 from core.llm.providers.base import LLMRequest
 from core.llm.runner import run_llm
 
@@ -14,7 +14,7 @@ async def run_manager(subplan: List[PlanNodeModel]) -> ManagerOutput:
     try:
         spec: AgentSpec = resolve_agent("Manager_Generic")
     except KeyError:
-        spec = recruit("Manager_Generic")
+        spec = await arecruit("Manager_Generic")
     system_prompt = spec.system_prompt
 
     payload = [

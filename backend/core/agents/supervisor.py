@@ -6,7 +6,7 @@ from typing import Any, Dict
 from pydantic import ValidationError
 
 from .registry import resolve_agent
-from .recruiter import recruit
+from .recruiter import arecruit
 from .schemas import SupervisorPlan, parse_supervisor_json
 from core.llm.providers.base import LLMRequest
 from core.llm import runner as llm_runner
@@ -20,7 +20,7 @@ async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
     try:
         spec = resolve_agent("Supervisor")
     except KeyError:
-        spec = recruit("Supervisor")
+        spec = await arecruit("Supervisor")
 
     system_prompt = spec.system_prompt
 
@@ -41,4 +41,3 @@ async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
             )
 
     raise last_err or RuntimeError("Supervisor output invalid")
-

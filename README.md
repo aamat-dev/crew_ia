@@ -14,6 +14,11 @@ DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
 ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 API_URL=http://127.0.0.1:8000
+# (facultatif) Frontends:
+# - Vite mini-dashboard
+VITE_API_BASE_URL=http://localhost:8000
+# - Cockpit Next.js
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
 2. Start the API with Uvicorn (loads variables from `.env`):
@@ -180,6 +185,12 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 - `ALEMBIC_DATABASE_URL` — URL de connexion synchrone utilisée par Alembic.
 - `API_URL` — URL de base de l'API.
 - `ALLOWED_ORIGINS` — origines autorisées pour CORS (défaut `http://localhost:3000,http://localhost:5173`).
+  - Inclut par défaut les ports dev de Next (`3000`) et Vite (`5173`).
+  - Ne pas utiliser d'autres variables CORS : `ALLOWED_ORIGINS` est la source unique.
+
+- Frontends (optionnel selon le client utilisé) :
+  - `VITE_API_BASE_URL` — base API pour le mini-dashboard Vite.
+  - `NEXT_PUBLIC_API_URL` — base API publique pour le cockpit Next.js.
 
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 - `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
@@ -340,3 +351,12 @@ npm run dev
 ```
 
 Cela démarre un serveur local accessible sur http://localhost:3000.
+## Arborescence
+
+- `backend/api` — API FastAPI (app, routes, deps, clients, middlewares).
+- `backend/core` — noyau (agents, LLM, planning, stockage, télémétrie, IO).
+- `backend/orchestrator` — exécution du graphe et services d’orchestration.
+- `backend/migrations` — Alembic (`alembic.ini`, `env.py`, `versions/`).
+- `backend/tests` — tests API, unitaires, intégration, e2e.
+- `frontend/cockpit` — cockpit Next.js (UI principale).
+- `dashboard/mini` — mini-dashboard (Vite) — déprécié, gardé pour la transition.

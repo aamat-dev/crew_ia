@@ -36,7 +36,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ add }}>
       {children}
-      <div className="fixed bottom-4 right-4 space-y-2">
+      <div
+        className="fixed bottom-4 right-4 space-y-2"
+        role="region"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -61,4 +66,3 @@ export function useToast() {
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
   return ctx.add;
 }
-

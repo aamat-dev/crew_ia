@@ -9,15 +9,15 @@ from typing import Optional, Any, Dict
 from uuid import UUID, uuid4
 from datetime import datetime, UTC
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, Query
 from fastapi import Header
 from pydantic import ValidationError
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import strict_api_key_auth, get_session
-from ..schemas_base import TaskRequest, TaskAcceptedResponse
+from ..deps import strict_api_key_auth, get_session, read_timezone, to_tz
+from ..schemas_base import TaskRequest, TaskAcceptedResponse, Page
 
 from backend.core.models import Task, TaskStatus
 from backend.api.schemas.task import TaskCreate, TaskOut
@@ -25,10 +25,16 @@ from backend.api.schemas.task import TaskCreate, TaskOut
 from backend.core.models import Plan, PlanStatus
 from backend.api.schemas.plan import PlanCreateResponse
 from backend.core.services.supervisor import generate_plan
-from orchestrator.api_runner import run_graph
+import orchestrator.api_runner as api_runner
 from core.planning.task_graph import TaskGraph
 from core.storage.db_models import Run, RunStatus, Event
 from ..utils.run_flow import utcnow, make_callbacks, finalize_run
+from backend.api.utils.pagination import (
+    PaginationParams,
+    pagination_params,
+    set_pagination_headers,
+)
+from ..ordering import apply_order
 
 # --- Back-compat pour les tests qui monkeypatchent tasks.schedule_run ---
 async def schedule_run(**kwargs):  # sera surchargé par les tests si nécessaire
@@ -62,6 +68,78 @@ def _check_rate_limit(request: Request) -> None:
     store[key] = (count + 1, start)
 
 # ---------- Routes ----------
+
+# ----- Listing des tâches -----
+ORDERABLE_FIELDS = {
+    "created_at": Task.created_at,
+    "updated_at": Task.updated_at,
+    "title": Task.title,
+    "status": Task.status,
+}
+
+
+@router.get("", response_model=Page[TaskOut])
+async def list_tasks(
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+    tz = Depends(read_timezone),
+    pagination: PaginationParams = Depends(pagination_params),
+    status: str | None = Query(None, description="Filtre par status"),
+    title_contains: str | None = Query(None, description="Filtre par sous-chaîne du titre"),
+):
+    where = []
+    if status:
+        where.append(Task.status == status)
+    if title_contains:
+        like = f"%{title_contains}%"
+        where.append(Task.title.ilike(like))
+
+    base = select(Task)
+    if where:
+        base = base.where(and_(*where))
+
+    total_q = select(func.count(Task.id))
+    if where:
+        total_q = total_q.where(and_(*where))
+    total = (await session.execute(total_q)).scalar_one()
+
+    stmt = apply_order(
+        base,
+        pagination.order_by,
+        pagination.order_dir,
+        ORDERABLE_FIELDS,
+        "-created_at",
+    ).limit(pagination.limit).offset(pagination.offset)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    items = [
+        TaskOut(
+            id=t.id,
+            title=t.title,
+            description=t.description,
+            status=t.status,
+            created_at=to_tz(getattr(t, "created_at", None), tz) or t.created_at,
+            updated_at=to_tz(getattr(t, "updated_at", None), tz) or t.updated_at,
+        )
+        for t in rows
+    ]
+
+    links = set_pagination_headers(
+        response,
+        request,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
+
+    return Page[TaskOut](
+        items=items,
+        total=total,
+        limit=pagination.limit,
+        offset=pagination.offset,
+        links=links or None,
+    )
 
 @router.post(
     "",
@@ -159,6 +237,9 @@ async def create_task(
     if task_spec is None:
         raise HTTPException(status_code=400, detail="Missing task spec")
 
+    # Compat: si aucun plan fourni et type=demo, crée un plan minimal avec 1 nœud
+    if not task_spec.get("plan") and task_spec.get("type") == "demo":
+        task_spec = {**task_spec, "plan": [{"id": "n1", "title": body.title}]}
     dag = TaskGraph.from_plan(task_spec)
     storage = request.app.state.storage
 
@@ -180,7 +261,7 @@ async def create_task(
 
     on_start, on_end = make_callbacks(session, run.id, request_id)
 
-    res = await run_graph(
+    res = await api_runner.run_graph(
         dag,
         storage=storage,
         run_id=str(run.id),

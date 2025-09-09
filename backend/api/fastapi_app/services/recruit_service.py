@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -77,7 +79,15 @@ class RecruitService:
             config=config or {},
         )
         session.add(agent)
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            # Doublon probable (contrainte unique name+role+domain)
+            raise HTTPException(status_code=409, detail="agent already exists") from e
+        except Exception as e:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail="failed to persist agent") from e
         await session.refresh(agent)
 
         # 5) Sidecar explicable
@@ -109,10 +119,13 @@ class RecruitService:
 
         return RecruitResponse(
             agent_id=str(agent.id),
+            id=str(agent.id),
             name=agent.name,
             role=agent.role,
             domain=agent.domain,
             default_model=agent.default_model,
             sidecar=sidecar,
             template_used=template_used,
+            template_id=str(tpl.id) if tpl else None,
+            created_at=agent.created_at,
         )

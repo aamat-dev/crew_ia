@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
@@ -92,9 +93,13 @@ class RecruitRequest(BaseModel):
 class RecruitResponse(BaseModel):
     model_config = ConfigDict(extra='forbid')
     agent_id: str
+    # Ajouts non-cassants pour faciliter l'usage côté client
+    id: Optional[str] = None
     name: str
     role: str
     domain: Optional[str]
     default_model: Optional[str]
     sidecar: Dict[str, Any]
     template_used: Optional[str] = None
+    template_id: Optional[str] = None
+    created_at: Optional[datetime] = None

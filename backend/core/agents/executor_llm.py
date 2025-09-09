@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from .registry import resolve_agent
-from .recruiter import recruit
+from .recruiter import arecruit
 from .schemas import PlanNodeModel
 from core.llm.providers.base import LLMRequest
 from core.llm.runner import run_llm
@@ -16,7 +16,7 @@ async def agent_runner(node: PlanNodeModel, storage: CompositeAdapter | None = N
     try:
         spec = resolve_agent(role)
     except KeyError:
-        spec = recruit(role)
+        spec = await arecruit(role)
 
     system_prompt = spec.system_prompt
 

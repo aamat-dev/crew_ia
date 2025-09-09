@@ -1,50 +1,31 @@
 from __future__ import annotations
+import logging
+import os
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Any
 
-from core.config import get_role_config
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# Modèles DB Agents
+from backend.api.fastapi_app.models.agent import (
+    AgentTemplate,
+    AgentModelsMatrix,
+)
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
 class AgentSpec:
     role: str
-    system_prompt: str
+    system_prompt: str | None
     provider: str
     model: str
     tools: List[str]
 
 
-# matrice statique: role -> (chemin prompt, role config, outils)
-_AGENT_MATRIX: Dict[str, tuple[str, str, List[str]]] = {
-    "Supervisor": (
-        "core/agents/prompts/supervisor.txt",
-        "SUPERVISOR",
-        [],
-    ),
-    "Manager_Generic": (
-        "core/agents/prompts/manager.txt",
-        "MANAGER",
-        [],
-    ),
-    "Writer_FR": (
-        "core/agents/prompts/executors/writer_fr.txt",
-        "EXECUTOR",
-        [],
-    ),
-    "Researcher": (
-        "core/agents/prompts/executors/researcher.txt",
-        "EXECUTOR",
-        [],
-    ),
-    "Reviewer": (
-        "core/agents/prompts/executors/reviewer.txt",
-        "EXECUTOR",
-        [],
-    ),
-}
-
-_ROOT = Path(__file__).resolve().parents[2]
+# Registre dynamique en mémoire: rempli par le recruiter DB
 _DYNAMIC_REGISTRY: Dict[str, AgentSpec] = {}
 
 
@@ -53,66 +34,62 @@ def register_agent(spec: AgentSpec) -> None:
 
 
 def resolve_agent(role: str) -> AgentSpec:
-    """Retourne la configuration d'un agent selon son rôle."""
+    """Retourne un agent depuis le registre dynamique.
+
+    La résolution initiale dépend désormais exclusivement de la DB via
+    core.agents.recruiter.recruit(). Ici on ne fait que renvoyer les agents
+    déjà instanciés pendant l'exécution.
+    """
     if role in _DYNAMIC_REGISTRY:
         return _DYNAMIC_REGISTRY[role]
-    spec = _AGENT_MATRIX.get(role)
-    if not spec:
-        raise KeyError(role)
-    prompt_path, cfg_role, tools = spec
-    cfg = get_role_config(cfg_role)
-    system_prompt = (_ROOT / prompt_path).read_text(encoding="utf-8")
-    return AgentSpec(
-        role=role,
-        system_prompt=system_prompt,
-        provider=cfg.provider,
-        model=cfg.model,
-        tools=list(tools),
-    )
-
-
-_AGENT_MATRIX: Dict[str, tuple[str, str]] = {
-    "Supervisor": ("core/agents/prompts/supervisor.txt", "SUPERVISOR"),
-    "Manager_Generic": ("core/agents/prompts/manager.txt", "MANAGER"),
-    "Writer_FR": (
-        "core/agents/prompts/executors/writer_fr.txt",
-        "EXECUTOR",
-    ),
-    "Researcher": (
-        "core/agents/prompts/executors/researcher.txt",
-        "EXECUTOR",
-    ),
-    "Reviewer": (
-        "core/agents/prompts/executors/reviewer.txt",
-        "EXECUTOR",
-    ),
-}
-
-
-_DYNAMIC_REGISTRY: Dict[str, AgentSpec] = {}
-
-
-def _read_prompt(rel: str) -> str:
-    root = Path(__file__).resolve().parents[2]
-    return (root / rel).read_text(encoding="utf-8")
-
-
-def resolve_agent(role: str) -> AgentSpec:
-    if role in _DYNAMIC_REGISTRY:
-        return _DYNAMIC_REGISTRY[role]
-    if role in _AGENT_MATRIX:
-        prompt_path, cfg_key = _AGENT_MATRIX[role]
-        cfg = get_role_config(cfg_key)
-        prompt = _read_prompt(prompt_path)
-        return AgentSpec(role, prompt, cfg.provider, cfg.model, [])
     raise KeyError(role)
 
 
-def register_agent(spec: AgentSpec) -> None:
-    _DYNAMIC_REGISTRY[spec.role] = spec
+# Compat: ancienne API qui chargeait un registre statique par défaut
+def load_default_registry() -> Dict[str, AgentSpec]:  # pragma: no cover (compat)
+    return dict(_DYNAMIC_REGISTRY)
 
 
-def load_default_registry() -> Dict[str, AgentSpec]:
-    return {role: resolve_agent(role) for role in _AGENT_MATRIX} | _DYNAMIC_REGISTRY
+async def get_agent_matrix(session: AsyncSession) -> Dict[str, Any]:
+    """
+    Lit la matrice des modèles depuis la DB et la retourne sous la forme:
+      {"role:domain": models_dict, ...}
+    """
+    stmt = select(AgentModelsMatrix).where(AgentModelsMatrix.is_active == True).order_by(  # noqa: E712
+        AgentModelsMatrix.created_at.desc()
+    )
+    res = await session.execute(stmt)
+    rows = res.scalars().all()
+    out: Dict[str, Any] = {}
+    for r in rows:
+        key = f"{r.role}:{r.domain}"
+        if key not in out:
+            out[key] = r.models or {}
+    return out
 
 
+async def ensure_seed_if_empty(session: AsyncSession) -> None:
+    """Dev only: si tables vides, lance le seed initial.
+
+    - Ne fait rien si APP_ENV/SENTRY_ENV=prod.
+    - Idempotent: uniquement si aucune entrée dans AgentTemplate/AgentModelsMatrix.
+    """
+    env = os.getenv("APP_ENV") or os.getenv("SENTRY_ENV") or "dev"
+    if str(env).lower() == "prod":
+        return
+
+    tpl_count = (await session.execute(select(AgentTemplate))).scalars().first()
+    mm_count = (await session.execute(select(AgentModelsMatrix))).scalars().first()
+    if tpl_count or mm_count:
+        return
+
+    try:
+        log.info("agents: DB vide, seed initial (dev)")
+        # Import tardif pour éviter les dépendances cycliques
+        from scripts.seed_agents import seed_templates, seed_matrix  # type: ignore
+
+        # Utilise les chemins par défaut (dossier seeds/)
+        await seed_matrix()
+        await seed_templates()
+    except Exception as e:  # pragma: no cover — meilleure-effort dev only
+        log.warning("seed agents échoué: %s", e)

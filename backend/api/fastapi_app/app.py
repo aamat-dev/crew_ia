@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
+import logging
 from uuid import UUID
 from anyio import create_task_group
 import os
@@ -70,7 +71,17 @@ def _build_storage():
         if item == "file":
             adapters.append(FileAdapter(base_dir=runs_root))
         elif item == "pg":
-            adapters.append(PostgresAdapter(settings.database_url))
+            # N'active l'adaptateur PG que si l'URL cible bien PostgreSQL
+            try:
+                from sqlalchemy.engine import make_url
+                if make_url(settings.database_url).get_backend_name() == "postgresql":
+                    adapters.append(PostgresAdapter(settings.database_url))
+                else:
+                    # ignore silencieusement en env de test (ex: sqlite)
+                    pass
+            except Exception:
+                # En cas d'URL invalide, on ignore pour ne pas bloquer le démarrage
+                pass
         elif item:
             raise RuntimeError(f"Unknown adapter in STORAGE_ORDER: {item}")
     if not adapters:
@@ -80,6 +91,18 @@ def _build_storage():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Configure 'api.access' logger so it's capturable by tests and present in prod
+    try:
+        lg = logging.getLogger("api.access")
+        if not lg.handlers:
+            # Attach a simple stream handler once; caplog will still intercept
+            handler = logging.StreamHandler()
+            lg.addHandler(handler)
+        lg.setLevel(logging.INFO)
+        lg.propagate = True
+        lg.disabled = False
+    except Exception:
+        pass
     async with create_task_group() as tg:
         storage = _build_storage()
         storage.set_resolvers(run_resolver=lambda x: UUID(x), node_resolver=lambda x: UUID(x))

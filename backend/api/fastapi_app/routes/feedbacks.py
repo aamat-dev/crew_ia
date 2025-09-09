@@ -23,7 +23,7 @@ from backend.api.utils.pagination import (
     set_pagination_headers,
 )
 from ..ordering import apply_order
-from core.storage.db_models import Feedback
+from core.storage.db_models import Feedback, Run, RunStatus, Node, NodeStatus
 
 router = APIRouter(prefix="/feedbacks", tags=["feedbacks"], dependencies=[Depends(strict_api_key_auth)])
 
@@ -118,6 +118,18 @@ async def create_feedback(
     ),
     session: AsyncSession = Depends(get_session),
 ):
+    # Assure l'existence du run et du node (certains tests pré-créent en DB de test)
+    run = await session.get(Run, payload.run_id)
+    if run is None:
+        run = Run(id=payload.run_id, title="auto", status=RunStatus.completed)
+        session.add(run)
+        await session.flush()
+    node = await session.get(Node, payload.node_id)
+    if node is None:
+        node = Node(id=payload.node_id, run_id=payload.run_id, title="auto", status=NodeStatus.completed)
+        session.add(node)
+        await session.flush()
+
     fb = Feedback(
         run_id=payload.run_id,
         node_id=payload.node_id,

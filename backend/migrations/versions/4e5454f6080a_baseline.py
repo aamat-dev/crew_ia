@@ -58,7 +58,7 @@ def upgrade() -> None:
         BEGIN
           IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='agentrole') THEN
             CREATE TYPE agentrole AS ENUM (
-              'orchestrator','supervisor','manager','executor','recruiter','monitor'
+              'orchestrator','supervisor','manager','executor','reviewer','recruiter','monitor'
             );
           END IF;
 
@@ -79,6 +79,12 @@ def upgrade() -> None:
               'queued','running','completed','failed','canceled'
             );
           END IF;
+
+          IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='planstatus') THEN
+            CREATE TYPE planstatus AS ENUM (
+              'draft','ready','invalid'
+            );
+          END IF;
         END $$;
         """
     )
@@ -96,6 +102,7 @@ def upgrade() -> None:
                     "supervisor",
                     "manager",
                     "executor",
+                    "reviewer",
                     "recruiter",
                     "monitor",
                     name="agentrole",
@@ -104,6 +111,11 @@ def upgrade() -> None:
                 nullable=False,
             ),
             sa.Column("domain", sa.Text(), nullable=False),
+            sa.Column("prompt_system", sa.Text(), nullable=True),
+            sa.Column("prompt_user", sa.Text(), nullable=True),
+            sa.Column("default_model", sa.Text(), nullable=True),
+            sa.Column("config", pg.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+            sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
             sa.Column(
                 "parent_id",
                 pg.UUID(as_uuid=True),
@@ -117,6 +129,18 @@ def upgrade() -> None:
         )
     op.execute("CREATE INDEX IF NOT EXISTS ix_agents_role_domain ON agents(role, domain)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_agents_active ON agents(is_active)")
+    # Colonnes manquantes si table déjà existante
+    if _table_exists("agents"):
+        if not _has_column("agents", "prompt_system"):
+            op.add_column("agents", sa.Column("prompt_system", sa.Text(), nullable=True))
+        if not _has_column("agents", "prompt_user"):
+            op.add_column("agents", sa.Column("prompt_user", sa.Text(), nullable=True))
+        if not _has_column("agents", "default_model"):
+            op.add_column("agents", sa.Column("default_model", sa.Text(), nullable=True))
+        if not _has_column("agents", "config"):
+            op.add_column("agents", sa.Column("config", pg.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")))
+        if not _has_column("agents", "version"):
+            op.add_column("agents", sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
 
     # -------- runs --------
     if not _table_exists("runs"):
@@ -135,6 +159,7 @@ def upgrade() -> None:
             ),
             sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("metadata", pg.JSONB(), nullable=True),
             sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         )
@@ -161,6 +186,8 @@ def upgrade() -> None:
             op.add_column("runs", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False))
         if not _has_column("runs", "updated_at"):
             op.add_column("runs", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True))
+        if not _has_column("runs", "metadata"):
+            op.add_column("runs", sa.Column("metadata", pg.JSONB(), nullable=True))
 
     op.execute("CREATE INDEX IF NOT EXISTS ix_runs_status ON runs(status)")
 
@@ -262,19 +289,22 @@ def upgrade() -> None:
         op.create_table(
             "events",
             sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, nullable=False),
-            sa.Column("run_id", pg.UUID(as_uuid=True), sa.ForeignKey("runs.id", ondelete="CASCADE"), nullable=False),
-            sa.Column("node_id", pg.UUID(as_uuid=True), sa.ForeignKey("nodes.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("run_id", pg.UUID(as_uuid=True), sa.ForeignKey("runs.id", ondelete="CASCADE"), nullable=True),
+            sa.Column("node_id", pg.UUID(as_uuid=True), sa.ForeignKey("nodes.id", ondelete="CASCADE"), nullable=True),
             sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
             sa.Column("level", sa.String(length=50), nullable=False),
             sa.Column("message", sa.Text(), nullable=False),
             sa.Column("request_id", sa.String(), nullable=True),
-            sa.Column("metadata", pg.JSONB(), nullable=True),
+            sa.Column("extra", pg.JSONB(), nullable=True),
         )
     else:
         if not _has_column("events", "request_id"):
             op.add_column("events", sa.Column("request_id", sa.String(), nullable=True))
-        if not _has_column("events", "metadata"):
-            op.add_column("events", sa.Column("metadata", pg.JSONB(), nullable=True))
+        if not _has_column("events", "extra"):
+            op.add_column("events", sa.Column("extra", pg.JSONB(), nullable=True))
+        # aligne la nullabilité sur le modèle (run_id et node_id peuvent être NULL)
+        op.execute("ALTER TABLE events ALTER COLUMN node_id DROP NOT NULL")
+        op.execute("ALTER TABLE events ALTER COLUMN run_id DROP NOT NULL")
     op.execute("CREATE INDEX IF NOT EXISTS ix_events_run ON events(run_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_events_node ON events(node_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_events_level ON events(level)")
@@ -315,21 +345,62 @@ def upgrade() -> None:
             sa.Column(
                 "role",
                 pg.ENUM(
-                    "orchestrator", "supervisor", "manager", "executor", "recruiter", "monitor",
+                    "orchestrator", "supervisor", "manager", "executor", "reviewer", "recruiter", "monitor",
                     name="agentrole",
                     create_type=False,
                 ),
                 nullable=True,
             ),
             sa.Column("domain", sa.Text(), nullable=True),
-            sa.Column("provider", sa.Text(), nullable=True),
-            sa.Column("model", sa.Text(), nullable=True),
-            sa.Column("weight", sa.Numeric(10, 4), nullable=True),
+            sa.Column("models", pg.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
             sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("TRUE")),
             sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+            sa.UniqueConstraint("role", "domain", name="uq_agent_models_matrix_role_domain"),
         )
-    op.execute("CREATE INDEX IF NOT EXISTS ix_agent_models_matrix_rd ON agent_models_matrix(role, domain)")
+        op.execute("CREATE INDEX IF NOT EXISTS ix_agent_models_matrix_rd ON agent_models_matrix(role, domain)")
+    else:
+        if not _has_column("agent_models_matrix", "models"):
+            op.add_column("agent_models_matrix", sa.Column("models", pg.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")))
+        if not _has_column("agent_models_matrix", "version"):
+            op.add_column("agent_models_matrix", sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
+        # l'unicité (role, domain)
+        op.execute(
+            """
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid = 'agent_models_matrix'::regclass
+                  AND conname = 'uq_agent_models_matrix_role_domain'
+              ) THEN
+                ALTER TABLE agent_models_matrix
+                  ADD CONSTRAINT uq_agent_models_matrix_role_domain UNIQUE(role, domain);
+              END IF;
+            END $$;
+            """
+        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_agent_models_matrix_rd ON agent_models_matrix(role, domain)")
+
+    # -------- agent_templates --------
+    if not _table_exists("agent_templates"):
+        op.create_table(
+            "agent_templates",
+            sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, nullable=False),
+            sa.Column("name", sa.Text(), nullable=False),
+            sa.Column("role", sa.Text(), nullable=False),
+            sa.Column("domain", sa.Text(), nullable=False),
+            sa.Column("prompt_system", sa.Text(), nullable=True),
+            sa.Column("prompt_user", sa.Text(), nullable=True),
+            sa.Column("default_model", sa.Text(), nullable=True),
+            sa.Column("config", pg.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+            sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("TRUE")),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+            sa.UniqueConstraint("name", name="uq_agent_templates_name"),
+        )
 
     # -------- tasks / deps / logs --------
     if not _table_exists("tasks"):
@@ -357,9 +428,20 @@ def upgrade() -> None:
             ),
             sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
             sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         )
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_status ON tasks(status)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_assigned_agent ON tasks(assigned_agent_id)")
+    # Ajouts de colonnes manquantes pour la compat avec les modèles
+    if not _has_column("tasks", "plan_id"):
+        op.add_column("tasks", sa.Column("plan_id", pg.UUID(as_uuid=True), nullable=True))
+    if not _has_column("tasks", "run_id"):
+        op.add_column("tasks", sa.Column("run_id", pg.UUID(as_uuid=True), nullable=True))
+    if not _has_column("tasks", "updated_at"):
+        op.add_column("tasks", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False))
+    # FKs seront ajoutées après création de "plans"
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_plan ON tasks(plan_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_run ON tasks(run_id)")
 
     if not _table_exists("tasks_dependencies"):
         op.create_table(
@@ -382,6 +464,66 @@ def upgrade() -> None:
     op.execute("CREATE INDEX IF NOT EXISTS ix_logs_agent ON logs(agent_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_logs_task ON logs(task_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_logs_level ON logs(level)")
+
+    # -------- plans (après tasks) --------
+    if not _table_exists("plans"):
+        op.create_table(
+            "plans",
+            sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, nullable=False),
+            sa.Column("task_id", pg.UUID(as_uuid=True), sa.ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("status", pg.ENUM("draft", "ready", "invalid", name="planstatus", create_type=False), nullable=False),
+            sa.Column("graph", pg.JSONB(), nullable=False),
+            sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_plans_task ON plans(task_id)")
+
+    # Après création de "plans", ajouter/garantir les FKs sur tasks
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_tasks_plan') THEN
+            ALTER TABLE tasks ADD CONSTRAINT fk_tasks_plan FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_tasks_run') THEN
+            ALTER TABLE tasks ADD CONSTRAINT fk_tasks_run FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE SET NULL;
+          END IF;
+        END $$;
+        """
+    )
+
+    # -------- assignments --------
+    if not _table_exists("assignments"):
+        op.create_table(
+            "assignments",
+            sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, nullable=False),
+            sa.Column("plan_id", pg.UUID(as_uuid=True), sa.ForeignKey("plans.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("node_id", sa.Text(), nullable=False),
+            sa.Column("role", sa.Text(), nullable=False),
+            sa.Column("agent_id", sa.Text(), nullable=False),
+            sa.Column("llm_backend", sa.Text(), nullable=False),
+            sa.Column("llm_model", sa.Text(), nullable=False),
+            sa.Column("params", pg.JSONB(), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+            sa.UniqueConstraint("plan_id", "node_id", name="uq_assignments_plan_node"),
+        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_assignments_plan_id ON assignments(plan_id)")
+
+    # -------- plan_reviews --------
+    if not _table_exists("plan_reviews"):
+        op.create_table(
+            "plan_reviews",
+            sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, nullable=False),
+            sa.Column("plan_id", pg.UUID(as_uuid=True), sa.ForeignKey("plans.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("version", sa.Integer(), nullable=False),
+            sa.Column("validated", sa.Boolean(), nullable=False),
+            sa.Column("errors", pg.JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_plan_reviews_plan ON plan_reviews(plan_id)")
 
 
 # ------------- downgrade --------------

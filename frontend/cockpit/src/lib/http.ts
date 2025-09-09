@@ -1,11 +1,12 @@
 export interface FetchOptions {
   timeoutMs?: number;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 export async function fetchJson<T>(
   url: string,
-  { timeoutMs = 10_000, signal }: FetchOptions = {},
+  { timeoutMs = 10_000, signal, headers }: FetchOptions = {},
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -15,7 +16,7 @@ export async function fetchJson<T>(
   }
   try {
     const res = await fetch(url, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(headers || {}) },
       signal: controller.signal,
     });
     const text = await res.text();

@@ -3,11 +3,22 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, UTC
 from typing import Dict, Any
+from enum import Enum
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, Text, Boolean, Integer, Index, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlmodel import SQLModel, Field
+
+
+class AgentRole(str, Enum):
+    orchestrator = "orchestrator"
+    supervisor = "supervisor"
+    manager = "manager"
+    executor = "executor"
+    reviewer = "reviewer"
+    recruiter = "recruiter"
+    monitor = "monitor"
 
 
 class Agent(SQLModel, table=True):
@@ -18,7 +29,7 @@ class Agent(SQLModel, table=True):
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
     name: str = Field(sa_column=Column(Text, nullable=False))
-    role: str = Field(sa_column=Column(Text, nullable=False))
+    role: str = Field(sa_column=Column(sa.Enum(AgentRole, name="agentrole"), nullable=False))
     domain: str = Field(sa_column=Column(Text, nullable=False))
     prompt_system: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     prompt_user: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
@@ -103,7 +114,7 @@ class AgentModelsMatrix(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
     )
-    role: str = Field(sa_column=Column(Text, nullable=False))
+    role: str = Field(sa_column=Column(sa.Enum(AgentRole, name="agentrole"), nullable=False))
     domain: str = Field(sa_column=Column(Text, nullable=False))
     models: Dict[str, Any] = Field(
         default_factory=dict,

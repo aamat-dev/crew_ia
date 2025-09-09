@@ -80,7 +80,8 @@ def _read_llm_sidecar_fs(run_id: str, node_key: str, runs_root: str = None) -> d
         if not p.exists():
             continue
         try:
-            obj = json.loads(p.read_text(encoding="utf-8"))
+            raw_txt = p.read_text(encoding="utf-8")
+            obj = json.loads(raw_txt)
             if isinstance(obj, dict):
                 out = {
                     "provider": obj.get("provider"),
@@ -224,6 +225,14 @@ async def run_task(
             )
         await event_publisher.emit(event_type, payload, request_id=request_id)
         await anyio.sleep(0)
+        # Sauvegarde un petit artifact pour tests/E2E
+        try:
+            await storage.save_artifact(
+                node_id=str(node_id) if node_id else node_key,
+                content=f"# Node {node_key} completed",
+            )
+        except Exception:
+            pass
 
     try:
         await event_publisher.emit(

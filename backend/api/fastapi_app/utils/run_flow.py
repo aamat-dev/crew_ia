@@ -121,7 +121,7 @@ async def finalize_run(
     status_val = None
     if isinstance(result, dict):
         status_val = str(result.get("status") or "").lower()
-    ok = status_val in {None, "", "success", "completed", "ok", "done"}
+    ok = status_val in {None, "", "success", "completed", "ok", "done", "succeeded"}
     run.status = RunStatus.completed if ok else RunStatus.failed
     run.ended_at = utcnow()
     session.add(run)

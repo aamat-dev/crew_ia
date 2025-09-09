@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+import os
 from uuid import UUID
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from backend.api.utils.pagination import (
     set_pagination_headers,
 )
 from ..ordering import apply_order
-from core.storage.db_models import Artifact  # type: ignore
+from core.storage.db_models import Artifact, Node  # type: ignore
 
 router_nodes = APIRouter(prefix="/nodes", tags=["artifacts"], dependencies=[Depends(strict_api_key_auth)])
 router_artifacts = APIRouter(prefix="/artifacts", tags=["artifacts"], dependencies=[Depends(strict_api_key_auth)])
@@ -72,6 +73,32 @@ async def list_artifacts(
         )
         for a in rows
     ]
+    # Fallback: si aucun artifact en DB, tente de lire le FS (.runs/<run>/nodes/<key>/artifact_*.md)
+    if total == 0:
+        node = await session.get(Node, node_id)
+        if node and getattr(node, "key", None):
+            base = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir)) / str(getattr(node, "run_id")) / "nodes" / node.key
+            if base.is_dir():
+                for p in base.glob("artifact_*.md"):
+                    try:
+                        txt = p.read_text(encoding="utf-8")
+                    except Exception:
+                        txt = None
+                    items.append(
+                        ArtifactOut(
+                            id=node_id,  # placeholder
+                            node_id=node_id,
+                            type="markdown",
+                            path=str(p),
+                            content=txt,
+                            summary=None,
+                            created_at=rows[0].created_at if rows else getattr(node, "created_at"),
+                            preview=(txt[:280] + ("…" if txt and len(txt) > 280 else "")) if txt else None,
+                        )
+                    )
+                if items:
+                    total = len(items)
+
     links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )
