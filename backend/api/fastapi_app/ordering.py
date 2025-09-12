@@ -15,4 +15,11 @@ def apply_order(stmt, order_by: str | None, order_dir: Literal["asc", "desc"] | 
     if key not in allowed:
         allowed_cols = ", ".join(sorted(allowed.keys()))
         raise HTTPException(status_code=422, detail=f"order_by doit être parmi: {allowed_cols}")
-    return stmt.order_by(direction(allowed[key]))
+    col = allowed[key]
+    ordered = direction(col)
+    # Pousse les valeurs NULL en fin de liste pour une comparaison stable côté tests
+    try:
+        ordered = ordered.nulls_last()
+    except Exception:
+        pass
+    return stmt.order_by(ordered)

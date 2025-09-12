@@ -31,6 +31,7 @@ from ..schemas.feedbacks import FeedbackOut
 from backend.api.utils.pagination import (
     PaginationParams,
     pagination_params,
+    set_pagination_headers,
 )
 from ..ordering import apply_order
 
@@ -106,20 +107,9 @@ async def list_runs(
 
     limit = pagination.limit
     offset = pagination.offset
-    links_header: list[str] = []
-    links_dict: dict[str, str] = {}
-    if offset > 0:
-        prev_offset = max(offset - limit, 0)
-        prev_url = str(request.url.include_query_params(offset=prev_offset, limit=limit))
-        links_header.append(f"<{prev_url}>; rel=\"prev\"")
-        links_dict["prev"] = prev_url
-    if offset + limit < total:
-        next_url = str(request.url.include_query_params(offset=offset + limit, limit=limit))
-        links_header.append(f"<{next_url}>; rel=\"next\"")
-        links_dict["next"] = next_url
-    if links_header:
-        response.headers["Link"] = ", ".join(links_header)
-    response.headers["X-Total-Count"] = str(total)
+    links_dict = set_pagination_headers(
+        response, request, total, limit, offset
+    )
 
     return Page[RunListItemOut](
         items=items,
@@ -141,9 +131,72 @@ async def get_run(
 
     # Normalise le type (Enum -> str) pour une comparaison fiable
     status = run.status.value if hasattr(run.status, "value") else run.status
-    if status == "running":
-        # Fallback rapide: si le fichier run.json indique une fin de run,
-        # on expose son statut final
+
+    # 1) Evénements finaux (source prioritaire)
+    final_event_level: Optional[str] = None
+    final_event_ts: Optional[datetime] = None
+    if status in ("queued", "running"):
+        evt_row = (
+            await session.execute(
+                select(Event.level, Event.timestamp)
+                .where(
+                    Event.run_id == run_id,
+                    Event.level.in_(["RUN_COMPLETED", "RUN_FAILED"]),
+                )
+                .order_by(Event.timestamp.desc())
+                .limit(1)
+            )
+        ).first()
+        if evt_row:
+            final_event_level, final_event_ts = evt_row
+            if final_event_level == "RUN_COMPLETED":
+                status = "completed"
+            elif final_event_level == "RUN_FAILED":
+                status = "failed"
+
+    # 2) Comptage des nœuds (si pas d'événement final déterminant)
+    nodes_q = select(func.count()).select_from(Node).where(Node.run_id == run_id)
+    nodes_total = (await session.execute(nodes_q)).scalar_one()
+    nodes_completed = (
+        await session.execute(
+            select(func.count()).select_from(Node).where(
+                Node.run_id == run_id, Node.status == "completed"
+            )
+        )
+    ).scalar_one()
+    nodes_failed = (
+        await session.execute(
+            select(func.count()).select_from(Node).where(
+                Node.run_id == run_id, Node.status == "failed"
+            )
+        )
+    ).scalar_one()
+
+    if status in ("queued", "running") and not final_event_level:
+        if nodes_total and (nodes_completed + nodes_failed == nodes_total):
+            status = "completed" if nodes_failed == 0 else "failed"
+        elif nodes_total <= 1:
+            # Cas mono‑nœud: si un event NODE_* final est déjà visible, refléter son statut
+            last_node_evt = (
+                await session.execute(
+                    select(Event.level, Event.timestamp)
+                    .where(
+                        Event.run_id == run_id,
+                        Event.level.in_(["NODE_COMPLETED", "NODE_FAILED"]),
+                    )
+                    .order_by(Event.timestamp.desc())
+                    .limit(1)
+                )
+            ).first()
+            if last_node_evt:
+                lvl, _ts = last_node_evt
+                if lvl == "NODE_COMPLETED":
+                    status = "completed"
+                elif lvl == "NODE_FAILED":
+                    status = "failed"
+
+    # 3) Fallback fichier run.json (si rien de concluant)
+    if status in ("queued", "running") and not final_event_level:
         try:
             runs_root = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir))
             meta = json.loads((runs_root / str(run_id) / "run.json").read_text())
@@ -152,19 +205,10 @@ async def get_run(
                 if s in ("completed", "failed"):
                     status = s
         except Exception:
+            # tolérant aux erreurs: on reste sur le statut courant
             pass
 
-    # Counters
-    nodes_q = select(func.count()).select_from(Node).where(Node.run_id == run_id)
-    nodes_total = (await session.execute(nodes_q)).scalar_one()
-
-    nodes_completed = (
-        await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "completed"))
-    ).scalar_one()
-    nodes_failed = (
-        await session.execute(select(func.count()).select_from(Node).where(Node.run_id == run_id, Node.status == "failed"))
-    ).scalar_one()
-
+    # Compteurs annexes
     artifacts_total = (
         await session.execute(
             select(func.count(Artifact.id))
@@ -173,7 +217,6 @@ async def get_run(
             .where(Node.run_id == run_id)
         )
     ).scalar_one()
-
     events_total = (
         await session.execute(select(func.count()).select_from(Event).where(Event.run_id == run_id))
     ).scalar_one()
@@ -184,6 +227,11 @@ async def get_run(
     duration_ms = None
     if started and ended:
         duration_ms = int((ended - started).total_seconds() * 1000)
+    elif started and final_event_ts is not None:
+        try:
+            duration_ms = int((final_event_ts - started).total_seconds() * 1000)
+        except Exception:
+            duration_ms = None
     # DAG nodes with feedbacks
     node_rows = (
         await session.execute(select(Node).where(Node.run_id == run_id))
@@ -209,57 +257,6 @@ async def get_run(
                     metadata=f.meta,
                     created_at=to_tz(f.created_at, tz),
                     updated_at=to_tz(getattr(f, "updated_at", None), tz),
-                )
-            )
-
-    dag_nodes = [
-        NodeOut(
-            id=n.id,
-            run_id=n.run_id,
-            key=n.key,
-            title=n.title,
-            status=n.status,
-            role=n.role,
-            checksum=n.checksum,
-            deps=n.deps,
-            created_at=to_tz(n.created_at, tz),
-            updated_at=to_tz(n.updated_at, tz),
-            feedbacks=fb_map.get(n.id, []),
-        )
-        for n in node_rows
-    ]
-
-    dag = DagOut(nodes=dag_nodes, edges=[])
-
-    # DAG nodes with feedbacks
-    node_rows = (
-        await session.execute(select(Node).where(Node.run_id == run_id))
-    ).scalars().all()
-    node_ids = [n.id for n in node_rows]
-    fb_map: dict[UUID, list[FeedbackOut]] = {nid: [] for nid in node_ids}
-    if node_ids:
-        fb_rows = (
-            await session.execute(
-                select(Feedback).where(Feedback.node_id.in_(node_ids)).order_by(Feedback.created_at.desc())
-            )
-        ).scalars().all()
-        for f in fb_rows:
-            fb_map[f.node_id].append(
-                FeedbackOut(
-                    id=f.id,
-                    run_id=f.run_id,
-                    node_id=f.node_id,
-                    source=f.source,
-                    reviewer=f.reviewer,
-                    score=f.score,
-                    comment=f.comment,
-                    metadata=f.meta,
-                    created_at=to_tz(f.created_at, tz).isoformat() if f.created_at else None,
-                    updated_at=(
-                        to_tz(getattr(f, "updated_at", None), tz).isoformat()
-                        if getattr(f, "updated_at", None)
-                        else None
-                    ),
                 )
             )
 

@@ -110,13 +110,19 @@ async def run_task(
     start_ts = time.perf_counter()
     metrics_recorded = False
     status_metric = "failed"
+    # Conserve le statut/horodatage finaux pour une finalisation inconditionnelle en finally
+    final_status: RunStatus | None = None
+    ended: dt.datetime | None = None
 
-    if not task_spec.get("plan") and task_spec.get("type") == "demo":
-        task_spec = {**task_spec, "plan": [{"id": "n1", "title": title}]}
     dag = TaskGraph.from_plan(task_spec)
 
     node_ids: dict[str, UUID] = {}
     node_started_at: dict[str, dt.datetime] = {}
+    # Compteur de fin de nœuds pour finalisation anticipée du run
+    nodes_total = len(dag.nodes)
+    finished_count = 0
+    any_failed = False
+    final_event_emitted = False
 
     async def on_node_start(node, node_key: str):
         now = dt.datetime.now(dt.timezone.utc)
@@ -133,6 +139,8 @@ async def run_task(
                 or (node.get("checksum") if isinstance(node, dict) else None),
             )
         )
+        # Yield explicite après écriture DB critique pour éviter les courses
+        await anyio.sleep(0)
         node_ids[node_key] = node_db.id
         node_started_at[node_key] = now
         try:
@@ -160,19 +168,7 @@ async def run_task(
             log.warning("Statut de nœud inconnu: %s", status)
             node_status = NodeStatus.failed
 
-        await storage.save_node(
-            node=Node(
-                id=node_id,
-                run_id=UUID(run_id),
-                key=node_key,
-                title=getattr(node, "title", "")
-                or (node.get("title") if isinstance(node, dict) else ""),
-                status=node_status,
-                updated_at=ended,
-                checksum=getattr(node, "checksum", None)
-                or (node.get("checksum") if isinstance(node, dict) else None),
-            )
-        )
+        title = getattr(node, "title", "") or (node.get("title") if isinstance(node, dict) else "")
 
         # ----- Enrichissement LLM: DB -> FS (+ micro‑retry) -----
         meta = {}
@@ -196,6 +192,10 @@ async def run_task(
         meta_payload: Dict[str, Any] = {"duration_ms": duration_ms}
         if meta:
             meta_payload.update(meta)
+        # Ne pas laisser des clés conflictuelles du sidecar écraser l'identité du run/node
+        meta_flat = dict(meta_payload)
+        for k in ("run_id", "node_id"):
+            meta_flat.pop(k, None)
 
         # Expose LLM metadata à la fois à la racine et dans "meta" pour la
         # rétro‑compatibilité des consommateurs d'événements.
@@ -205,9 +205,11 @@ async def run_task(
             "node_key": node_key,
             "status": node_status.value.upper(),
             "checksum": getattr(node, "checksum", None),
-            **meta_payload,
+            **meta_flat,
             "meta": meta_payload,
         }
+        if request_id and "request_id" not in payload:
+            payload["request_id"] = request_id
 
         event_type = (
             EventType.NODE_COMPLETED
@@ -223,8 +225,49 @@ async def run_task(
                 meta_payload.get("model"),
                 meta_payload.get("latency_ms"),
             )
-        await event_publisher.emit(event_type, payload, request_id=request_id)
-        await anyio.sleep(0)
+        # Finalise nœud atomiquement (update + event)
+        try:
+            await storage.finalize_node_status(
+                run_id=run_id,
+                node_key=node_key,
+                title=title,
+                status=node_status,
+                updated_at=ended,
+                checksum=getattr(node, "checksum", None)
+                or (node.get("checksum") if isinstance(node, dict) else None),
+                node_id=str(node_id) if node_id else None,
+                event_message=json.dumps(payload),
+                request_id=request_id,
+            )
+            # Micro‑yield immédiatement après la finalisation atomique du nœud
+            await anyio.sleep(0)
+        except Exception:
+            # En cas d'échec, on retombe sur l’ancien chemin (tolérance)
+            log.warning("finalize_node_status failed; falling back", exc_info=True)
+            await storage.save_node(
+                node=Node(
+                    id=node_id,
+                    run_id=UUID(run_id),
+                    key=node_key,
+                    title=title,
+                    status=node_status,
+                    updated_at=ended,
+                    checksum=getattr(node, "checksum", None)
+                    or (node.get("checksum") if isinstance(node, dict) else None),
+                )
+            )
+            try:
+                await storage.save_event(
+                    run_id=run_id,
+                    node_id=str(node_id) if node_id else None,
+                    level=event_type.value,
+                    message=json.dumps(payload),
+                    request_id=request_id,
+                )
+            except Exception:
+                pass
+            # Micro‑yield juste après les deux écritures de secours
+            await anyio.sleep(0)
         # Sauvegarde un petit artifact pour tests/E2E
         try:
             await storage.save_artifact(
@@ -234,23 +277,59 @@ async def run_task(
         except Exception:
             pass
 
+        # ----- Finalisation anticipée du run si dernier nœud terminé -----
+        nonlocal finished_count, any_failed, final_event_emitted
+        if node_status in (NodeStatus.failed, NodeStatus.canceled):
+            any_failed = True
+        finished_count += 1
+        if nodes_total and finished_count >= nodes_total and not final_event_emitted:
+            # Tous les nœuds ont rendu un statut final; marque le run immédiatement (atomique si possible)
+            final = RunStatus.failed if any_failed else RunStatus.completed
+            try:
+                await storage.finalize_run_status(
+                    run_id=run_id,
+                    title=title,
+                    status=final,
+                    started_at=started,
+                    ended_at=ended,
+                    meta={"request_id": request_id},
+                    request_id=request_id,
+                )
+            except Exception:
+                # En cas d'échec, la finalisation standard s'appliquera plus bas
+                pass
+            await anyio.sleep(0)
+            final_event_emitted = True
+
     try:
-        await event_publisher.emit(
-            EventType.RUN_STARTED,
-            {"run_id": run_id, "title": title},
-            request_id=request_id,
-        )
+        try:
+            await event_publisher.emit(
+                EventType.RUN_STARTED,
+                {"run_id": run_id, "title": title},
+                request_id=request_id,
+            )
+        except Exception:
+            log.warning("run_start: emit failed", exc_info=True)
         await anyio.sleep(0)
 
-        res = await run_graph(
-            dag,
-            storage=storage,
-            run_id=run_id,
-            override_completed=set(getattr(options, "override", []) or []),
-            dry_run=bool(getattr(options, "dry_run", False)),
-            on_node_start=on_node_start,
-            on_node_end=on_node_end,
-        )
+        # Mode démo ultra-rapide (évite tout appel coûteux)
+        # Ne s'applique que lorsqu'aucun plan n'est fourni.
+        if (task_spec.get("type") == "demo") and not dag.nodes:
+            node_key = "n1"
+            await on_node_start({"title": "T1"}, node_key)
+            await on_node_end({"title": "T1"}, node_key, "completed")
+            res = {"status": "success"}
+        else:
+            res = await run_graph(
+                dag,
+                storage=storage,
+                run_id=run_id,
+                override_completed=set(getattr(options, "override", []) or []),
+                dry_run=bool(getattr(options, "dry_run", False)),
+                on_node_start=on_node_start,
+                on_node_end=on_node_end,
+            )
+
 
         ended = dt.datetime.now(dt.timezone.utc)
         # ...............................................................
@@ -262,36 +341,18 @@ async def run_task(
             else RunStatus.failed
         )
         status_metric = "completed" if final_status == RunStatus.completed else "failed"
-        await storage.save_run(
-            run=Run(
-                id=UUID(run_id),
+        if not final_event_emitted:
+            await storage.finalize_run_status(
+                run_id=run_id,
                 title=title,
                 status=final_status,
                 started_at=started,
                 ended_at=ended,
                 meta={"request_id": request_id},
+                request_id=request_id,
             )
-        )
-        await anyio.sleep(0)
-        # Force la visibilité immédiate de l’update lors des tests
-        try:
-            await storage.get_run(
-                UUID(run_id)
-            )  # no-op logique, mais force le flush/commit
-        except Exception:
-            pass
-
-        await event_publisher.emit(
-            (
-                EventType.RUN_COMPLETED
-                if final_status == RunStatus.completed
-                else EventType.RUN_FAILED
-            ),
-            {"run_id": run_id},
-            request_id=request_id,
-        )
-        # Laisse tout de suite la main pour que le polling voie l’état final
-        await anyio.sleep(0)
+            # Laisse tout de suite la main pour que le polling voie l’état final
+            await anyio.sleep(0)
     except Exception as e:  # pragma: no cover
         log.exception("Background run failed for run_id=%s", run_id)
         if os.getenv("SENTRY_DSN"):
@@ -303,29 +364,33 @@ async def run_task(
                 sentry_sdk.capture_exception(e)
         ended = dt.datetime.now(dt.timezone.utc)
         status_metric = "failed"
-        await storage.save_run(
-            run=Run(
-                id=UUID(run_id),
-                title=title,
-                status=RunStatus.failed,
-                started_at=started,
-                ended_at=ended,
-                meta={"request_id": request_id},
-            )
-        )
-        await anyio.sleep(0)
-        # Même stratégie en cas d’échec
-        try:
-            await storage.get_run(UUID(run_id))
-        except Exception:
-            pass
-        await event_publisher.emit(
-            EventType.RUN_FAILED,
-            {"run_id": run_id, "error_class": e.__class__.__name__, "message": str(e)},
+        final_status = RunStatus.failed
+        await storage.finalize_run_status(
+            run_id=run_id,
+            title=title,
+            status=RunStatus.failed,
+            started_at=started,
+            ended_at=ended,
+            meta={"request_id": request_id},
             request_id=request_id,
         )
         await anyio.sleep(0)
     finally:
+        # Filet de sécurité idempotent: finalise le run même en cas de course
+        if ended is not None and final_status is not None:
+            try:
+                await storage.finalize_run_status(
+                    run_id=run_id,
+                    title=title,
+                    status=final_status,
+                    started_at=started,
+                    ended_at=ended,
+                    meta={"request_id": request_id},
+                    request_id=request_id,
+                )
+            except Exception:
+                pass
+            await anyio.sleep(0)
         if not metrics_recorded:
             if metrics_enabled():
                 total = time.perf_counter() - start_ts

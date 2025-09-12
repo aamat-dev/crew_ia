@@ -8,6 +8,8 @@ import time
 from typing import Optional, Any, Dict
 from uuid import UUID, uuid4
 from datetime import datetime, UTC
+import asyncio
+import anyio
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, Query
 from fastapi import Header
@@ -16,7 +18,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import strict_api_key_auth, get_session, read_timezone, to_tz
+from ..deps import strict_api_key_auth, get_session, read_timezone, to_tz, get_sessionmaker
 from ..schemas_base import TaskRequest, TaskAcceptedResponse, Page
 
 from backend.core.models import Task, TaskStatus
@@ -36,9 +38,77 @@ from backend.api.utils.pagination import (
 )
 from ..ordering import apply_order
 
-# --- Back-compat pour les tests qui monkeypatchent tasks.schedule_run ---
-async def schedule_run(**kwargs):  # sera surchargé par les tests si nécessaire
-    raise RuntimeError("schedule_run shim (back-compat) appelé de manière inattendue")
+# --- Planificateur de run (surchargé par les tests au besoin) ---
+async def schedule_run(
+    *,
+    request: Request,
+    run_id: UUID,
+    title: str,
+    task_spec: Dict[str, Any],
+    options: Any,
+    request_id: str | None,
+):
+    """Planifie l'exécution d'un run en tâche de fond et retourne immédiatement.
+
+    Les tests peuvent monkeypatcher cette fonction pour court-circuiter l'exécution.
+    """
+
+    async def _runner() -> None:
+        # Évite toute exécution si l'application est en cours d'arrêt
+        if getattr(request.app.state, "shutting_down", False):
+            return
+        # Marque le run comme 'running' au démarrage pour refléter rapidement l'état
+        # Respecte l'override FastAPI pour get_sessionmaker() si défini
+        try:
+            override_get_sm = request.app.dependency_overrides.get(get_sessionmaker)  # type: ignore[attr-defined]
+        except Exception:
+            override_get_sm = None
+        SessionLocal = (override_get_sm() if callable(override_get_sm) else get_sessionmaker())
+        async with SessionLocal() as session:
+            run = await session.get(Run, run_id)
+            # Compat: statut initial peut être 'pending' (app) ou 'queued' (DB)
+            initial = getattr(run, "status", None)
+            # Considère 'queued' sous toutes ses formes (Enum ou str)
+            is_pending = (
+                initial in {RunStatus.pending, RunStatus.queued} or str(initial) in {"queued", "RunStatus.queued"}
+            )
+            if run and is_pending:
+                run.status = RunStatus.running
+                run.started_at = utcnow()
+                session.add(run)
+                await session.commit()
+
+        # Lance l'orchestrateur (événements/nœuds/artifacts via storage)
+        storage = request.app.state.storage
+        event_publisher = request.app.state.event_publisher
+        try:
+            await api_runner.run_task(
+                run_id=str(run_id),
+                task_spec=task_spec,
+                options=options,
+                storage=storage,
+                event_publisher=event_publisher,
+                title=title,
+                request_id=request_id,
+            )
+        except (asyncio.CancelledError, anyio.get_cancelled_exc_class()):
+            # Pendant le shutdown, on sort immédiatement sans effectuer d’IO DB/FS
+            return
+        finally:
+            # Laisse l'event loop scheduler flusher les I/O avant la sortie du worker
+            try:
+                await anyio.sleep(0)
+            except Exception:
+                pass
+
+    # En mode tests rapides, exécute le runner en mode synchrone pour fiabiliser le polling
+    import os as _os
+    if _os.getenv("FAST_TEST_RUN") == "1":
+        await _runner()
+        return run_id
+    tg = request.app.state.task_group
+    tg.start_soon(_runner)
+    return run_id
 
 router = APIRouter(
     prefix="/tasks",
@@ -201,7 +271,7 @@ async def create_task(
         response.headers["Location"] = f"/tasks/{task.id}"
         return TaskOut.model_validate(task)
 
-    # Sinon: route orchestrateur (legacy)
+    # Sinon: déclenchement orchestrateur (asynchrone)
     _check_rate_limit(request)
 
     try:
@@ -237,41 +307,49 @@ async def create_task(
     if task_spec is None:
         raise HTTPException(status_code=400, detail="Missing task spec")
 
-    # Compat: si aucun plan fourni et type=demo, crée un plan minimal avec 1 nœud
-    if not task_spec.get("plan") and task_spec.get("type") == "demo":
-        task_spec = {**task_spec, "plan": [{"id": "n1", "title": body.title}]}
-    dag = TaskGraph.from_plan(task_spec)
-    storage = request.app.state.storage
+    # Chemin démo géré côté orchestrateur: ne pas matérialiser un plan ici
+    # afin de permettre la voie "légère" (sans run_graph) pour les runs ad-hoc.
 
-    run = Run(title=body.title, status=RunStatus.running, started_at=utcnow(), meta={"request_id": request_id})
+    # Idempotence basique via X-Request-ID: si un run existe déjà pour ce request_id
+    # on renvoie la même Location (pending/running)
+    if request_id:
+        try:
+            existing = (
+                await session.execute(
+                    select(Run)
+                    .where((Run.meta["request_id"].astext == request_id))
+                    .order_by(Run.created_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if existing and (
+                str(existing.status) in {"RunStatus.pending", "RunStatus.running", "queued"}
+                or getattr(existing, "status", None)
+                in {RunStatus.pending, RunStatus.running}
+            ):
+                response.status_code = status.HTTP_202_ACCEPTED
+                response.headers["Location"] = f"/runs/{existing.id}"
+                return TaskAcceptedResponse(run_id=existing.id, location=f"/runs/{existing.id}")
+        except Exception:
+            # En cas de backend non-JSONB, ignore la déduplication
+            pass
+
+    # Matérialise immédiatement le run en DB et déclenche l'exécution async
+    # Utiliser 'queued' pour correspondre à l'ENUM PostgreSQL; garder la compat en lecture ailleurs.
+    run = Run(title=body.title, status=RunStatus.queued, meta={"request_id": request_id})
     session.add(run)
     await session.commit()
     await session.refresh(run)
 
-    # RUN_STARTED
-    session.add(
-        Event(
-            run_id=run.id,
-            level="RUN_STARTED",
-            message=json.dumps({"request_id": request_id} if request_id else {}),
-            request_id=request_id,
-        )
+    # Lancement arrière-plan (tests peuvent monkeypatcher schedule_run)
+    await schedule_run(
+        request=request,
+        run_id=run.id,
+        title=body.title,
+        task_spec=task_spec,
+        options=body.options,
+        request_id=request_id,
     )
-    await session.commit()
-
-    on_start, on_end = make_callbacks(session, run.id, request_id)
-
-    res = await api_runner.run_graph(
-        dag,
-        storage=storage,
-        run_id=str(run.id),
-        override_completed=set(getattr(body.options, "override", []) or []),
-        dry_run=bool(getattr(body.options, "dry_run", False)),
-        on_node_start=on_start,
-        on_node_end=on_end,
-    )
-
-    await finalize_run(session, run, res, request_id)
 
     response.status_code = status.HTTP_202_ACCEPTED
     response.headers["Location"] = f"/runs/{run.id}"

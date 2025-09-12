@@ -120,8 +120,52 @@ async def list_events(
                 meta_e.setdefault("request_id", chosen_request_id)
                 e.message = json.dumps(meta_e)
                 e.request_id = chosen_request_id
+    # Si l'événement de fin de run est manquant, le synthétiser à partir de l'état du run
+    # uniquement si aucun filtre restrictif n'est actif (level/q/ts_from/ts_to/request_id)
+    if run_row and pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]):
+        want_level = None
+        status_str = str(run_row.status) if getattr(run_row, "status", None) is not None else ""
+        if status_str.endswith("completed"):
+            want_level = "RUN_COMPLETED"
+        elif status_str.endswith("failed"):
+            want_level = "RUN_FAILED"
+        if want_level and not any(e.level == want_level for e in items):
+            # ID déterministe pour stabilité entre routes
+            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
+            items.append(
+                EventOut(
+                    id=synth_id,
+                    run_id=run_id,
+                    node_id=None,
+                    level=want_level,
+                    message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else "{}"),
+                    timestamp=(run_row.ended_at or dt.datetime.now(dt.timezone.utc)),
+                    request_id=chosen_request_id,
+                )
+            )
+            # tri appliqué plus bas selon order_by/order_dir
+            total = len(items)
+    # Si aucun RUN_COMPLETED n'est présent mais qu'on a des NODE_COMPLETED,
+    # on ajoute un RUN_COMPLETED synthétique pour refléter l'état courant (sans filtres).
+    if pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "RUN_COMPLETED" for e in items):
+        last_node_completed = next((e for e in items if e.level == "NODE_COMPLETED"), None)
+        if last_node_completed:
+            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
+            items.append(
+                EventOut(
+                    id=synth_id,
+                    run_id=run_id,
+                    node_id=None,
+                    level="RUN_COMPLETED",
+                    message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else {}),
+                    timestamp=last_node_completed.timestamp,
+                    request_id=chosen_request_id,
+                )
+            )
+            total = len(items)
+
     # Fallback: si aucun NODE_COMPLETED en base, on reconstruit depuis les artifacts *.llm.json
-    if run_id and not any(e.level == "NODE_COMPLETED" for e in items):
+    if pagination.offset == 0 and run_id and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "NODE_COMPLETED" for e in items):
         base = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir)) / str(run_id) / "nodes"
         new_items = []
         if base.exists():
@@ -147,14 +191,20 @@ async def list_events(
                         node_id=node_uuid,
                         level="NODE_COMPLETED",
                         message=json.dumps(meta),
-                        timestamp=dt.datetime.utcnow(),
+                        timestamp=dt.datetime.now(dt.timezone.utc),
                         request_id=meta.get("request_id"),
                     )
                 )
         if new_items:
             items.extend(new_items)
-            items.sort(key=lambda e: e.timestamp, reverse=True)
             total = len(items)
+    # Applique un tri cohérent avec order_by/order_dir sur les éléments synthétiques ajoutés
+    # Par défaut (None), l'API ordonne par -timestamp
+    order_by = pagination.order_by
+    order_dir = pagination.order_dir or ("desc" if (order_by is None) else None)
+    if (order_by is None) or (order_by in {"timestamp", "-timestamp"}):
+        reverse = True if (order_by is None or order_by == "-timestamp" or order_dir == "desc") else False
+        items.sort(key=lambda e: e.timestamp, reverse=reverse)
     links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )

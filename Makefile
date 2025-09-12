@@ -108,6 +108,10 @@ ensure-venv:
 test: ensure-venv
 	@$(ACTIVATE) && pytest -q
 
+.PHONY: test-fast
+test-fast: ensure-venv
+	@CONFIG_SKIP_DOTENV=1 FAST_TEST_RUN=1 $(ACTIVATE) && pytest -q
+
 .PHONY: test-extra
 test-extra:
 	PYTHONPATH=$(PYTHONPATH) pytest backend/tests/extra -v

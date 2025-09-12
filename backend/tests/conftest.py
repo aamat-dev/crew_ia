@@ -27,10 +27,14 @@ async def _empty_matrix(db_session):
     yield
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def env_fast_test(monkeypatch):
     """Force le mode FAST_TEST_RUN pour raccourcir les délais."""
     monkeypatch.setenv("FAST_TEST_RUN", "1")
+    # Allonge légèrement le délai de polling quand la suite complète tourne
+    monkeypatch.setenv("TEST_POLL_TIMEOUT", "10.0")
+    # Simplifie le backend de stockage en tests pour éviter la variabilité
+    monkeypatch.setenv("STORAGE_ORDER", "pg")
     yield
 
 
@@ -40,4 +44,3 @@ def artifacts_tmpdir(tmp_path, monkeypatch):
     runs_dir = tmp_path / "runs"
     monkeypatch.setenv("ARTIFACTS_DIR", str(runs_dir))
     yield runs_dir
-

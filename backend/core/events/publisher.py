@@ -16,10 +16,13 @@ class EventPublisher:
 
     def __init__(self, adapter: CompositeAdapter):
         self.adapter = adapter
+        self.disabled = False
 
     async def emit(
         self, event_type: EventType | str, payload: Dict[str, Any], request_id: str | None = None
     ):
+        if self.disabled:
+            return
         if request_id is not None:
             payload = {**payload, "request_id": request_id}
 

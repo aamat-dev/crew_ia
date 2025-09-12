@@ -20,17 +20,25 @@ from sqlmodel import Field, SQLModel
 # ---------------- Enums ----------------
 
 class RunStatus(str, Enum):
+    # Garder 'pending' pour compat ascendante (ancien schéma)
     pending = "pending"
+    # Alignement avec l'ENUM PostgreSQL (migrations):
+    queued = "queued"
     running = "running"
     completed = "completed"
     failed = "failed"
+    canceled = "canceled"
 
 
 class NodeStatus(str, Enum):
+    # Compat ancienne valeur possible
     pending = "pending"
+    # Alignement avec l'ENUM PostgreSQL (migrations):
+    queued = "queued"
     running = "running"
     completed = "completed"
     failed = "failed"
+    canceled = "canceled"
 
 
 # ---------------- Tables ----------------

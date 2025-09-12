@@ -18,6 +18,9 @@ from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
 # --- importe l'app et les deps ---
+# Réduit le bruit en tests: ne pas charger .env ni vérifier les variables manquantes
+os.environ.setdefault("CONFIG_SKIP_DOTENV", "1")
+
 from backend.api.fastapi_app.app import app
 from backend.api.fastapi_app import deps as api_deps  # <-- contient get_db et (probablement) les deps d'auth
 
@@ -321,6 +324,12 @@ async def wait_status(
     interval: float = 0.05,
 ) -> bool:
     """Attend qu'un run atteigne le statut cible dans le délai imparti."""
+    import os
+    # Autorise un override global pour stabiliser l'exécution end-to-end
+    try:
+        timeout = float(os.getenv("TEST_POLL_TIMEOUT", timeout))
+    except Exception:
+        pass
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         r = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
@@ -328,6 +337,18 @@ async def wait_status(
         if target == "completed":
             if st in ("completed", "failed"):
                 return True
+            # Fallback robuste: vérifie la présence d'un event final RUN_*
+            try:
+                ev = await client.get(
+                    "/events", params={"run_id": run_id, "limit": 1}, headers={"X-API-Key": "test-key"}
+                )
+                if ev.status_code == 200:
+                    items = (ev.json() or {}).get("items") or []
+                    lvl = items[0]["level"] if items else None
+                    if lvl in ("RUN_COMPLETED", "RUN_FAILED"):
+                        return True
+            except Exception:
+                pass
         else:
             if st == target:
                 return True

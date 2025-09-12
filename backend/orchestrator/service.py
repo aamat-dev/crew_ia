@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Set
 
 from core.planning.task_graph import TaskGraph
+import anyio
 from core.storage.db_models import Run, RunStatus, Node, NodeStatus
 from core.storage.composite_adapter import CompositeAdapter
 from orchestrator.executor import run_graph
@@ -80,6 +81,8 @@ class OrchestratorService:
                     status=NodeStatus.pending,
                 )
             )
+            # Yield explicite après écriture DB du nœud pour éviter les courses
+            await anyio.sleep(0)
 
         async def on_start(node, node_key):
             nid = self._node_ids.get(node_key)
@@ -95,6 +98,8 @@ class OrchestratorService:
                         updated_at=now_start,
                     )
                 )
+                # Laisser la main juste après la mise à jour du nœud
+                await anyio.sleep(0)
                 # mémorise pour calculer la durée
                 self._node_started_at[node_key] = now_start
                 setattr(node, "db_id", str(nid))
@@ -117,6 +122,8 @@ class OrchestratorService:
                         updated_at=now_end,
                     )
                 )
+                # Laisser le poller API voir l'état à jour du nœud
+                await anyio.sleep(0)
                 # événement NODE_COMPLETED / NODE_FAILED
                 started = self._node_started_at.get(node_key)
                 dur_ms = (
@@ -170,6 +177,8 @@ class OrchestratorService:
                         ended_at=ended,
                     )
                 )
+                # micro‑yield post-finalisation du run
+                await anyio.sleep(0)
 
         self._task = asyncio.create_task(_runner())
         return self.run_id

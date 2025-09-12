@@ -73,7 +73,29 @@ async def get_qa_report(run_id: UUID, db: AsyncSession = Depends(get_session)) -
         if not decision:
             # Heuristique de repli basée sur le score si la décision est absente
             decision = "accept" if score >= 80 else ("revise" if score >= 60 else "reject")
-        failed = edict.get("failed_criteria", []) if isinstance(edict, dict) else []
+        # Extraction robuste des critères échoués
+        failed_raw = edict.get("failed_criteria", []) if isinstance(edict, dict) else []
+        failed: List[str]
+        if isinstance(failed_raw, list):
+            failed = [str(x) for x in failed_raw]
+        elif isinstance(failed_raw, (set, tuple)):
+            failed = [str(x) for x in list(failed_raw)]
+        elif isinstance(failed_raw, (bytes, bytearray, memoryview)):
+            try:
+                s = bytes(failed_raw).decode("utf-8", errors="ignore")
+                parsed = json.loads(s)
+                failed = [str(x) for x in parsed] if isinstance(parsed, list) else ([s] if s else [])
+            except Exception:
+                failed = []
+        elif isinstance(failed_raw, str):
+            # Peut être une représentation JSON de liste ou un simple label
+            try:
+                parsed = json.loads(failed_raw)
+                failed = [str(x) for x in parsed] if isinstance(parsed, list) else ([failed_raw] if failed_raw else [])
+            except Exception:
+                failed = [failed_raw] if failed_raw else []
+        else:
+            failed = []
         node_type = None
         if isinstance(edict.get("node"), dict):
             node_type = edict.get("node", {}).get("type")
@@ -107,11 +129,13 @@ async def get_qa_report(run_id: UUID, db: AsyncSession = Depends(get_session)) -
     # Calcul Python déterministe (décision prioritaire, score en repli)
     total = len(nodes)
     if total:
-        n_accept = sum(1 for n in nodes if (n["decision"] or "").lower() == "accept" or int(n["score"]) >= 80)
-        n_reject = sum(1 for n in nodes if (n["decision"] or "").lower() == "reject" or int(n["score"]) < 60)
+        # Comptage déterministe: décision prioritaire, score uniquement en repli si aucune accept n'est détectée
+        n_accept = sum(1 for n in nodes if (n["decision"] or "").lower() == "accept")
+        n_reject = sum(1 for n in nodes if (n["decision"] or "").lower() == "reject")
         accept_rate = n_accept / total
         reject_rate = n_reject / total
-        # Filet de sécurité: si parsing JSON a échoué, base sur la colonne score
+
+        # Repli: si aucune accept détectée via décision, utiliser le score pour dériver un taux d'acceptation
         if accept_rate == 0:
             from sqlalchemy import text
             acc = (
@@ -128,8 +152,8 @@ async def get_qa_report(run_id: UUID, db: AsyncSession = Depends(get_session)) -
             ).scalar_one()
             if tot:
                 accept_rate = acc / tot
-        # Dernier filet: si on a des FB mais aucun accept détecté (parsing fragile),
-        # on borne à un minimum 1/total pour éviter 0 strict
+
+        # Dernier filet: si on a des FB mais aucun accept détecté, éviter 0 strict
         if accept_rate == 0 and total:
             accept_rate = 1 / total
     else:
@@ -140,8 +164,8 @@ async def get_qa_report(run_id: UUID, db: AsyncSession = Depends(get_session)) -
         t: {
             "mean": (sum(v) / len(v)) if v else 0,
             "count": len(v),
-            "accept_rate": (sum(1 for n in nodes if n["type"] == t and n["decision"] == "accept") / len(v)) if v else 0,
-            "reject_rate": (sum(1 for n in nodes if n["type"] == t and n["decision"] == "reject") / len(v)) if v else 0,
+            "accept_rate": (sum(1 for n in nodes if n["type"] == t and (n["decision"] or "").lower() == "accept") / len(v)) if v else 0,
+            "reject_rate": (sum(1 for n in nodes if n["type"] == t and (n["decision"] or "").lower() == "reject") / len(v)) if v else 0,
         }
         for t, v in by_type.items()
     }

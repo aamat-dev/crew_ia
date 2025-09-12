@@ -54,7 +54,14 @@ async def get_agent_matrix(session: AsyncSession) -> Dict[str, Any]:
     """
     Lit la matrice des modèles depuis la DB et la retourne sous la forme:
       {"role:domain": models_dict, ...}
+
+    Dev only: tente un seed initial si DB vide via ensure_seed_if_empty.
     """
+    # Dev only — meilleure-effort: s'assurer que la DB n'est pas vide.
+    try:  # pragma: no cover (couvert indirectement par tests de seed)
+        await ensure_seed_if_empty(session)
+    except Exception:
+        log.debug("ensure_seed_if_empty ignoré/échoué lors de get_agent_matrix")
     stmt = select(AgentModelsMatrix).where(AgentModelsMatrix.is_active == True).order_by(  # noqa: E712
         AgentModelsMatrix.created_at.desc()
     )
@@ -62,7 +69,9 @@ async def get_agent_matrix(session: AsyncSession) -> Dict[str, Any]:
     rows = res.scalars().all()
     out: Dict[str, Any] = {}
     for r in rows:
-        key = f"{r.role}:{r.domain}"
+        role = r.role.value if hasattr(r.role, "value") else str(r.role)
+        domain = str(r.domain)
+        key = f"{role}:{domain}"
         if key not in out:
             out[key] = r.models or {}
     return out

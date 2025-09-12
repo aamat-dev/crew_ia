@@ -13,9 +13,10 @@ from uuid import UUID
 from anyio import create_task_group
 import os
 
-# Charger .env le plus tôt possible
+# Charger .env le plus tôt possible (sauf si CONFIG_SKIP_DOTENV=1)
 from dotenv import load_dotenv
-load_dotenv()
+if os.getenv("CONFIG_SKIP_DOTENV", "").strip().lower() not in {"1", "true", "yes", "on"}:
+    load_dotenv()
 
 import core.log  # configure root logger
 
@@ -105,12 +106,25 @@ async def lifespan(app: FastAPI):
         pass
     async with create_task_group() as tg:
         storage = _build_storage()
-        storage.set_resolvers(run_resolver=lambda x: UUID(x), node_resolver=lambda x: UUID(x))
+        def _safe_uuid(val: str):
+            try:
+                return UUID(val)
+            except Exception:
+                return None
+        storage.set_resolvers(run_resolver=_safe_uuid, node_resolver=_safe_uuid)
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)
         app.state.rate_limits = {}
+        # --- application running ---
         yield
+        # Désactive l'édition d'événements pendant l'extinction pour éviter
+        # les écritures concurrentes pendant le teardown des tests.
+        try:
+            app.state.event_publisher.disabled = True
+            app.state.shutting_down = True
+        except Exception:
+            pass
         # task group exits cancelling background tasks
 
 app = FastAPI(
