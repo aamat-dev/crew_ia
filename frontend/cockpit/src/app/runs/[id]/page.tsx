@@ -8,6 +8,7 @@ import { fetchJson } from "@/lib/fetchJson";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
+import { ClayLinkButton } from "@/components/ds/ClayLinkButton";
 
 interface RunSummary {
   nodes_total: number;
@@ -46,10 +47,8 @@ export default function RunDetailsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Run</h1>
         <div className="flex items-center gap-2">
-          <Link href="/runs" className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            Tous les runs
-          </Link>
-          <ClayButton type="button" onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>
+          <ClayLinkButton href="/runs">Tous les runs</ClayLinkButton>
+          <ClayButton type="button" onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching} variant="primary">
             Rafraîchir
           </ClayButton>
         </div>

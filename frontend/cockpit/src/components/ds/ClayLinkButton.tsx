@@ -1,27 +1,30 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export type ClayButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export type ClayLinkButtonProps = React.ComponentProps<typeof Link> & {
   size?: "sm" | "md";
   variant?: "outline" | "primary";
+  className?: string;
 };
 
-export const ClayButton = React.forwardRef<HTMLButtonElement, ClayButtonProps>(
-  ({ className, size = "md", variant = "outline", ...props }, ref) => (
-    <button
-      ref={ref}
+export function ClayLinkButton({ size = "md", variant = "outline", className, children, ...props }: ClayLinkButtonProps) {
+  return (
+    <Link
+      {...props}
       className={cn(
         "inline-flex items-center rounded-xl text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-focus",
         variant === "outline" && "border border-slate-200 bg-white text-slate-700 shadow-sm hover:shadow-md",
         variant === "primary" && "border-transparent bg-indigo-600 text-white hover:bg-indigo-700",
-        size === "sm" ? "px-3 py-1.5 text-sm" : "px-3 py-2 text-sm",
+        size === "sm" ? "px-3 py-1.5" : "px-3 py-2",
         className
       )}
-      {...props}
-    />
-  )
-);
-ClayButton.displayName = "ClayButton";
+    >
+      {children}
+    </Link>
+  );
+}
 
-export default ClayButton;
+export default ClayLinkButton;
+

@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/kpi/KpiCard";
 import { ChartsPanel } from "@/components/ChartsPanel";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { ClayCard } from "@/components/ds/ClayCard";
+import { ClayLinkButton } from "@/components/ds/ClayLinkButton";
 
 interface RunListItem {
   id: string;
@@ -83,12 +84,7 @@ export default function DashboardPage() {
           <section className="space-y-3" aria-label="Derniers runs">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">Derniers runs</h2>
-            <Link
-              href="/runs"
-            className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-              Voir tous les runs
-            </Link>
+          <ClayLinkButton href="/runs" size="sm">Voir tous les runs</ClayLinkButton>
           </div>
 
         {isLoading && <p role="status" aria-live="polite">Chargement…</p>}
