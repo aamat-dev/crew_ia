@@ -6,6 +6,8 @@ import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import { ClayCard } from "@/components/ds/ClayCard";
+import { ClayButton } from "@/components/ds/ClayButton";
 import { useToast } from "@/components/ds/Toast";
 
 interface TaskItem {
@@ -107,19 +109,13 @@ export default function TasksPage() {
     <main role="main" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Tasks</h1>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          aria-busy={isFetching}
-        >
+        <ClayButton type="button" onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>
           Rafraîchir
-        </button>
+        </ClayButton>
       </div>
 
       {lastRunId && (
-        <div role="status" aria-live="polite" className="clay-card p-3">
+        <ClayCard role="status" aria-live="polite" className="p-3">
           Run démarré. {" "}
           <a
             href={`/runs/${lastRunId}`}
@@ -127,10 +123,10 @@ export default function TasksPage() {
           >
             Voir le run
           </a>
-        </div>
+        </ClayCard>
       )}
 
-      <section aria-label="Créer une tâche" className="clay-card p-4 space-y-3">
+      <ClayCard aria-label="Créer une tâche" className="p-4 space-y-3">
         <h2 className="text-lg font-medium">Créer une tâche</h2>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1">
@@ -158,24 +154,19 @@ export default function TasksPage() {
             />
           </div>
           <div>
-            <button
-              type="submit"
-              disabled={submitting}
-              aria-busy={submitting}
-                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            >
+            <ClayButton type="submit" disabled={submitting} aria-busy={submitting}>
               Créer
-            </button>
+            </ClayButton>
           </div>
         </form>
-      </section>
+      </ClayCard>
 
       {isLoading && <p role="status" aria-live="polite">Chargement des tasks…</p>}
       {isError && (
-        <div role="alert" className="clay-card p-4">
+        <ClayCard role="alert" className="p-4">
           <p className="font-medium">Erreur lors du chargement des tasks</p>
           <p className="text-sm opacity-80">{(error as Error)?.message || "API indisponible"}</p>
-        </div>
+        </ClayCard>
       )}
 
       {data && data.items.length === 0 && (
@@ -185,7 +176,7 @@ export default function TasksPage() {
       {data && data.items.length > 0 && (
         <ol role="list" className="space-y-2">
           {data.items.map((t) => (
-            <li key={t.id} className="clay-card p-3">
+            <ClayCard as="li" key={t.id} className="p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">{t.title || t.id}</p>
@@ -196,18 +187,12 @@ export default function TasksPage() {
                   )}
                 </div>
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => startTask(t.id)}
-                    disabled={startingId === t.id}
-                    aria-busy={startingId === t.id}
-                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                  >
+                  <ClayButton type="button" onClick={() => startTask(t.id)} disabled={startingId === t.id} aria-busy={startingId === t.id}>
                     Démarrer
-                  </button>
+                  </ClayButton>
                 </div>
               </div>
-            </li>
+            </ClayCard>
           ))}
         </ol>
       )}

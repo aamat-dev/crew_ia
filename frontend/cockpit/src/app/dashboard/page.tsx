@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { KpiCard } from "@/components/kpi/KpiCard";
 import { ChartsPanel } from "@/components/ChartsPanel";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import { ClayCard } from "@/components/ds/ClayCard";
 
 interface RunListItem {
   id: string;
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         {data && data.items.length > 0 && (
           <ol role="list" className="space-y-2">
             {data.items.map((r) => (
-              <li key={r.id} className="clay-card p-3">
+              <ClayCard as="li" key={r.id} className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{r.title || r.id}</p>
@@ -113,14 +114,14 @@ export default function DashboardPage() {
                   </div>
                   <StatusBadge status={r.status as any} />
                 </div>
-              </li>
+              </ClayCard>
             ))}
           </ol>
         )}
           </section>
         </div>
         <div className="space-y-6">
-          <section className="clay-card p-4" aria-label="Charge agents">
+          <ClayCard className="p-4" aria-label="Charge agents">
             <h3 className="mb-3 text-sm font-medium text-slate-900">Charge agents</h3>
             {[{ label: "Superviseurs", v: 78, color: "bg-indigo-600" }, { label: "Managers", v: 52, color: "bg-cyan-500" }, { label: "Exécutants", v: 34, color: "bg-emerald-500" }].map(({ label, v, color }) => (
               <div key={label} className="mb-3">
@@ -133,16 +134,16 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-          </section>
+          </ClayCard>
           <section className="space-y-3" aria-label="Annonces">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm">
+            <ClayCard className="border-emerald-200 bg-emerald-50 text-emerald-800">
               <p className="font-medium">Déploiement réussi</p>
               <p className="text-sm">La version 1.2 a été déployée avec succès.</p>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 shadow-sm">
+            </ClayCard>
+            <ClayCard className="border-amber-200 bg-amber-50 text-amber-800">
               <p className="font-medium">Attention quota</p>
               <p className="text-sm">Le quota API approche 80% ce mois-ci.</p>
-            </div>
+            </ClayCard>
           </section>
         </div>
       </div>

@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
+import { StatusBadge } from "@/components/ds/StatusBadge";
+import { ClayCard } from "@/components/ds/ClayCard";
+import { ClayButton } from "@/components/ds/ClayButton";
 
 interface RunSummary {
   nodes_total: number;
@@ -41,56 +44,49 @@ export default function RunDetailsPage() {
   return (
     <main className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Run</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Run</h1>
         <div className="flex items-center gap-2">
-          <Link
-            href="/runs"
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
+          <Link href="/runs" className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
             Tous les runs
           </Link>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            aria-busy={isFetching}
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
+          <ClayButton type="button" onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>
             Rafraîchir
-          </button>
+          </ClayButton>
         </div>
       </div>
 
       {isLoading && <p role="status" aria-live="polite">Chargement…</p>}
       {isError && (
-        <div role="alert" className="glass p-4 rounded-md border">
+        <ClayCard role="alert" className="p-4">
           <p className="font-medium">Erreur lors du chargement du run</p>
           <p className="text-sm opacity-80">{(error as Error)?.message || "API indisponible"}</p>
-        </div>
+        </ClayCard>
       )}
 
       {data && (
-        <section className="space-y-2 glass p-4 rounded-md border">
+        <ClayCard className="space-y-2 p-4">
           <h2 className="text-lg font-medium">{data.title || data.id}</h2>
-          <p className="opacity-80">
-            Statut: {data.status}
-            {data.started_at ? ` • démarré le ${new Date(data.started_at).toLocaleString()}` : ""}
-          </p>
+          <div className="opacity-80 flex items-center gap-2">
+            <span>Statut:</span>
+            <StatusBadge status={data.status} />
+            {data.started_at ? (
+              <span className="text-sm">• démarré le {new Date(data.started_at).toLocaleString()}</span>
+            ) : null}
+          </div>
           {data.summary && (
             <ul className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-              <li className="glass rounded p-2">Nœuds: {data.summary.nodes_total}</li>
-              <li className="glass rounded p-2">Terminés: {data.summary.nodes_completed}</li>
-              <li className="glass rounded p-2">Échecs: {data.summary.nodes_failed}</li>
-              <li className="glass rounded p-2">Artifacts: {data.summary.artifacts_total}</li>
-              <li className="glass rounded p-2">Événements: {data.summary.events_total}</li>
+              <li className="clay-card rounded-2xl p-2">Nœuds: {data.summary.nodes_total}</li>
+              <li className="clay-card rounded-2xl p-2">Terminés: {data.summary.nodes_completed}</li>
+              <li className="clay-card rounded-2xl p-2">Échecs: {data.summary.nodes_failed}</li>
+              <li className="clay-card rounded-2xl p-2">Artifacts: {data.summary.artifacts_total}</li>
+              <li className="clay-card rounded-2xl p-2">Événements: {data.summary.events_total}</li>
               {typeof data.summary.duration_ms === "number" && (
-                <li className="glass rounded p-2">Durée: {Math.round(data.summary.duration_ms / 1000)}s</li>
+                <li className="clay-card rounded-2xl p-2">Durée: {Math.round(data.summary.duration_ms / 1000)}s</li>
               )}
             </ul>
           )}
-        </section>
+        </ClayCard>
       )}
     </main>
   );
 }
-

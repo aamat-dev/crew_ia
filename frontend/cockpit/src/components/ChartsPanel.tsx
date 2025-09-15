@@ -5,6 +5,7 @@ import { ThroughputChart } from "@/components/charts/ThroughputChart";
 import { LatencyChart } from "@/components/charts/LatencyChart";
 import { FeedbackChart } from "@/components/charts/FeedbackChart";
 import { useToast } from "@/components/ds/Toast";
+import { ClayCard } from "@/components/ds/ClayCard";
 
 export function ChartsPanel() {
   const toast = useToast();
@@ -50,7 +51,7 @@ export function ChartsPanel() {
     <section className="space-y-4" aria-label="Graphiques de performances et feedbacks">
       <h2 className="text-lg font-medium text-slate-900">Graphiques</h2>
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="clay-card p-4">
+        <ClayCard className="p-4">
           <h3 className="text-sm font-medium mb-2">Throughput (runs/heure)</h3>
           {agents.isLoading ? (
             <div className="h-64 animate-pulse rounded bg-muted" role="status" aria-label="Chargement du graphique throughput" />
@@ -59,9 +60,9 @@ export function ChartsPanel() {
           ) : (
             <ThroughputChart data={agents.data} label="Graphique du débit de runs par heure" />
           )}
-        </div>
+        </ClayCard>
 
-        <div className="clay-card p-4">
+        <ClayCard className="p-4">
           <h3 className="text-sm font-medium mb-2">Latence moyenne</h3>
           {runs.isLoading ? (
             <div className="h-64 animate-pulse rounded bg-muted" role="status" aria-label="Chargement du graphique de latence" />
@@ -70,9 +71,9 @@ export function ChartsPanel() {
           ) : (
             <LatencyChart data={runs.data} label="Graphique de latence (p50/p95)" />
           )}
-        </div>
+        </ClayCard>
 
-        <div className="clay-card p-4">
+        <ClayCard className="p-4">
           <h3 className="text-sm font-medium mb-2">Feedbacks (critique/major/minor)</h3>
           {feedbacks.isLoading ? (
             <div className="h-64 animate-pulse rounded bg-muted" role="status" aria-label="Chargement du graphique des feedbacks" />
@@ -81,7 +82,7 @@ export function ChartsPanel() {
           ) : (
             <FeedbackChart data={feedbacks.data} label="Graphique de répartition des feedbacks" />
           )}
-        </div>
+        </ClayCard>
       </div>
     </section>
   );
