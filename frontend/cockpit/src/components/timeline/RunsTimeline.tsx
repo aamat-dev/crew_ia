@@ -5,6 +5,7 @@ import { Pause, Play, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ds/Toast";
 import { Button } from "@/components/ds/Button";
+import { StatusBadge } from "@/components/ds/StatusBadge";
 
 export type Run = {
   id: string;
@@ -26,21 +27,7 @@ type PendingAction =
   | { id: string; action: "pause" | "resume" | "cancel" | "retry" }
   | null;
 
-const statusLabels: Record<Run["status"], string> = {
-  queued: "En attente",
-  running: "En cours",
-  completed: "Terminé",
-  failed: "Échec",
-  paused: "En pause",
-};
-
-const statusClasses: Record<Run["status"], string> = {
-  completed: "bg-emerald-50 text-emerald-700",
-  running: "bg-indigo-50 text-indigo-700 animate-pulse",
-  queued: "bg-amber-50 text-amber-700",
-  failed: "bg-rose-50 text-rose-700",
-  paused: "bg-slate-100 text-slate-700",
-};
+// labels gérés par StatusBadge par défaut
 
 export function RunsTimeline({
   runs,
@@ -132,14 +119,7 @@ export function RunsTimeline({
                       Début : {formatDate(run.startedAt)} – Fin : {formatDate(run.endedAt)}
                     </span>
                   </div>
-                  <span
-                    className={cn(
-                      "rounded px-2 py-1 text-xs",
-                      statusClasses[run.status]
-                    )}
-                  >
-                    {statusLabels[run.status]}
-                  </span>
+                  <StatusBadge status={run.status} />
                 </div>
                 {run.status === "running" && (
                   <div className="mt-3 h-2 w-full overflow-hidden rounded bg-slate-100">

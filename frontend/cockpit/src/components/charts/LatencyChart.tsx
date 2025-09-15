@@ -26,7 +26,16 @@ export function LatencyChart({ data, label = "Graphique de latence" }: { data: L
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="date" />
           <YAxis />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 12,
+              padding: '8px 12px',
+            }}
+            labelStyle={{ color: '#0f172a' }}
+            itemStyle={{ color: '#334155' }}
+          />
           <Area type="monotone" dataKey="p95" stroke="#f43f5e" fill="#fecdd3" />
           <Line type="monotone" dataKey="p50" stroke="#4f46e5" strokeWidth={2} />
         </AreaChart>

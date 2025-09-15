@@ -24,7 +24,16 @@ export function ThroughputChart({ data, label = "Graphique de throughput" }: { d
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="date" />
           <YAxis />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 12,
+              padding: '8px 12px',
+            }}
+            labelStyle={{ color: '#0f172a' }}
+            itemStyle={{ color: '#334155' }}
+          />
           <Line type="monotone" dataKey="value" stroke="#4f46e5" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>

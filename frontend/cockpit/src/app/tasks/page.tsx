@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
 import { EmptyState } from "@/components/EmptyState";
+import { StatusBadge } from "@/components/ds/StatusBadge";
 import { useToast } from "@/components/ds/Toast";
 
 interface TaskItem {
@@ -189,7 +190,9 @@ export default function TasksPage() {
                 <div>
                   <p className="font-medium">{t.title || t.id}</p>
                   {t.status && (
-                    <p className="text-sm opacity-80">{t.status}</p>
+                    <div className="mt-1">
+                      <StatusBadge status={t.status} />
+                    </div>
                   )}
                 </div>
                 <div>

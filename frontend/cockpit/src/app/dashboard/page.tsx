@@ -7,6 +7,7 @@ import { fetchJson } from "@/lib/fetchJson";
 import { EmptyState } from "@/components/EmptyState";
 import { KpiCard } from "@/components/kpi/KpiCard";
 import { ChartsPanel } from "@/components/ChartsPanel";
+import { StatusBadge } from "@/components/ds/StatusBadge";
 
 interface RunListItem {
   id: string;
@@ -107,10 +108,10 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium">{r.title || r.id}</p>
                     <p className="text-sm opacity-80">
-                      {r.status}
-                      {r.started_at ? ` • ${new Date(r.started_at).toLocaleString()}` : ""}
+                      {r.started_at ? new Date(r.started_at).toLocaleString() : ""}
                     </p>
                   </div>
+                  <StatusBadge status={r.status as any} />
                 </div>
               </li>
             ))}
