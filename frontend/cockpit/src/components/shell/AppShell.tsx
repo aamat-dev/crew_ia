@@ -71,6 +71,7 @@ export function AppShell({ children }: AppShellProps) {
           </nav>
         </aside>
         <div className="flex flex-1 flex-col">
+          <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded bg-white px-3 py-1 text-sm border border-slate-200 shadow">Aller au contenu</a>
           <Header
             searchRef={searchRef}
             onCheatsheetOpen={() => setCheatsheetOpen(true)}
@@ -78,7 +79,7 @@ export function AppShell({ children }: AppShellProps) {
             onCommandPaletteOpenChange={setCommandPaletteOpen}
             onMobileMenu={() => setMobileNavOpen(true)}
           />
-          <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6" role="main">
+          <main id="main" className="flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6" role="main">
             {children}
           </main>
           {mobileNavOpen && (

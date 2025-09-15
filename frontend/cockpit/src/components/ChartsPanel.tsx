@@ -1,11 +1,14 @@
 "use client";
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ThroughputChart } from "@/components/charts/ThroughputChart";
-import { LatencyChart } from "@/components/charts/LatencyChart";
-import { FeedbackChart } from "@/components/charts/FeedbackChart";
+import dynamic from "next/dynamic";
 import { useToast } from "@/components/ds/Toast";
 import { ClayCard } from "@/components/ds/ClayCard";
+
+const Fallback = () => <div className="h-64 animate-pulse rounded bg-muted" role="status" aria-label="Chargement du graphique" />;
+const ThroughputChart = dynamic(() => import("@/components/charts/ThroughputChart").then(m => m.ThroughputChart), { ssr: false, loading: Fallback });
+const LatencyChart = dynamic(() => import("@/components/charts/LatencyChart").then(m => m.LatencyChart), { ssr: false, loading: Fallback });
+const FeedbackChart = dynamic(() => import("@/components/charts/FeedbackChart").then(m => m.FeedbackChart), { ssr: false, loading: Fallback });
 
 export function ChartsPanel() {
   const toast = useToast();

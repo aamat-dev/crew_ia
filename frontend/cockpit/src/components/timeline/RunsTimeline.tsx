@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Pause, Play, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,9 @@ export function RunsTimeline({
                     </span>
                   </div>
                   <StatusBadge status={run.status} />
+                </div>
+                <div className="mt-2">
+                  <Link href={`/runs/${run.id}`} className="underline text-sm">Détails du run</Link>
                 </div>
                 {run.status === "running" && (
                   <div className="mt-3 h-2 w-full overflow-hidden rounded bg-slate-100">

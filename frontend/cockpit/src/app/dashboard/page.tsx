@@ -10,6 +10,7 @@ import { ChartsPanel } from "@/components/ChartsPanel";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayLinkButton } from "@/components/ds/ClayLinkButton";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface RunListItem {
   id: string;
@@ -41,41 +42,25 @@ export default function DashboardPage() {
       <p data-testid="dashboard-welcome">Bienvenue sur le cockpit.</p>
 
       <section aria-label="Indicateurs clés" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isLoading ? (
-          <>
-            <KpiCard title="Runs aujourd'hui" loading />
-            <KpiCard title="Agents actifs" loading />
-            <KpiCard title="Taux succès" loading />
-            <KpiCard title="Latence médiane" loading />
-          </>
-        ) : isError ? (
-          <>
-            <KpiCard title="Runs aujourd'hui" noData hint="Erreur de chargement" />
-            <KpiCard title="Agents actifs" noData hint="Erreur de chargement" />
-            <KpiCard title="Taux succès" noData hint="Erreur de chargement" />
-            <KpiCard title="Latence médiane" noData hint="Erreur de chargement" />
-          </>
-        ) : (
-          <>
-            <KpiCard
-              title="Runs aujourd'hui"
-              value={data ? (typeof data.total === "number" ? data.total : data.items.length) : 0}
-            />
-            <KpiCard
-              title="Agents actifs"
-              value={9}
-              delta={0}
-              unit={""}
-            />
-            <KpiCard
-              title="Taux succès"
-              value={94}
-              delta={2}
-              unit="%"
-            />
-            <KpiCard title="Latence médiane" value={2.4} delta={-0.3} unit="s" />
-          </>
-        )}
+        <motion.div
+          className="contents"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ staggerChildren: 0.06, delayChildren: 0.05 }}
+        >
+          {(isLoading || isError) ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <KpiCard key={i} title={["Runs aujourd'hui","Agents actifs","Taux succès","Latence médiane"][i] || ""} loading={isLoading} noData={isError} />
+            ))
+          ) : (
+            [
+              <KpiCard key="k1" title="Runs aujourd'hui" value={data ? (typeof data.total === "number" ? data.total : data.items.length) : 0} />,
+              <KpiCard key="k2" title="Agents actifs" value={9} delta={0} unit="" />,
+              <KpiCard key="k3" title="Taux succès" value={94} delta={2} unit="%" />,
+              <KpiCard key="k4" title="Latence médiane" value={2.4} delta={-0.3} unit="s" />,
+            ]
+          )}
+        </motion.div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
