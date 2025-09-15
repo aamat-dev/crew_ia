@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { Input } from "@/components/ds/Input";
-import { Bell, CircleHelp, Command as CommandIcon } from "lucide-react";
+import { Bell, CircleHelp, Command as CommandIcon, Menu } from "lucide-react";
 import { CommandPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -10,6 +10,7 @@ interface HeaderProps {
   onCheatsheetOpen: () => void;
   commandPaletteOpen: boolean;
   onCommandPaletteOpenChange: (open: boolean) => void;
+  onMobileMenu?: () => void;
 }
 
 export function Header({
@@ -17,6 +18,7 @@ export function Header({
   onCheatsheetOpen,
   commandPaletteOpen,
   onCommandPaletteOpenChange,
+  onMobileMenu,
 }: HeaderProps) {
   React.useEffect(() => {
     const input = searchRef.current;
@@ -28,12 +30,20 @@ export function Header({
     }
   }, [searchRef]);
   return (
-    <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6" role="banner">
-      <div className="flex flex-col">
+    <header className="sticky top-0 z-10 flex h-16 md:h-20 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6" role="banner">
+      <div className="flex items-center gap-2 md:flex-col md:items-start">
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus md:hidden"
+          aria-label="Ouvrir le menu"
+          onClick={onMobileMenu}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Cockpit</h1>
         <p className="sr-only">Tableau de bord</p>
       </div>
-      <div role="search" className="flex flex-1 justify-center">
+      <div role="search" className="hidden flex-1 justify-center md:flex">
         <div className="hidden w-full max-w-lg items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-focus sm:flex">
           <span className="text-slate-400" aria-hidden>⌘K</span>
           <Input

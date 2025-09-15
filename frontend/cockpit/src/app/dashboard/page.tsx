@@ -36,7 +36,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <main className="p-6 space-y-8">
+    <main className="p-4 md:p-6 space-y-6 md:space-y-8">
       <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Dashboard</h1>
       <p data-testid="dashboard-welcome">Bienvenue sur le cockpit.</p>
 
