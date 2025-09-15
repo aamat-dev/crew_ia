@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 type ToastType = "default" | "error";
 
 interface ToastItem {
-  id: number;
+  id: string;
   message: string;
   type: ToastType;
 }
@@ -20,17 +20,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastItem[]>([]);
 
   const add = (message: string, type: ToastType = "default") => {
-    let id: number | null = null;
-    setToasts((prev) => {
-      if (prev.some((t) => t.message === message)) return prev;
-      id = Date.now();
-      return [...prev, { id, message, type }];
-    });
-    if (id !== null) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 3000);
-    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
   };
 
   return (

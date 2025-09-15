@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "test:jest": "jest --coverage",
+    "test:a11y": "jest --testPathPattern=a11y",
+    "test:e2e": "playwright test",
+    "coverage": "jest --coverage",
+    "coverage:strict": "ENFORCE_COVERAGE=1 jest --coverage",
+    "lighthouse:ci": "node scripts/lh-ci.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

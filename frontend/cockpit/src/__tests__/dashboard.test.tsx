@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import DashboardPage from "../app/dashboard/page";
+import { Providers } from "@/components/Providers";
 
 describe("DashboardPage", () => {
   beforeEach(() => {
@@ -14,7 +15,11 @@ describe("DashboardPage", () => {
   });
 
   it("affiche le titre et le message d’accueil", () => {
-    render(<DashboardPage />);
+    render(
+      <Providers>
+        <DashboardPage />
+      </Providers>
+    );
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-welcome")).toHaveTextContent(
       "Bienvenue sur le cockpit.",

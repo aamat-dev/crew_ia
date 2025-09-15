@@ -1,58 +1,59 @@
-import { spawn } from 'node:child_process';
-import { readFile, mkdir } from 'node:fs/promises';
-import net from 'node:net';
+#!/usr/bin/env node
+import { execFile } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { setTimeout as delay } from 'node:timers/promises';
 
-function getPort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on('error', reject);
-    server.listen(0, () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
+const URL = process.env.URL || 'http://localhost:3000';
+const OUT = process.env.LH_OUT || 'lighthouse-report.json';
+const MIN = Number(process.env.LH_MIN || '0.9');
 
-function run(cmd, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: 'inherit', ...options });
-    proc.on('error', reject);
-    proc.on('close', code => {
-      if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited with code ${code}`));
-    });
-  });
-}
-
-async function main() {
-  const port = await getPort();
-  await run('npx', ['next', 'build']);
-  const server = spawn('npx', ['next', 'start', '-p', String(port)], { stdio: 'inherit' });
-  await new Promise(res => setTimeout(res, 5000));
-
-  try {
-    await mkdir('.lighthouse', { recursive: true });
-    await run('npx', [
-      'lighthouse',
-      `http://localhost:${port}/dashboard`,
-      '--output=json',
-      '--output-path=./.lighthouse/report.json',
-      '--quiet',
-      '--chrome-flags=--headless'
-    ]);
-    const report = JSON.parse(await readFile('./.lighthouse/report.json', 'utf8'));
-    const score = report.categories.accessibility.score;
-    console.log(`Accessibility score: ${score}`);
-    if (score < 0.9) {
-      throw new Error(`Accessibility score ${score} is below 0.90`);
-    }
-  } finally {
-    server.kill('SIGINT');
+async function waitForServer(url, timeoutMs = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const ok = await fetch(url).then(r => r.ok).catch(() => false);
+    if (ok) return true;
+    await delay(1000);
   }
+  throw new Error(`Server not ready at ${url}`);
 }
 
-main().catch(err => {
-  console.error(err);
+function runLighthouse(url, out) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      url,
+      '--quiet',
+      '--chrome-flags=--headless=new',
+      '--only-categories=accessibility,performance,best-practices',
+      '--output=json',
+      `--output-path=${out}`,
+      '--preset=desktop',
+    ];
+    const cmd = process.env.LIGHTHOUSE_BIN || 'lighthouse';
+    const child = execFile(cmd, args, { encoding: 'utf8' }, (err, stdout, stderr) => {
+      if (err) return reject(err);
+      resolve({ stdout, stderr });
+    });
+    child.stdout?.pipe(process.stdout);
+    child.stderr?.pipe(process.stderr);
+  });
+}
+
+try {
+  await waitForServer(URL);
+  await runLighthouse(URL, OUT);
+  const report = JSON.parse(readFileSync(OUT, 'utf8'));
+  const acc = report.categories.accessibility.score;
+  const perf = report.categories.performance.score;
+  const bp = report.categories['best-practices'].score;
+  const msg = `Lighthouse scores — A11y: ${(acc*100).toFixed(0)}, Perf: ${(perf*100).toFixed(0)}, BP: ${(bp*100).toFixed(0)}`;
+  console.log(msg);
+  writeFileSync('lh-summary.md', `# Lighthouse (Cockpit)\n\n${msg}\n`);
+  if (acc < MIN || perf < MIN || bp < MIN) {
+    console.error('One or more categories below threshold: ', MIN*100);
+    process.exit(1);
+  }
+} catch (e) {
+  console.error('[lighthouse:ci] Failed:', e?.message || e);
   process.exit(1);
-});
+}
+

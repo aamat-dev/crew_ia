@@ -22,7 +22,8 @@ export function Sidebar() {
           <li key={link.href}>
             <Link
               href={link.href}
-              className={`block px-3 py-2 rounded-md hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring ${
+              aria-current={pathname === link.href ? "page" : undefined}
+              className={`block px-3 py-2 rounded-md hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-focus ${
                 pathname === link.href ? "font-semibold" : ""
               }`}
             >

@@ -6,7 +6,22 @@ Le layout global fournit une sidebar de navigation et un header avec recherche, 
 
 ## Design System
 
-Les tokens (couleurs, typographies, radius, ombres, animations) sont définis dans `src/app/globals.css` via des variables CSS. Les composants de base du DS (`Button`, `Input`) sont disponibles dans `src/components/ds` et le composant KPI dans `src/components/kpi`.
+Tokens et thèmes sont centralisés dans `src/app/globals.css` via `@theme inline` (Tailwind v4).
+
+- Couleurs clés: `background`, `foreground`, `primary`, `secondary`, `success`, `warning`, `destructive` et leurs `*-foreground`.
+- Surfaces: `card`, `muted`, alias `accent`, `popover`, `input`, `border` pour compat shadcn/ui.
+- Focus: `--focus-ring` (couleur), `--focus-width`, `--outline-offset` et utilitaire `.focus-ring`.
+- Rayons: `--radius-sm|md|lg|2xl`. Ombres: `--shadow-sm|md|lg`.
+- Thèmes: clair par défaut, sombre via `[data-theme="dark"]` ou préférence système.
+
+Utilisation (exemples):
+
+- Fond/texte: `bg-background text-foreground`, `bg-primary text-primary-foreground`.
+- États: `bg-success text-success-foreground`, `bg-warning text-warning-foreground`, `bg-destructive`…
+- Ring d’accessibilité: `focus:outline-none focus-visible:ring-2 focus-visible:ring-focus` ou `.focus-ring`.
+- Surfaces glass réutilisables: `glass`, `glass-muted`, `glass-danger` (opacité, flou, bordure subtile intégrés).
+
+Composants DS minimalistes: `src/components/ds` (`Button`, `Input`, `Toast`, etc.). Ils utilisent les classes ci-dessus pour rester alignés avec les tokens.
 
 ## Thème
 
@@ -38,3 +53,16 @@ Lancer `npm test` pour exécuter les tests `jest-axe` sur l'AppShell et le Dashb
 ## Documentation
 
 La documentation complète est disponible dans [cockpit-docs](../cockpit-docs).
+## Graphiques (mocks)
+
+Le panneau `ChartsPanel` affiche 3 graphiques basés sur des mocks Next.js:
+
+- Throughput (runs/heure): `GET /api/agents`
+- Latence moyenne (p50/p95): `GET /api/runs`
+- Répartition des feedbacks (critique/major/minor): `GET /api/feedbacks`
+
+Intégration:
+
+- Importer `ChartsPanel` et l’insérer dans une page (ex: Dashboard) — déjà fait dans `src/app/dashboard/page.tsx`.
+- États pris en charge: chargement (skeleton), aucune donnée (no‑data), erreurs (toast via `ToastProvider`).
+- A11y: chaque graphique est un `role="img"` avec `aria-label` descriptif + texte alternatif sr‑only.

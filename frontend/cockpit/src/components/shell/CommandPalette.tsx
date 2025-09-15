@@ -42,6 +42,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       onOpenChange={onOpenChange}
       label="Palette de commandes"
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 p-4 backdrop-blur-sm"
+      id="command-palette"
     >
       <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
       <div className="w-full max-w-md overflow-hidden rounded-lg bg-background text-foreground shadow-lg">

@@ -60,11 +60,12 @@ export function ShortcutsCheatsheet({
       role="dialog"
       aria-modal="true"
       aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-desc`}
       id={id}
       ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     >
-      <div className="w-full max-w-md rounded-md bg-background p-6 shadow-lg">
+      <div className="w-full max-w-md rounded-md bg-background p-6 shadow-lg" id={`${id}-desc`}>
         <h2 id={`${id}-title`} className="mb-4 text-lg font-semibold">
           Raccourcis clavier
         </h2>
@@ -80,7 +81,7 @@ export function ShortcutsCheatsheet({
         <div className="mt-6 text-right">
           <button
             onClick={() => onOpenChange(false)}
-            className="rounded-md bg-primary px-3 py-2 text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+            className="rounded-md bg-primary px-3 py-2 text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-focus"
           >
             Fermer
           </button>

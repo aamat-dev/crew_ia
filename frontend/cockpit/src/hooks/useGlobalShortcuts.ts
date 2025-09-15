@@ -55,6 +55,7 @@ export function useGlobalShortcuts({
           if (key === "t") router.push("/tasks");
           if (key === "p") router.push("/plans");
           if (key === "d") router.push("/dashboard");
+          if (key === "f") router.push("/feedbacks");
         };
         window.addEventListener("keydown", next, { once: true });
       }

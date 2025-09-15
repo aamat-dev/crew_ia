@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, setQueryErrorNotifier } from "@/lib/queryClient";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider, useToast } from "./ds/Toast";
@@ -26,13 +26,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ToastProvider>
-          <ToastBridge />
-          {children}
-          {Devtools && <Devtools initialIsOpen={false} />}
-        </ToastProvider>
-      </ThemeProvider>
+      <HydrationBoundary>
+        <ThemeProvider>
+          <ToastProvider>
+            <ToastBridge />
+            {children}
+            {Devtools && <Devtools initialIsOpen={false} />}
+          </ToastProvider>
+        </ThemeProvider>
+      </HydrationBoundary>
     </QueryClientProvider>
   );
 }

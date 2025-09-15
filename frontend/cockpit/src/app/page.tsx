@@ -70,19 +70,19 @@ export default function Home() {
             onClick={launchDemoTask}
             disabled={posting}
             aria-busy={posting}
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Lancer une tâche de démo
           </button>
           <Link
             href="/tasks"
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Gérer les tâches
           </Link>
           <Link
             href="/settings"
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Paramètres
           </Link>
@@ -94,7 +94,7 @@ export default function Home() {
           <h2 className="text-lg font-medium">Derniers runs</h2>
           <Link
             href="/runs"
-            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             Voir tous les runs
           </Link>

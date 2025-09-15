@@ -222,7 +222,7 @@ jobs:
           ! git grep -n "sqlite\+aiosqlite" || (echo "sqlite+aiosqlite found; banned." && exit 1)
 
   coverage-merge:
-    needs: [lint-and-test, test-fil8]
+    needs: [lint-and-test, test-fil8, cockpit-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -406,3 +406,31 @@ jobs:
           echo "### E2E Preview" >> $GITHUB_STEP_SUMMARY
           echo "- URL: $PREVIEW_URL" >> $GITHUB_STEP_SUMMARY
           echo "- Rapport: voir artifact \`playwright-report\`" >> $GITHUB_STEP_SUMMARY
+
+  cockpit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: frontend/cockpit/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend/cockpit
+        run: npm ci
+      - name: Run Jest with coverage (cockpit)
+        working-directory: frontend/cockpit
+        run: npm run coverage:strict -- --ci
+      - name: Upload cockpit coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-cockpit
+          path: |
+            frontend/cockpit/coverage/lcov.info
+            frontend/cockpit/coverage

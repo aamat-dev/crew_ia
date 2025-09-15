@@ -21,7 +21,7 @@ export function EmptyState({ title, description, ctaHref, ctaLabel }: EmptyState
         <div className="pt-2">
           <Link
             href={ctaHref}
-            className="inline-flex items-center justify-center glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center justify-center glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             {ctaLabel}
           </Link>
@@ -32,4 +32,3 @@ export function EmptyState({ title, description, ctaHref, ctaLabel }: EmptyState
 }
 
 export default EmptyState;
-
