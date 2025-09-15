@@ -35,11 +35,11 @@ const statusLabels: Record<Run["status"], string> = {
 };
 
 const statusClasses: Record<Run["status"], string> = {
-  queued: "bg-blue-100 text-blue-800",
-  running: "bg-green-100 text-green-800",
-  completed: "bg-gray-100 text-gray-800",
-  failed: "bg-red-100 text-red-800",
-  paused: "bg-yellow-100 text-yellow-800",
+  completed: "bg-emerald-50 text-emerald-700",
+  running: "bg-indigo-50 text-indigo-700 animate-pulse",
+  queued: "bg-amber-50 text-amber-700",
+  failed: "bg-rose-50 text-rose-700",
+  paused: "bg-slate-100 text-slate-700",
 };
 
 export function RunsTimeline({
@@ -83,12 +83,7 @@ export function RunsTimeline({
 
   return (
     <>
-      <div
-        ref={parentRef}
-        className="h-96 overflow-auto"
-        role="list"
-        aria-label="Historique des exécutions"
-      >
+      <div ref={parentRef} className="h-96 overflow-auto" role="list" aria-label="Historique des exécutions">
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
@@ -126,7 +121,7 @@ export function RunsTimeline({
                   width: "100%",
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="border-b p-4 focus-within:ring-2 focus-within:ring-ring"
+                className="clay-card my-2 p-4"
                 role="listitem"
                 tabIndex={0}
               >
@@ -147,8 +142,8 @@ export function RunsTimeline({
                   </span>
                 </div>
                 {run.status === "running" && (
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded bg-muted">
-                    <div className="h-full w-full animate-pulse bg-primary" />
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded bg-slate-100">
+                    <div className="h-full w-2/3 animate-pulse bg-indigo-600" />
                   </div>
                 )}
                 {actions.length > 0 && (
@@ -157,7 +152,7 @@ export function RunsTimeline({
                       <button
                         key={action}
                         onClick={() => setConfirm({ id: run.id, action })}
-                        className="rounded-md border p-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus"
                         aria-label={label}
                       >
                         <Icon className="h-4 w-4" />
@@ -175,13 +170,14 @@ export function RunsTimeline({
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-title"
+          aria-describedby="confirm-desc"
           className="fixed inset-0 flex items-center justify-center bg-black/50"
         >
           <div className="w-full max-w-sm rounded bg-background p-4 shadow">
             <h2 id="confirm-title" className="text-lg font-semibold">
               Confirmer l&apos;action
             </h2>
-            <p className="mt-2">
+            <p className="mt-2" id="confirm-desc">
               Voulez-vous
               {" "}
               {confirm.action === "pause"

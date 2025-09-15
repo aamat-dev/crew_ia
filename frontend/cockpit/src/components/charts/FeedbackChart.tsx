@@ -17,25 +17,22 @@ interface FeedbackPoint {
   negative: number;
 }
 
-export function FeedbackChart({ data }: { data: FeedbackPoint[] }) {
+export function FeedbackChart({ data, label = "Graphique de répartition des feedbacks" }: { data: FeedbackPoint[]; label?: string }) {
   const id = React.useId();
   return (
-    <div className="h-64 w-full" tabIndex={0} aria-describedby={id}>
+    <div className="h-64 w-full" tabIndex={0} aria-describedby={id} role="img" aria-label={label}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="positive" stackId="a" fill="#4ade80" />
-          <Bar dataKey="neutral" stackId="a" fill="#facc15" />
-          <Bar dataKey="negative" stackId="a" fill="#f87171" />
+          <Bar dataKey="positive" stackId="a" fill="#06b6d4" />
+          <Bar dataKey="neutral" stackId="a" fill="#94a3b8" />
+          <Bar dataKey="negative" stackId="a" fill="#f43f5e" />
         </BarChart>
       </ResponsiveContainer>
-      <p id={id} className="sr-only">
-        Répartition des feedbacks positifs, neutres et négatifs
-      </p>
+      <p id={id} className="sr-only">{label}</p>
     </div>
   );
 }
-

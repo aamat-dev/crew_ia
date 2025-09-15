@@ -15,23 +15,20 @@ interface ThroughputPoint {
   value: number;
 }
 
-export function ThroughputChart({ data }: { data: ThroughputPoint[] }) {
+export function ThroughputChart({ data, label = "Graphique de throughput" }: { data: ThroughputPoint[]; label?: string }) {
   const id = React.useId();
   return (
-    <div className="h-64 w-full" tabIndex={0} aria-describedby={id}>
+    <div className="h-64 w-full" tabIndex={0} aria-describedby={id} role="img" aria-label={label}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+          <Line type="monotone" dataKey="value" stroke="#4f46e5" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
-      <p id={id} className="sr-only">
-        Évolution du débit agents dans le temps
-      </p>
+      <p id={id} className="sr-only">{label}</p>
     </div>
   );
 }
-

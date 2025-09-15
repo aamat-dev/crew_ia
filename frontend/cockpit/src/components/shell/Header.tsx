@@ -28,30 +28,47 @@ export function Header({
     }
   }, [searchRef]);
   return (
-    <header
-      className="glass glass-muted sticky top-0 z-10 flex h-14 items-center justify-between border-b px-4"
-      role="banner"
-    >
-      <div role="search" className="flex-1">
-        <Input
-          ref={searchRef}
-          aria-label="Recherche"
-          placeholder="Rechercher..."
-          className="w-full max-w-sm"
-          suppressHydrationWarning
-        />
+    <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6" role="banner">
+      <div className="flex flex-col">
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Cockpit</h1>
+        <p className="sr-only">Tableau de bord</p>
+      </div>
+      <div role="search" className="flex flex-1 justify-center">
+        <div className="hidden w-full max-w-lg items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-focus sm:flex">
+          <span className="text-slate-400" aria-hidden>⌘K</span>
+          <Input
+            ref={searchRef}
+            aria-label="Recherche"
+            placeholder="Rechercher..."
+            className="w-full border-0 bg-transparent p-0 focus-visible:ring-0"
+            suppressHydrationWarning
+          />
+        </div>
       </div>
       <div className="ml-4 flex items-center gap-2">
-        <button
-          aria-label="Notifications"
-          className="relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Bell className="h-5 w-5" />
-        </button>
+        {(() => {
+          const NOTIF_COUNT = 2; // mock
+          return (
+            <button
+              aria-label={`Notifications${NOTIF_COUNT ? ` (${NOTIF_COUNT} nouvelles)` : ""}`}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              <Bell className="h-5 w-5" />
+              {NOTIF_COUNT > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute right-1 top-1 inline-flex h-2 w-2 items-center justify-center rounded-full bg-destructive"
+                />
+              )}
+            </button>
+          );
+        })()}
         <button
           aria-label="Ouvrir la palette de commandes"
           onClick={() => onCommandPaletteOpenChange(true)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          aria-expanded={commandPaletteOpen}
+          aria-controls="command-palette"
         >
           <CommandIcon className="h-5 w-5" />
           <kbd className="pointer-events-none absolute -bottom-1 -right-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">⌘K</kbd>
@@ -61,7 +78,7 @@ export function Header({
           aria-label="Afficher l'aide sur les raccourcis clavier"
           aria-controls="shortcuts-cheatsheet"
           onClick={onCheatsheetOpen}
-          className="relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <CircleHelp className="h-5 w-5" />
         </button>

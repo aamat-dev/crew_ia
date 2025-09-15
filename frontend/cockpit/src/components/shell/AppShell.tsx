@@ -9,7 +9,6 @@ import {
   Play,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { ToastProvider } from "@/components/ds/Toast";
 import { cn } from "@/lib/utils";
 import { Header } from "./Header";
 import { ShortcutsCheatsheet } from "@/components/shortcuts/ShortcutsCheatsheet";
@@ -32,36 +31,40 @@ export function AppShell({ children }: AppShellProps) {
   });
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/tasks", label: "Tasks", icon: ListCheck },
-    { href: "/plans", label: "Plans", icon: Map },
-    { href: "/runs", label: "Runs", icon: Play },
-    { href: "/settings", label: "Settings", icon: SettingsIcon },
-  ];
+    { href: "/dashboard", label: "Aperçu", icon: LayoutDashboard, tone: "indigo" },
+    { href: "/runs", label: "Runs", icon: Play, tone: "indigo" },
+    { href: "/plans", label: "Plans", icon: Map, tone: "cyan" },
+    { href: "/tasks", label: "Tâches", icon: ListCheck, tone: "emerald" },
+    { href: "/settings", label: "Réglages", icon: SettingsIcon, tone: "amber" },
+  ] as const;
 
   return (
-    <ToastProvider>
-      <div className="flex min-h-screen bg-background text-foreground">
-        <aside
-          className="glass glass-muted sticky top-0 flex h-screen w-16 flex-col items-center border-r p-2 rounded-r-xl"
-        >
-          <nav
-            className="mt-4 flex flex-col items-center gap-2"
-            role="navigation"
-            aria-label="Navigation principale"
-          >
-            {navItems.map(({ href, label, icon: Icon }) => (
+      <div className="flex min-h-screen bg-[#F9FAFB] text-foreground">
+        <aside className="sticky top-0 flex h-screen w-56 flex-col border-r border-slate-200 bg-white p-4 shadow">
+          <nav className="mt-2 flex flex-col gap-2" role="navigation" aria-label="Navigation principale">
+            {navItems.map(({ href, label, icon: Icon, tone }) => (
               <Link
                 key={href}
                 href={href}
                 aria-label={label}
                 aria-current={pathname === href ? "page" : undefined}
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  pathname === href && "bg-primary/10"
+                  "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                  pathname === href ? "shadow-md" : "shadow-sm"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <span
+                  className={cn(
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full text-white",
+                    tone === "indigo" && "bg-indigo-600",
+                    tone === "cyan" && "bg-cyan-500",
+                    tone === "emerald" && "bg-emerald-500",
+                    tone === "amber" && "bg-amber-500"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-slate-900">{label}</span>
               </Link>
             ))}
           </nav>
@@ -82,7 +85,6 @@ export function AppShell({ children }: AppShellProps) {
           onOpenChange={setCheatsheetOpen}
         />
       </div>
-    </ToastProvider>
   );
 }
 

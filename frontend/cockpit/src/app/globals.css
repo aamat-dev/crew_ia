@@ -2,25 +2,44 @@
 
 /* ============================= */
 /*   Design tokens (light mode)  */
-/* ============================= */
+/*   - Couleurs: background/foreground, primary/secondary, success/warning/destructive
+   - Ring de focus: --focus-ring, --focus-width, --outline-offset
+   - Surfaces: card/muted + aliases accent/popover/input/border
+   - Rayons & ombres: radius-*, shadow-*
+   - Typo & motion
+   Tous les tokens HSL sont définis au format "H S% L%" (sans hsl()).
+*/
 :root {
   color-scheme: light;
 
-  /* Core colors (HSL triples) */
-  --bg: 0 0% 100%;
-  --fg: 240 10% 3.9%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --primary: 262 83% 58%;
+  /* Core colors (HSL triples) — Claymorphic Productivity */
+  /* Fond général #F9FAFB (≈ hsl(210 20% 98%)) */
+  --bg: 210 20% 98%;
+  --fg: 222 47% 11%;                 /* slate-900 */
+  --muted: 210 20% 98%;              /* proche bg pour surfaces pâles */
+  --muted-foreground: 215 16% 47%;   /* slate-500 */
+  /* Palette demandée */
+  --primary: 243 75% 58%;            /* indigo-600 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 10% 3.9%;
-  --destructive: 0 84% 60%;
+  --secondary: 188 94% 42%;          /* cyan-500 */
+  --secondary-foreground: 0 0% 100%;
+  --success: 152 76% 36%;            /* emerald-500 */
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;             /* amber-500 */
+  --warning-foreground: 0 0% 0%;
+  --destructive: 350 89% 60%;        /* rose-500 */
   --destructive-foreground: 0 0% 100%;
-  --ring: 262 83% 58%;
+  --ring: 243 75% 58%;               /* focus ring aligné sur primaire */
   --ring-foreground: 0 0% 100%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 222 47% 11%;
+  /* Aliases (compat shadcn/ui) */
+  --accent: var(--secondary);
+  --accent-foreground: var(--secondary-foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
+  --input: var(--muted);
+  --border: var(--muted);
 
   /* Shadows & radii */
   --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
@@ -47,7 +66,7 @@
   --easing-emph: cubic-bezier(0.2, 0, 0, 1);
 
   /* A11y */
-  --focus-ring: 210 100% 50%;
+  --focus-ring: 210 100% 50%;         /* bleu accessible */
   --focus-width: 2px;
   --outline-offset: 2px;
 
@@ -71,12 +90,23 @@
   --primary-foreground: 0 0% 100%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 240 5% 64.9%;
+  --success: 142 71% 45%;             /* vert plus clair en fond sombre */
+  --success-foreground: 144 100% 6%;
+  --warning: 32 95% 55%;              /* amber lisible sur sombre */
+  --warning-foreground: 26 83% 14%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 85.7% 97.3%;
   --ring: 262 83% 58%;
   --ring-foreground: 0 0% 100%;
   --card: 240 10% 3.9%;
   --card-foreground: 0 0% 98%;
+  /* Aliases (compat shadcn/ui) */
+  --accent: var(--secondary);
+  --accent-foreground: var(--secondary-foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
+  --input: var(--muted);
+  --border: var(--muted);
 
   /* Glass elevations (dark) */
   --elev-card: hsl(var(--bg) / 0.6);
@@ -133,6 +163,10 @@
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-ring: hsl(var(--ring));
@@ -141,6 +175,11 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
   --color-border: hsl(var(--muted));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-input: hsl(var(--input));
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
@@ -182,10 +221,24 @@ body {
 /*        Glass utilities        */
 /* ============================= */
 @layer utilities {
+  /* Focus ring utilitaire standardisé (clavier) */
+  .focus-ring {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--outline-offset);
+  }
+
+  /* Claymorphic card utilitaire */
+  .clay-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0; /* slate-200 */
+    border-radius: 1rem; /* rounded-2xl */
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  }
+
   .glass {
     background-color: var(--elev-card);
     box-shadow:
-      inset 0 0 0 1px hsl(var(--fg) / 0.06),
+      inset 0 0 0 1px hsl(var(--fg) / 0.06), /* bordure subtile */
       var(--shadow-sm);
     color: hsl(var(--fg));
   }
