@@ -12,9 +12,24 @@ Les tokens (couleurs, typographies, radius, ombres, animations) sont définis da
 
 Le mode clair/sombre respecte `prefers-color-scheme` et peut être changé depuis le header.
 
-## Dashboard
+## Données (API Backend)
 
-La page `/dashboard` affiche des KPI animés et des graphes dynamiques construits avec Recharts. Les données sont récupérées via TanStack Query depuis des API mock (`/api/agents`, `/api/runs`, `/api/feedbacks`). Des Skeletons et toasts gèrent les états de chargement et d'erreur.
+Le cockpit consomme l'API FastAPI réelle via `NEXT_PUBLIC_API_URL` et gère les états `loading`/`error`/`empty` grâce à TanStack Query.
+
+- Pages branchées :
+  - `/dashboard` : extrait (5 derniers runs) avec CTA.
+  - `/runs` : `GET ${API_URL}/runs?limit=20`.
+  - `/tasks` : `GET ${API_URL}/tasks?limit=20`, création et démarrage d’une tâche.
+
+Variables d’environnement côté client :
+
+```
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+# Doit correspondre à API_KEY côté backend pour autoriser les requêtes
+NEXT_PUBLIC_API_KEY=test-key
+```
+
+Sans `NEXT_PUBLIC_API_KEY`, les endpoints protégés renverront 401 et l’UI affichera un état d’erreur.
 
 ## Tests d'accessibilité
 

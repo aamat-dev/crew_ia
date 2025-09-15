@@ -5,6 +5,7 @@ import json
 import os
 import anyio
 from datetime import datetime, timezone
+import time
 import logging
 
 from core.storage.db_models import Run, RunStatus
@@ -15,6 +16,7 @@ from core.events.publisher import EventPublisher
 from orchestrator.api_runner import run_task
 
 log = logging.getLogger("orchestrator.service")
+_START_MONO = time.monotonic()
 
 def _load_task_from_file(path: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
@@ -83,3 +85,17 @@ async def schedule_run(
     # Laisser une opportunité d'ordonnancement (utile pour les tests)
     await anyio.sleep(0)
     return run_id
+
+
+def get_health(app_state) -> dict:
+    """Renvoie un état synthétique de l'orchestrateur.
+
+    Critères simples: présence d'un TaskGroup, pas en shutdown.
+    """
+    ok = bool(getattr(app_state, "task_group", None)) and not bool(
+        getattr(app_state, "shutting_down", False)
+    )
+    return {
+        "status": "ok" if ok else "degraded",
+        "uptime_s": int(time.monotonic() - _START_MONO),
+    }

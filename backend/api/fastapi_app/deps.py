@@ -93,7 +93,14 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://localhost:5173",
         alias="ALLOWED_ORIGINS",
     )
-    artifacts_dir: str = Field(default=".runs", alias="ARTIFACTS_DIR")  # ← ajouté
+    artifacts_dir: str = Field(default=".runs", alias="ARTIFACTS_DIR")
+
+    # Sécurité
+    # - REQUIRE_API_KEY: si true, toute route sensible exige X-API-Key
+    #   (par défaut true; mettez false en dev local si besoin)
+    require_api_key: bool = Field(default=True, alias="REQUIRE_API_KEY")
+    # - ENV: indicatif (dev/test/prod). Non bloquant si require_api_key est défini.
+    env_name: str = Field(default="test", alias="ENV")
 
     @property
     def allowed_origins(self) -> Sequence[str]:
@@ -213,6 +220,13 @@ def require_api_key(
     - Les requêtes OPTIONS (preflight CORS) sont toujours autorisées.
     - L'endpoint /health est accessible sans authentification.
     """
+    # Dev souple: si l'API key n'est pas requise (REQUIRE_API_KEY=false), bypass
+    try:
+        if not settings.require_api_key:
+            return True
+    except Exception:
+        pass
+
     # Autoriser preflight CORS
     if request.method == "OPTIONS":
         return True

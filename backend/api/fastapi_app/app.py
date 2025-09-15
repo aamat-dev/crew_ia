@@ -8,6 +8,8 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
+import time
+import datetime as dt
 import logging
 from uuid import UUID
 from anyio import create_task_group
@@ -43,6 +45,7 @@ from .observability import (
     init_sentry,
     SentryContextMiddleware,
 )
+from .utils.error_handlers import setup_error_handlers
 from core.storage.postgres_adapter import PostgresAdapter
 from core.storage.file_adapter import FileAdapter
 from core.storage.composite_adapter import CompositeAdapter
@@ -93,14 +96,11 @@ def _build_storage():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Configure 'api.access' logger so it's capturable by tests and present in prod
+    # Assure une config minimale du logger d'accès sans ajouter de handler dédié
     try:
         lg = logging.getLogger("api.access")
-        if not lg.handlers:
-            # Attach a simple stream handler once; caplog will still intercept
-            handler = logging.StreamHandler()
-            lg.addHandler(handler)
         lg.setLevel(logging.INFO)
-        lg.propagate = True
+        lg.propagate = True  # caplog/tests interceptent via le root
         lg.disabled = False
     except Exception:
         pass
@@ -116,6 +116,9 @@ async def lifespan(app: FastAPI):
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)
         app.state.rate_limits = {}
+        # Uptime
+        app.state.started_at = dt.datetime.now(dt.timezone.utc)
+        app.state.started_monotonic = time.monotonic()
         # --- application running ---
         yield
         # Désactive l'édition d'événements pendant l'extinction pour éviter
@@ -141,6 +144,9 @@ if init_sentry():
     app.add_middleware(SentryContextMiddleware)        # Sentry annotations
 app.add_middleware(MetricsMiddleware)                  # Prometheus metrics
 app.add_middleware(GZipMiddleware, minimum_size=1024)  # gzip
+
+# Gestionnaires d'erreurs uniformes (ne capture pas Exception globale)
+setup_error_handlers(app)
 
 if metrics_enabled():
     @app.get("/metrics", include_in_schema=False)

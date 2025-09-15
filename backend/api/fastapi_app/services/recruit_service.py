@@ -86,8 +86,10 @@ class RecruitService:
             # Doublon probable (contrainte unique name+role+domain)
             raise HTTPException(status_code=409, detail="agent already exists") from e
         except Exception as e:
+            # Laisse les erreurs inattendues remonter sous forme 500 via handler unifié
             await session.rollback()
-            raise HTTPException(status_code=400, detail="failed to persist agent") from e
+            from core.exceptions import PersistenceError
+            raise PersistenceError("failed to persist agent") from e
         await session.refresh(agent)
 
         # 5) Sidecar explicable

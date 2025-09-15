@@ -12,6 +12,7 @@ import anyio
 from core.storage.db_models import Run, RunStatus, Node, NodeStatus
 from core.storage.composite_adapter import CompositeAdapter
 from orchestrator.executor import run_graph
+from core.events.types import EventType
 
 
 class OrchestratorService:
@@ -68,6 +69,17 @@ class OrchestratorService:
                 started_at=now,
             )
         )
+        # Publie un événement de démarrage du run pour visibilité immédiate
+        try:
+            await self.storage.save_event(
+                run_id=run_uuid,
+                level=EventType.RUN_STARTED.value,
+                message=json.dumps({"run_id": str(run_uuid), "title": plan_spec.get("title") or plan_id}),
+            )
+            # Laisse un tick pour que l'API puisse l'observer rapidement
+            await anyio.sleep(0)
+        except Exception:
+            pass
 
         for n in dag.nodes.values():
             nid = uuid.uuid4()

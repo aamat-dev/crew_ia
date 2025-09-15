@@ -23,7 +23,6 @@ async def test_post_tasks_materializes_run_in_db(async_client, db_session):
     run_uuid = uuid.UUID(run_id)
     db_run = await db_session.get(Run, run_uuid)
     assert db_run is not None
-    # Statut initial tolérant: pending (standard) ou running si l'exécuteur a démarré très vite
+    # Statut initial tolérant: pending/queued/running, ou completed si l'exécution s'est terminée très vite
     status = getattr(db_run.status, "value", db_run.status)
-    assert status in {"pending", "running", "queued"}
-
+    assert status in {"pending", "running", "queued", "completed"}

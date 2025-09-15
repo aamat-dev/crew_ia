@@ -1,6 +1,8 @@
 .DEFAULT_GOAL := help
 # ===== Makefile — Crew IA Orchestrator =====
 SHELL := /bin/bash
+# Fail fast in recipes; pipefail for safety where applicable
+SHELLFLAGS := -eu -o pipefail -c
 
 # ---- Vars ----------------------------------------------------
 PYTHON              ?= python3
@@ -39,12 +41,15 @@ help:
 	@echo "  test-extra          -> pytest backend/tests/extra (si présents)"
 	@echo "  test-all            -> pytest backend/tests + backend/tests/extra (si présents)"
 	@echo "  test-recovery       -> pytest -k 'recovery or status_store' (si présent)"
+	@echo "  format              -> formatage (placeholder)"
+	@echo "  lint                -> lint (placeholder)"
 	@echo "  run                 -> exécute avec un plan JSON (DEFAULT_TASK_JSON)"
 	@echo "  run-supervisor      -> génère le plan via superviseur et exécute"
 	@echo "  run-ollama          -> idem run-supervisor avec provider=ollama"
 	@echo "  run-openai          -> idem run-supervisor avec provider=openai"
 	@echo "  tail                -> tail du dernier .runs/*/orchestrator.log"
 	@echo "  env-check           -> imprime quelques variables utiles"
+	@echo "  api                 -> lance FastAPI en dev (alias api-run)"
 	@echo "  api-run             -> lance FastAPI en dev (reload)"
 	@echo "  api-run-prod        -> lance FastAPI en prod"
 	@echo "  api-migrate         -> applique les migrations Alembic"
@@ -53,6 +58,9 @@ help:
 	@echo "  db-logs / db-reset  -> idem"
 	@echo "  validate            -> valide les sidecars .llm.json"
 	@echo "  validate-strict     -> validation stricte des sidecars"
+	@echo "  cockpit             -> lance le cockpit Next.js en dev"
+	@echo "  cockpit-install     -> installe les deps du cockpit"
+	@echo "  seed                -> seed agents (modèles + templates)"
 	@echo "  ui-run-e2e          -> build + preview + tests e2e UI"
 .PHONY: init-env
 init-env:
@@ -91,8 +99,8 @@ deps-update: ensure-venv
 	@echo "✅ Dépendances mises à jour"
 
 # ---- Qualité -------------------------------------------------
-.PHONY: fmt
-fmt:
+.PHONY: fmt format
+fmt format:
 	@echo "⏭️  Skip (formatter non configuré)"
 
 .PHONY: lint
@@ -201,6 +209,9 @@ env-check: ensure-venv
 	PY
 
 # ---- API (FastAPI) -------------------------------------------
+.PHONY: api
+api: api-run
+
 .PHONY: api-run
 api-run:
 	$(ACTIVATE) && $(UVICORN) $(API_MODULE) --reload --host $(API_HOST) --port $(API_PORT)
@@ -225,6 +236,10 @@ migrate-fil8:
 .PHONY: seed-agents
 seed-agents:
 	PYTHONPATH=$(PYTHONPATH) poetry run python scripts/seed_agents.py
+
+.PHONY: seed
+seed: ensure-venv
+	@$(ACTIVATE) && $(PYTHON) scripts/seed_agents.py
 
 .PHONY: test-fil8
 test-fil8:

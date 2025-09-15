@@ -1,45 +1,108 @@
-# Crew Orchestrator API
+# Crew Orchestrator — API + Cockpit
 
-Minimal FastAPI application exposing read-only endpoints to inspect runs, nodes,
-artifacts and events. A `/tasks` endpoint allows to trigger a small ad‑hoc run
-used for testing.
+Petit orchestrateur d’agents avec API FastAPI, stockage Postgres/FS et cockpit Next.js. Objectif: onboarding rapide, runs observables et mini‑dashboard prêt pour la démo.
 
-## Quickstart
-
-1. Create a `.env` file with at least:
+Architecture (vue simplifiée)
 
 ```
-API_KEY=test-key
-DATABASE_URL=postgresql+asyncpg://crew:crew@localhost:5432/crew
-ALEMBIC_DATABASE_URL=postgresql+psycopg://crew:crew@localhost:5432/crew
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-API_URL=http://127.0.0.1:8000
-# (facultatif) Frontends:
-# - Vite mini-dashboard
-VITE_API_BASE_URL=http://localhost:8000
-# - Cockpit Next.js
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+ [Cockpit Next.js]  ───────── HTTP ─────────▶  [FastAPI]
+     (frontend)                            (backend/api)
+                                               │
+                                       ┌───────┴────────┐
+                                       │ Storage (DB/FS)│
+                                       │  Postgres + FS │
+                                       └───────┬────────┘
+                                               │
+                                    [Orchestrator Runtime]
+                                           (backend/orchestrator)
 ```
 
-2. Start the API with Uvicorn (loads variables from `.env`):
+## Quickstart (≤ 5 minutes)
 
-```
-make api-run
+1) Dépendances
+- Python 3.11+, Node 18+, `make`, Postgres local (ou Docker Compose fourni).
+
+2) Environnement
+- Copier l’exemple et ajuster les variables minimales:
+  ```bash
+  make init-env
+  # éditez .env si besoin
+  ```
+
+  Variables essentielles:
+  - API_KEY: clé API (ex: test-key)
+  - DATABASE_URL: `postgresql+asyncpg://crew:crew@localhost:5432/crew`
+  - ALEMBIC_DATABASE_URL: `postgresql+psycopg://crew:crew@localhost:5432/crew`
+  - ALLOWED_ORIGINS: `http://localhost:3000,http://localhost:5173`
+  - NEXT_PUBLIC_API_URL: `http://127.0.0.1:8000` (cockpit)
+  - NEXT_PUBLIC_API_KEY: `test-key` (doit = API_KEY)
+
+3) Installation + migrations
+```bash
+make install
+make api-migrate
 ```
 
-3. Query the API (replace the API key if you changed it):
+4) Démarrer l’API et le Cockpit
+```bash
+# Terminal A — API (FastAPI + reload)
+make api
 
-```
-curl -H "X-API-Key: test-key" http://127.0.0.1:8000/runs
+# Terminal B — Cockpit (Next.js, dossier frontend/cockpit)
+make cockpit-install
+make cockpit
 ```
 
-> **Note :** Après un `git pull`, lancez `make deps-update` pour installer les nouvelles dépendances.
+5) Démonstration rapide
+```bash
+# Déclencher un run ad-hoc (demo)
+curl -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
+  -d '{"title":"Demo","task_spec":{"type":"demo"}}' \
+  $NEXT_PUBLIC_API_URL/tasks
+
+# Suivre le run
+curl -H "X-API-Key: $API_KEY" "$NEXT_PUBLIC_API_URL/runs"
+```
+
+6) Voir dans le cockpit
+- Ouvrez le cockpit sur http://localhost:3000 (ou port affiché) et naviguez vers la page Runs; vous devez voir le run Demo et ses événements.
+
+Notes
+- Après un `git pull`, lancez `make deps-update`.
+- Pour peupler des modèles/agents de démonstration: `make seed`.
 
 Pour lister les événements d'un run spécifique :
 
 ```
 curl -H "X-API-Key: test-key" "http://127.0.0.1:8000/events?run_id=<RUN_ID>"
 ```
+
+## Variables `.env` (essentielles)
+
+Voir `.env.example` pour la liste complète. Essentielles côté dev:
+- API_KEY: clé API
+- DATABASE_URL / ALEMBIC_DATABASE_URL: URLs Postgres (async/sync)
+- ALLOWED_ORIGINS: CORS (ex: http://localhost:3000,http://localhost:5173)
+- NEXT_PUBLIC_API_URL / NEXT_PUBLIC_API_KEY: accès cockpit
+- VITE_API_BASE_URL (si mini-dashboard Vite)
+- LLM_DEFAULT_PROVIDER / LLM_DEFAULT_MODEL (optionnel)
+- FEEDBACK_CRITICAL_THRESHOLD / FEEDBACK_REVIEW_TIMEOUT_MS (optionnel)
+
+Sécurité (prod stricte / dev souple)
+- REQUIRE_API_KEY=true — en prod, impose `X-API-Key` sur toutes les routes sensibles.
+- ENV=dev + REQUIRE_API_KEY=false — en dev local, l’API peut laisser passer sans clé.
+- FEATURE_RBAC=true — active `X-Role` minimal (viewer/editor/admin) sur routes critiques.
+- Par défaut, les tests exigent la clé (REQUIRE_API_KEY=true) et surchargent l’auth via FastAPI overrides.
+
+## Commandes Make principales
+
+- `make install` — venv + deps
+- `make api` — API en dev (reload)
+- `make cockpit` — cockpit Next.js en dev
+- `make test` — tests rapides
+- `make api-migrate` — migrations Alembic (DB)
+- `make seed` — seed agents (templates + matrice)
+- `make format` / `make lint` — hooks de base (placeholders)
 
 ### Feedbacks
 
@@ -191,6 +254,7 @@ Les variables essentielles sont définies dans `.env` (voir [`.env.example`](.en
 - Frontends (optionnel selon le client utilisé) :
   - `VITE_API_BASE_URL` — base API pour le mini-dashboard Vite.
   - `NEXT_PUBLIC_API_URL` — base API publique pour le cockpit Next.js.
+  - `NEXT_PUBLIC_API_KEY` — clé API utilisée par le cockpit (doit correspondre à `API_KEY`).
 
 - `LLM_DEFAULT_PROVIDER` et `LLM_DEFAULT_MODEL` — fournisseur et modèle par défaut des agents.
 - `FEEDBACK_CRITICAL_THRESHOLD` — seuil (0-100) déclenchant un badge critique (défaut 60).
