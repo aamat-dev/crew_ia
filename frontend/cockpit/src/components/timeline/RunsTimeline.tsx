@@ -70,7 +70,7 @@ export function RunsTimeline({
 
   return (
     <>
-      <div ref={parentRef} className="h-96 overflow-auto" role="list" aria-label="Historique des exécutions">
+      <div ref={parentRef} className="h-[60vh] overflow-auto md:h-96" role="list" aria-label="Historique des exécutions">
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
