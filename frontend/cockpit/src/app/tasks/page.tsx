@@ -105,12 +105,12 @@ export default function TasksPage() {
   return (
     <main role="main" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tasks</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Tasks</h1>
         <button
           type="button"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-busy={isFetching}
         >
           Rafraîchir
@@ -118,18 +118,18 @@ export default function TasksPage() {
       </div>
 
       {lastRunId && (
-        <div role="status" aria-live="polite" className="glass p-3 rounded-md border">
+        <div role="status" aria-live="polite" className="clay-card p-3">
           Run démarré. {" "}
           <a
             href={`/runs/${lastRunId}`}
-            className="underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            className="underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded"
           >
             Voir le run
           </a>
         </div>
       )}
 
-      <section aria-label="Créer une tâche" className="glass p-4 rounded-md border space-y-3">
+      <section aria-label="Créer une tâche" className="clay-card p-4 space-y-3">
         <h2 className="text-lg font-medium">Créer une tâche</h2>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1">
@@ -139,7 +139,7 @@ export default function TasksPage() {
               name="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               placeholder="Ex: Préparer un rapport"
               required
             />
@@ -151,7 +151,7 @@ export default function TasksPage() {
               name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               rows={3}
               placeholder="Détails de la tâche"
             />
@@ -161,7 +161,7 @@ export default function TasksPage() {
               type="submit"
               disabled={submitting}
               aria-busy={submitting}
-              className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               Créer
             </button>
@@ -171,7 +171,7 @@ export default function TasksPage() {
 
       {isLoading && <p role="status" aria-live="polite">Chargement des tasks…</p>}
       {isError && (
-        <div role="alert" className="glass p-4 rounded-md border">
+        <div role="alert" className="clay-card p-4">
           <p className="font-medium">Erreur lors du chargement des tasks</p>
           <p className="text-sm opacity-80">{(error as Error)?.message || "API indisponible"}</p>
         </div>
@@ -184,7 +184,7 @@ export default function TasksPage() {
       {data && data.items.length > 0 && (
         <ol role="list" className="space-y-2">
           {data.items.map((t) => (
-            <li key={t.id} className="glass p-3 rounded-md border">
+            <li key={t.id} className="clay-card p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">{t.title || t.id}</p>
@@ -198,7 +198,7 @@ export default function TasksPage() {
                     onClick={() => startTask(t.id)}
                     disabled={startingId === t.id}
                     aria-busy={startingId === t.id}
-                    className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     Démarrer
                   </button>
