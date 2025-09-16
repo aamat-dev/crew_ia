@@ -52,7 +52,7 @@ export function ChartsPanel() {
 
   return (
     <section className="space-y-4" aria-label="Graphiques de performances et feedbacks">
-      <h2 className="text-lg font-medium text-slate-900">Graphiques</h2>
+      <h2 className="text-lg font-medium text-slate-100">Graphiques</h2>
       <div className="grid gap-4 md:grid-cols-3">
         <ClayCard className="p-4">
           <h3 className="text-sm font-medium mb-2">Throughput (runs/heure)</h3>

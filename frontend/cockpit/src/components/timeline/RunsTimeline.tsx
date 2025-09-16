@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ds/Toast";
 import { Button } from "@/components/ds/Button";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import { TimelineItem } from "@/components/ui/TimelineItem";
 
 export type Run = {
   id: string;
@@ -109,41 +110,17 @@ export function RunsTimeline({
                   width: "100%",
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="clay-card my-2 p-4"
+                className="my-2"
                 role="listitem"
                 tabIndex={0}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{run.title}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Début : {formatDate(run.startedAt)} – Fin : {formatDate(run.endedAt)}
-                    </span>
-                  </div>
-                  <StatusBadge status={run.status} />
-                </div>
-                <div className="mt-2">
-                  <Link href={`/runs/${run.id}`} className="underline text-sm">Détails du run</Link>
-                </div>
-                {run.status === "running" && (
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded bg-slate-100">
-                    <div className="h-full w-2/3 animate-pulse bg-indigo-600" />
-                  </div>
-                )}
-                {actions.length > 0 && (
-                  <div className="mt-3 flex gap-2">
-                    {actions.map(({ action, icon: Icon, label }) => (
-                      <button
-                        key={action}
-                        onClick={() => setConfirm({ id: run.id, action })}
-                        className="rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus"
-                        aria-label={label}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <TimelineItem
+                  title={run.title}
+                  date={`Début: ${formatDate(run.startedAt)} – Fin: ${formatDate(run.endedAt)}`}
+                  status={run.status}
+                  onRetry={actions.some(a => a.action === 'retry') ? () => setConfirm({ id: run.id, action: 'retry' }) : undefined}
+                  onDetails={() => {}}
+                />
               </div>
             );
           })}

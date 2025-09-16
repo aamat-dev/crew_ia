@@ -73,7 +73,7 @@ export function Timeline() {
         <label className="sr-only" htmlFor="timeline-q">Rechercher un run</label>
         <input
           id="timeline-q"
-          className="glass px-3 py-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="px-3 py-2 rounded-2xl border border-slate-700 bg-[#2A2D36] shadow-[inset_0_2px_6px_rgba(255,255,255,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] text-slate-100 placeholder:text-slate-400"
           placeholder="Rechercher (id, titre)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -85,7 +85,7 @@ export function Timeline() {
             type="button"
             onClick={() => toggle(s)}
             aria-pressed={filters[s]}
-            className={`px-2 py-1 rounded border ${filters[s] ? "bg-primary text-primary-foreground" : "bg-background"}`}
+            className={`px-2 py-1 rounded-2xl border ${filters[s] ? "bg-indigo-600/20 text-slate-100 border-indigo-600/40" : "bg-[#2A2D36] border-slate-700 text-slate-300"}`}
           >
             {s}
           </button>
@@ -93,7 +93,7 @@ export function Timeline() {
         <button
           type="button"
           onClick={() => setFilters({ queued: true, running: true, completed: true, failed: true, paused: true })}
-          className="px-2 py-1 rounded border"
+          className="px-2 py-1 rounded-2xl border border-slate-700 bg-[#2A2D36] text-slate-300"
         >
           Tous
         </button>
@@ -102,9 +102,9 @@ export function Timeline() {
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded bg-muted" role="status" aria-label="Chargement de la timeline" />
       ) : query.isError ? (
-        <div role="alert" className="glass p-3 rounded-md border">Erreur de chargement de la timeline</div>
+        <div role="alert" className="clay-card p-3">Erreur de chargement de la timeline</div>
       ) : query.data && query.data.length === 0 ? (
-        <div role="status" aria-live="polite" className="glass p-3 rounded-md border">Aucun run</div>
+        <div role="status" aria-live="polite" className="clay-card p-3">Aucun run</div>
       ) : (
         <RunsTimeline
           runs={query.data || []}
@@ -119,4 +119,3 @@ export function Timeline() {
 }
 
 export default Timeline;
-

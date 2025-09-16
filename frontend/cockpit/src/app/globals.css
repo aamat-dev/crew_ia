@@ -79,63 +79,76 @@
 /* ============================= */
 /*          Dark theme           */
 /* ============================= */
-[data-theme="dark"] {
+.dark, [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: 240 10% 3.9%;
-  --fg: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --primary: 262 83% 58%;
+  /* Anthracite par défaut */
+  --bg: 231 16% 13%;                 /* #1C1E26 */
+  --fg: 210 40% 98%;                 /* #F1F5F9 */
+  --muted: 223 14% 20%;              /* proche #2A2D36 pour inputs */
+  --muted-foreground: 215 20% 65%;   /* #94A3B8 */
+  --primary: 239 84% 67%;            /* indigo-500 #6366F1 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 240 5% 64.9%;
-  --success: 142 71% 45%;             /* vert plus clair en fond sombre */
-  --success-foreground: 144 100% 6%;
-  --warning: 32 95% 55%;              /* amber lisible sur sombre */
+  --secondary: 188 92% 59%;          /* cyan-400 #22D3EE */
+  --secondary-foreground: 0 0% 0%;
+  --success: 152 76% 47%;            /* emerald-400 #34D399 */
+  --success-foreground: 0 0% 0%;
+  --warning: 42 96% 55%;             /* amber-400 #FBBF24 */
   --warning-foreground: 26 83% 14%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 85.7% 97.3%;
-  --ring: 262 83% 58%;
+  --destructive: 350 89% 60%;        /* rose-500 */
+  --destructive-foreground: 0 0% 100%;
+  --ring: 239 84% 67%;               /* focus ring indigo */
   --ring-foreground: 0 0% 100%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
+  --card: 223 13% 19%;               /* #2A2D36 */
+  --card-foreground: 210 40% 98%;
   /* Aliases (compat shadcn/ui) */
-  --accent: var(--secondary);
-  --accent-foreground: var(--secondary-foreground);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
-  --input: var(--muted);
-  --border: var(--muted);
+  --input: var(--card);
+  --border: 215 25% 27%;             /* slate-700 #334155 */
+
+  /* Accents dégradés 500→400 */
+  --indigo-500: 239 84% 67%;
+  --indigo-400: 239 84% 75%;
+  --cyan-500: 190 91% 42%;
+  --cyan-400: 188 92% 59%;
+  --emerald-500: 160 84% 39%;
+  --emerald-400: 152 76% 47%;
+  --amber-500: 34 94% 50%;
+  --amber-400: 42 96% 55%;
+  --rose-500: 350 89% 60%;
+  --rose-400: 351 95% 71%;
 
   /* Glass elevations (dark) */
-  --elev-card: hsl(var(--bg) / 0.6);
-  --elev-muted: hsl(var(--muted) / 0.6);
-  --elev-danger: hsl(var(--destructive) / 0.6);
+  --elev-card: hsl(var(--card) / 1);
+  --elev-muted: hsl(var(--muted) / 1);
+  --elev-danger: hsl(var(--destructive) / 0.15);
 }
 
 /* Respecte la préférence système si aucun data-theme explicite */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: 240 10% 3.9%;
-    --fg: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --primary: 262 83% 58%;
+    --bg: 231 16% 13%;
+    --fg: 210 40% 98%;
+    --muted: 223 14% 20%;
+    --muted-foreground: 215 20% 65%;
+    --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 240 5% 64.9%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
-    --ring: 262 83% 58%;
+    --secondary: 188 92% 59%;
+    --secondary-foreground: 0 0% 0%;
+    --destructive: 350 89% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 239 84% 67%;
     --ring-foreground: 0 0% 100%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 223 13% 19%;
+    --card-foreground: 210 40% 98%;
 
-    --elev-card: hsl(var(--bg) / 0.6);
-    --elev-muted: hsl(var(--muted) / 0.6);
-    --elev-danger: hsl(var(--destructive) / 0.6);
+    --elev-card: hsl(var(--card) / 1);
+    --elev-muted: hsl(var(--muted) / 1);
+    --elev-danger: hsl(var(--destructive) / 0.15);
   }
 }
 
@@ -235,6 +248,19 @@ body {
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
   }
 
+  /* Variante anthracite en dark */
+  .dark .clay-card, [data-theme="dark"] .clay-card {
+    background-color: #2A2D36;
+    border: 1px solid #334155; /* slate-700 */
+    border-radius: 1rem; /* rounded-2xl */
+    box-shadow:
+      inset 0 2px 6px rgba(255,255,255,0.04),
+      0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  .clay-shadow-out { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .clay-shadow-in  { box-shadow: inset 0 2px 6px rgba(255,255,255,0.04); }
+
   .glass {
     background-color: var(--elev-card);
     box-shadow:
@@ -285,4 +311,16 @@ body {
       var(--shadow-sm);
     color: hsl(var(--destructive-foreground));
   }
+
+  /* Ombres claymorphic génériques */
+  .shadow-card {
+    box-shadow:
+      inset 0 2px 6px rgba(255,255,255,0.04),
+      0 8px 24px rgba(0,0,0,0.4);
+  }
+  .shadow-glow-indigo { box-shadow: 0 0 12px rgba(99,102,241,0.3); }
+  .shadow-glow-cyan { box-shadow: 0 0 12px rgba(34,211,238,0.3); }
+  .shadow-glow-emerald { box-shadow: 0 0 12px rgba(52,211,153,0.3); }
+  .shadow-glow-amber { box-shadow: 0 0 12px rgba(251,191,36,0.3); }
+  .shadow-glow-rose { box-shadow: 0 0 12px rgba(248,113,113,0.3); }
 }

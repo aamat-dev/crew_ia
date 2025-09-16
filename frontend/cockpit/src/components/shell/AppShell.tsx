@@ -8,9 +8,11 @@ import {
   Map,
   Play,
   Settings as SettingsIcon,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Header } from "./Header";
+import { SidebarItem } from "@/components/ui/SidebarItem";
 import { ShortcutsCheatsheet } from "@/components/shortcuts/ShortcutsCheatsheet";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
@@ -34,44 +36,23 @@ export function AppShell({ children }: AppShellProps) {
   const navItems = [
     { href: "/dashboard", label: "Aperçu", icon: LayoutDashboard, tone: "indigo" },
     { href: "/runs", label: "Runs", icon: Play, tone: "indigo" },
+    { href: "/agents", label: "Agents", icon: Users, tone: "emerald" },
     { href: "/plans", label: "Plans", icon: Map, tone: "cyan" },
-    { href: "/tasks", label: "Tâches", icon: ListCheck, tone: "emerald" },
+    { href: "/tasks", label: "Tâches", icon: ListCheck, tone: "cyan" },
     { href: "/settings", label: "Réglages", icon: SettingsIcon, tone: "amber" },
   ] as const;
 
   return (
-      <div className="flex min-h-screen bg-[#F9FAFB] text-foreground">
-        <aside className="sticky top-0 hidden h-screen w-16 flex-col border-r border-slate-200 bg-white p-2 shadow md:flex md:w-44 lg:w-56 lg:p-4">
+      <div className="flex min-h-screen bg-[hsl(var(--bg))] text-[hsl(var(--fg))]">
+        <aside className="sticky top-0 hidden h-screen w-16 flex-col border-r border-slate-800 bg-[#1C1E26] p-2 md:flex md:w-56 md:p-4">
           <nav className="mt-2 flex flex-col gap-2" role="navigation" aria-label="Navigation principale">
             {navItems.map(({ href, label, icon: Icon, tone }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-label={label}
-                aria-current={pathname === href ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus md:justify-start justify-center",
-                  pathname === href ? "shadow-md" : "shadow-sm"
-                )}
-              >
-                <span
-                  className={cn(
-                    "inline-flex h-8 w-8 items-center justify-center rounded-full text-white",
-                    tone === "indigo" && "bg-indigo-600",
-                    tone === "cyan" && "bg-cyan-500",
-                    tone === "emerald" && "bg-emerald-500",
-                    tone === "amber" && "bg-amber-500"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="hidden text-slate-900 md:inline">{label}</span>
-              </Link>
+              <SidebarItem key={href} href={href} label={label} accent={tone as 'indigo'|'cyan'|'emerald'|'amber'} active={pathname === href} icon={<Icon className="h-4 w-4" />} />
             ))}
           </nav>
         </aside>
         <div className="flex flex-1 flex-col">
-          <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded bg-white px-3 py-1 text-sm border border-slate-200 shadow">Aller au contenu</a>
+          <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded bg-[#2A2D36] px-3 py-1 text-sm border border-slate-700 shadow">Aller au contenu</a>
           <Header
             searchRef={searchRef}
             onCheatsheetOpen={() => setCheatsheetOpen(true)}
