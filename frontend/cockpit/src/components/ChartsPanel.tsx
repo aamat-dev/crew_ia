@@ -48,8 +48,6 @@ export function ChartsPanel() {
     if (err) toast((err as Error).message || "Erreur de chargement des graphiques", "error");
   }, [agents.error, runs.error, feedbacks.error, toast]);
 
-  const loading = agents.isLoading || runs.isLoading || feedbacks.isLoading;
-
   return (
     <section className="space-y-4" aria-label="Graphiques de performances et feedbacks">
       <h2 className="text-lg font-medium text-slate-100">Graphiques</h2>

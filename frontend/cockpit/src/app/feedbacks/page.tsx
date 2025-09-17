@@ -2,19 +2,11 @@
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FeedbackPanel } from "@/components/FeedbackPanel";
+import { FeedbackPanel, FeedbackItem } from "@/components/FeedbackPanel";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
 
-type Item = {
-  id: string;
-  title: string;
-  criticity: "critical" | "major" | "minor";
-  createdAt: string;
-  runId?: string;
-  sourceAnchor?: string;
-  summary?: string;
-};
+type Item = FeedbackItem;
 
 export default function FeedbacksPage() {
   const qc = useQueryClient();
@@ -27,19 +19,20 @@ export default function FeedbacksPage() {
     minor: true,
   });
 
-  const query = useQuery({
-    queryKey: ["feedbacks:list", { q, filters }],
+  const query = useQuery<Item[]>({
+    queryKey: ["feedbacks:list", { q, filters }] as const,
     queryFn: async ({ queryKey }) => {
-      const [, params] = queryKey as any;
+      const [, params] = queryKey;
       const url = new URL("/api/feedbacks-feed", window.location.origin);
-      const active: string[] = [];
-      for (const k of ["critical", "major", "minor"] as const) if (params.filters[k]) active.push(k);
+      const active = (Object.keys(params.filters) as Array<keyof typeof filters>)
+        .filter((key) => params.filters[key])
+        .map((key) => key);
       if (active.length) url.searchParams.set("criticity", active.join(","));
       if (params.q && params.q.trim()) url.searchParams.set("q", params.q.trim());
-      const r = await fetch(url.toString());
-      if (!r.ok) throw new Error(r.statusText);
-      const j = (await r.json()) as { items: Item[] };
-      return j.items;
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(response.statusText);
+      const payload: { items: Item[] } = await response.json();
+      return payload.items;
     },
   });
 
@@ -57,22 +50,27 @@ export default function FeedbacksPage() {
 
   // Raccourci clavier: Ctrl/Cmd + Shift + C pour ouvrir le dernier feedback critique
   React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const isEditable = (el: any) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
-      if (isEditable(e.target)) return;
-      const key = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'c') {
-        e.preventDefault();
+    const onKey = (event: KeyboardEvent) => {
+      const isEditable = (element: EventTarget | null): element is HTMLElement => {
+        return (
+          element instanceof HTMLElement &&
+          (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable)
+        );
+      };
+      if (isEditable(event.target)) return;
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === "c") {
+        event.preventDefault();
         const data = query.data || [];
-        const critical = data.filter((i) => i.criticity === 'critical');
+        const critical = data.filter((i) => i.criticity === "critical");
         if (critical.length > 0) {
           setSelected(critical[0]);
           setOpen(true);
         }
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [query.data]);
 
   return (
@@ -140,7 +138,7 @@ export default function FeedbacksPage() {
         <FeedbackPanel
           open={open}
           onOpenChange={setOpen}
-          item={selected as any}
+          item={selected}
           resolving={resolve.isPending}
           onResolve={(id) => resolve.mutate(id)}
         />

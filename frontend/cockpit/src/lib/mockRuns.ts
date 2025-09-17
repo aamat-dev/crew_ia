@@ -6,7 +6,7 @@ export type MockRun = {
   endedAt?: string | null;
 };
 
-let runs: MockRun[] = [
+const runs: MockRun[] = [
   { id: "R-1001", title: "Import données", status: "running", startedAt: new Date(Date.now() - 5 * 60_000).toISOString(), endedAt: null },
   { id: "R-1000", title: "Nettoyage cache", status: "completed", startedAt: new Date(Date.now() - 60 * 60_000).toISOString(), endedAt: new Date(Date.now() - 55 * 60_000).toISOString() },
   { id: "R-999", title: "Rebuild index", status: "failed", startedAt: new Date(Date.now() - 2 * 60 * 60_000).toISOString(), endedAt: new Date(Date.now() - 119 * 60_000).toISOString() },

@@ -1,12 +1,9 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Pause, Play, RotateCw, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ds/Toast";
 import { Button } from "@/components/ds/Button";
-import { StatusBadge } from "@/components/ds/StatusBadge";
 import { TimelineItem } from "@/components/ui/TimelineItem";
 
 export type Run = {
@@ -118,8 +115,7 @@ export function RunsTimeline({
                   title={run.title}
                   date={`Début: ${formatDate(run.startedAt)} – Fin: ${formatDate(run.endedAt)}`}
                   status={run.status}
-                  onRetry={actions.some(a => a.action === 'retry') ? () => setConfirm({ id: run.id, action: 'retry' }) : undefined}
-                  onDetails={() => {}}
+                  onRetry={actions.some((action) => action.action === "retry") ? () => setConfirm({ id: run.id, action: "retry" }) : undefined}
                 />
               </div>
             );
