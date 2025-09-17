@@ -11,7 +11,7 @@ export interface FeedbackItem {
   resolved?: boolean;
 }
 
-let items: FeedbackItem[] = [
+const items: FeedbackItem[] = [
   {
     id: "F-1001",
     title: "Réponse LLM incohérente",

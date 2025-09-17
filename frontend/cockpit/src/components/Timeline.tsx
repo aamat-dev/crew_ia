@@ -22,18 +22,18 @@ export function Timeline() {
 
   const activeStatuses = ALL.filter((s) => filters[s]);
 
-  const query = useQuery({
-    queryKey: ["runs:timeline", { q, status: activeStatuses }],
+  const query = useQuery<Run[]>({
+    queryKey: ["runs:timeline", { q, status: activeStatuses }] as const,
     queryFn: async ({ queryKey }) => {
-      const [, params] = queryKey as any;
-      const s = (params.status as Status[]).join(",");
+      const [, params] = queryKey;
+      const statusParam = params.status.join(",");
       const url = new URL(`/api/runs-feed`, window.location.origin);
       if (q.trim()) url.searchParams.set("q", q.trim());
-      if (s) url.searchParams.set("status", s);
-      const r = await fetch(url.toString());
-      if (!r.ok) throw new Error(r.statusText);
-      const data = (await r.json()) as { items: Run[] };
-      return data.items;
+      if (statusParam) url.searchParams.set("status", statusParam);
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(response.statusText);
+      const payload: { items: Run[] } = await response.json();
+      return payload.items;
     },
     refetchInterval: 10_000,
   });
