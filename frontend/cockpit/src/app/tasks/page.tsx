@@ -6,6 +6,7 @@ import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import type { Status } from "@/components/ds/StatusBadge";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
 import { useToast } from "@/components/ds/Toast";
@@ -13,7 +14,7 @@ import { useToast } from "@/components/ds/Toast";
 interface TaskItem {
   id: string;
   title: string;
-  status?: string;
+  status?: Status;
   created_at?: string;
 }
 

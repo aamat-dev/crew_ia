@@ -1,5 +1,5 @@
 export type Accent = "indigo" | "cyan" | "emerald" | "amber" | "rose";
-export type Status = "completed" | "running" | "queued" | "failed";
+export type Status = "completed" | "running" | "queued" | "failed" | "paused";
 
 const accentVariable = (accent: Accent, shade: "400" | "500") => `var(--accent-${accent}-${shade})`;
 
@@ -30,6 +30,7 @@ export const STATUS_ACCENT: Record<Status, Accent | "rose"> = {
   running: "indigo",
   queued: "amber",
   failed: "rose",
+  paused: "cyan",
 };
 
 export const STATUS_LABEL: Record<Status, string> = {
@@ -37,6 +38,7 @@ export const STATUS_LABEL: Record<Status, string> = {
   running: "En cours",
   queued: "En file",
   failed: "Échec",
+  paused: "En pause",
 };
 
 export const statusGradient = (status: Status) => accentGradient(STATUS_ACCENT[status]);

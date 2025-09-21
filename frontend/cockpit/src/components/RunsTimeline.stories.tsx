@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react';
 import { RunsTimeline } from './RunsTimeline';
 
-const meta: Meta<typeof RunsTimeline> = {
+const meta = {
   title: 'Components/RunsTimeline',
   component: RunsTimeline,
   tags: ['autodocs'],
@@ -19,9 +18,7 @@ const meta: Meta<typeof RunsTimeline> = {
 
 export default meta;
 
-type Story = StoryObj<typeof RunsTimeline>;
-
-export const Exemple: Story = {
+export const Exemple = {
   args: {
     events: [
       { id: '1', status: 'Démarré', timestamp: '2024-01-01T10:00:00Z' },

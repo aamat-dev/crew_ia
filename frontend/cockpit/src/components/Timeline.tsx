@@ -7,6 +7,7 @@ import { RunsTimeline, Run } from "@/components/timeline/RunsTimeline";
 type Status = Run["status"];
 
 const ALL: Status[] = ["queued", "running", "completed", "failed", "paused"];
+type TimelineQueryKey = ["runs:timeline", { q: string; status: Status[] }];
 
 export function Timeline() {
   const qc = useQueryClient();
@@ -22,8 +23,8 @@ export function Timeline() {
 
   const activeStatuses = ALL.filter((s) => filters[s]);
 
-  const query = useQuery<Run[]>({
-    queryKey: ["runs:timeline", { q, status: activeStatuses }] as const,
+  const query = useQuery<Run[], Error, Run[], TimelineQueryKey>({
+    queryKey: ["runs:timeline", { q, status: activeStatuses }] as TimelineQueryKey,
     queryFn: async ({ queryKey }) => {
       const [, params] = queryKey;
       const statusParam = params.status.join(",");

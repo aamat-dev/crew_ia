@@ -1,4 +1,5 @@
 "use client";
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, setQueryErrorNotifier } from "@/lib/queryClient";
@@ -13,8 +14,10 @@ function ToastBridge() {
   return null;
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  const [Devtools, setDevtools] = useState<React.ComponentType | null>(null);
+type DevtoolsComponent = ComponentType<{ initialIsOpen?: boolean }>;
+
+export function Providers({ children }: { children: ReactNode }) {
+  const [Devtools, setDevtools] = useState<DevtoolsComponent | null>(null);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
@@ -26,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <HydrationBoundary>
+      <HydrationBoundary state={null}>
         <ThemeProvider>
           <ToastProvider>
             <ToastBridge />

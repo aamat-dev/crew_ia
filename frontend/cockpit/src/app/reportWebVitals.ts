@@ -1,19 +1,27 @@
 import type { NextWebVitalsMetric } from "next/app";
 
+type MetricWithDelta = NextWebVitalsMetric & { delta: number };
+
+const hasDelta = (metric: NextWebVitalsMetric): metric is MetricWithDelta => {
+  return typeof (metric as { delta?: unknown }).delta === "number";
+};
+
 export function reportWebVitals(metric: NextWebVitalsMetric) {
   if (process.env.NODE_ENV !== "production") {
     return;
   }
 
+  const delta = hasDelta(metric) ? metric.delta : undefined;
+
   const body = {
     name: metric.name,
     id: metric.id,
     value: metric.value,
-    delta: metric.delta,
     label: metric.label,
     path: window.location.pathname,
     userAgent: navigator.userAgent,
     timestamp: Date.now(),
+    ...(delta !== undefined ? { delta } : {}),
   };
 
   const url = "/api/vitals";

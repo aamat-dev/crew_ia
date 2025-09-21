@@ -7,20 +7,22 @@ import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
 
 type Item = FeedbackItem;
+type FeedbackFilters = { critical: boolean; major: boolean; minor: boolean };
+type FeedbacksQueryKey = ["feedbacks:list", { q: string; filters: FeedbackFilters }];
 
 export default function FeedbacksPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = React.useState<Item | null>(null);
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
-  const [filters, setFilters] = React.useState<{ critical: boolean; major: boolean; minor: boolean }>({
+  const [filters, setFilters] = React.useState<FeedbackFilters>({
     critical: true,
     major: true,
     minor: true,
   });
 
-  const query = useQuery<Item[]>({
-    queryKey: ["feedbacks:list", { q, filters }] as const,
+  const query = useQuery<Item[], Error, Item[], FeedbacksQueryKey>({
+    queryKey: ["feedbacks:list", { q, filters }] as FeedbacksQueryKey,
     queryFn: async ({ queryKey }) => {
       const [, params] = queryKey;
       const url = new URL("/api/feedbacks-feed", window.location.origin);

@@ -34,12 +34,10 @@ try {
 const nextConfig: NextConfig = {
   // Strict mode activé par défaut (Next >=13); laissé implicite.
   // reactStrictMode: true,
-  experimental: {
-    // Seules options supportées utilisées ici — pas de clés inconnues.
-    turbopack: {
-      // Racine explicite de l'app cockpit dans un monorepo
-      root: __dirname,
-    },
+  // Configuration Turbopack désormais au niveau racine (Next >=15).
+  turbopack: {
+    // Racine explicite de l'app cockpit dans un monorepo
+    root: __dirname,
   },
 };
 

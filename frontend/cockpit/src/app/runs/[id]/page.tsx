@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import type { Status } from "@/components/ds/StatusBadge";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
 import { ClayLinkButton } from "@/components/ds/ClayLinkButton";
@@ -21,7 +22,7 @@ interface RunSummary {
 interface RunOut {
   id: string;
   title: string;
-  status: string;
+  status: Status;
   started_at?: string | null;
   ended_at?: string | null;
   summary?: RunSummary | null;

@@ -1,7 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react';
 import { KpiCard } from './KpiCard';
 
-const meta: Meta<typeof KpiCard> = {
+const meta = {
   title: 'Components/KpiCard',
   component: KpiCard,
   tags: ['autodocs'],
@@ -20,9 +19,7 @@ const meta: Meta<typeof KpiCard> = {
 
 export default meta;
 
-type Story = StoryObj<typeof KpiCard>;
-
-export const Exemple: Story = {
+export const Exemple = {
   args: {
     title: 'Requêtes',
     value: '42',
