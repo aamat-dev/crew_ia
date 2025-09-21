@@ -3,11 +3,11 @@ name: Cockpit CI
 on:
   push:
     paths:
-      - 'apps/cockpit/**'
+      - 'frontend/cockpit/**'
       - '.github/workflows/cockpit-ci.yml'
   pull_request:
     paths:
-      - 'apps/cockpit/**'
+      - 'frontend/cockpit/**'
       - '.github/workflows/cockpit-ci.yml'
 
 jobs:
@@ -18,14 +18,14 @@ jobs:
         node: [20, 22]
     defaults:
       run:
-        working-directory: apps/cockpit
+        working-directory: frontend/cockpit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: apps/cockpit/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - run: npm ci
 
   lint:
@@ -36,21 +36,21 @@ jobs:
         node: [20, 22]
     defaults:
       run:
-        working-directory: apps/cockpit
+        working-directory: frontend/cockpit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: apps/cockpit/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - run: npm ci
       - run: npm run lint
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: eslint-report-${{ matrix.node }}
-          path: apps/cockpit/reports/lint
+          path: frontend/cockpit/reports/lint
 
   unit:
     runs-on: ubuntu-latest
@@ -60,21 +60,21 @@ jobs:
         node: [20, 22]
     defaults:
       run:
-        working-directory: apps/cockpit
+        working-directory: frontend/cockpit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: apps/cockpit/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - run: npm ci
       - run: npm test
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: jest-report-${{ matrix.node }}
-          path: apps/cockpit/reports/jest
+          path: frontend/cockpit/reports/jest
 
   build:
     runs-on: ubuntu-latest
@@ -84,14 +84,14 @@ jobs:
         node: [20, 22]
     defaults:
       run:
-        working-directory: apps/cockpit
+        working-directory: frontend/cockpit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: apps/cockpit/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - run: npm ci
       - run: npm run build
 
@@ -103,14 +103,14 @@ jobs:
         node: [20]
     defaults:
       run:
-        working-directory: apps/cockpit
+        working-directory: frontend/cockpit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: apps/cockpit/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - run: npm ci
       - run: npm run build
       - name: Install Lighthouse
@@ -129,5 +129,5 @@ jobs:
         with:
           name: cockpit-lighthouse-report
           path: |
-            apps/cockpit/lighthouse-report.json
-            apps/cockpit/lh-summary.md
+            frontend/cockpit/lighthouse-report.json
+            frontend/cockpit/lh-summary.md

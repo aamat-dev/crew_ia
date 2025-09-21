@@ -71,6 +71,7 @@ async def list_events(
             select(func.count(Event.id)).select_from(Event).where(and_(*where))
         )
     ).scalar_one()
+    db_total = total
     stmt = apply_order(
         base, pagination.order_by, pagination.order_dir, ORDERABLE, "-timestamp"
     ).limit(pagination.limit).offset(pagination.offset)
@@ -109,6 +110,8 @@ async def list_events(
     except Exception:
         fs_request_id = None
     chosen_request_id = db_request_id or run_request_id or fs_request_id
+    synthetic_items: list[EventOut] = []
+
     if chosen_request_id:
         # Injecte le request_id manquant dans les événements NODE_COMPLETED
         for e in items:
@@ -118,8 +121,23 @@ async def list_events(
                 except Exception:
                     meta_e = {}
                 meta_e.setdefault("request_id", chosen_request_id)
+                usage_meta = meta_e.get("usage")
+                if isinstance(usage_meta, dict):
+                    usage_meta.setdefault("completion_tokens", 0)
                 e.message = json.dumps(meta_e)
                 e.request_id = chosen_request_id
+    # Normalise les métadonnées LLM pour garantir completion_tokens
+    for e in items:
+        if e.level != "NODE_COMPLETED" or not e.message:
+            continue
+        try:
+            meta_e = json.loads(e.message)
+        except Exception:
+            continue
+        usage_meta = meta_e.get("usage")
+        if isinstance(usage_meta, dict) and "completion_tokens" not in usage_meta:
+            usage_meta.setdefault("completion_tokens", 0)
+            e.message = json.dumps(meta_e)
     # Si l'événement de fin de run est manquant, le synthétiser à partir de l'état du run
     # uniquement si aucun filtre restrictif n'est actif (level/q/ts_from/ts_to/request_id)
     if run_row and pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]):
@@ -132,26 +150,24 @@ async def list_events(
         if want_level and not any(e.level == want_level for e in items):
             # ID déterministe pour stabilité entre routes
             synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
-            items.append(
+            synthetic_items.append(
                 EventOut(
                     id=synth_id,
                     run_id=run_id,
                     node_id=None,
                     level=want_level,
-                    message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else "{}"),
+                    message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else {}),
                     timestamp=(run_row.ended_at or dt.datetime.now(dt.timezone.utc)),
                     request_id=chosen_request_id,
                 )
             )
-            # tri appliqué plus bas selon order_by/order_dir
-            total = len(items)
     # Si aucun RUN_COMPLETED n'est présent mais qu'on a des NODE_COMPLETED,
     # on ajoute un RUN_COMPLETED synthétique pour refléter l'état courant (sans filtres).
-    if pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "RUN_COMPLETED" for e in items):
+    if pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "RUN_COMPLETED" for e in items + synthetic_items):
         last_node_completed = next((e for e in items if e.level == "NODE_COMPLETED"), None)
         if last_node_completed:
             synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
-            items.append(
+            synthetic_items.append(
                 EventOut(
                     id=synth_id,
                     run_id=run_id,
@@ -162,12 +178,10 @@ async def list_events(
                     request_id=chosen_request_id,
                 )
             )
-            total = len(items)
 
     # Fallback: si aucun NODE_COMPLETED en base, on reconstruit depuis les artifacts *.llm.json
     if pagination.offset == 0 and run_id and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "NODE_COMPLETED" for e in items):
         base = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir)) / str(run_id) / "nodes"
-        new_items = []
         if base.exists():
             for llm_path in base.glob("*/artifact_*.llm.json"):
                 try:
@@ -184,7 +198,7 @@ async def list_events(
                     node_uuid = UUID(node_key)
                 except Exception:
                     node_uuid = None
-                new_items.append(
+                synthetic_items.append(
                     EventOut(
                         id=uuid.uuid4(),
                         run_id=run_id,
@@ -195,16 +209,22 @@ async def list_events(
                         request_id=meta.get("request_id"),
                     )
                 )
-        if new_items:
-            items.extend(new_items)
-            total = len(items)
     # Applique un tri cohérent avec order_by/order_dir sur les éléments synthétiques ajoutés
     # Par défaut (None), l'API ordonne par -timestamp
     order_by = pagination.order_by
     order_dir = pagination.order_dir or ("desc" if (order_by is None) else None)
+    if synthetic_items:
+        items.extend(synthetic_items)
+        total = db_total + len(synthetic_items)
+    else:
+        total = db_total
+
     if (order_by is None) or (order_by in {"timestamp", "-timestamp"}):
         reverse = True if (order_by is None or order_by == "-timestamp" or order_dir == "desc") else False
         items.sort(key=lambda e: e.timestamp, reverse=reverse)
+
+    if pagination.limit and len(items) > pagination.limit:
+        items = items[: pagination.limit]
     links = set_pagination_headers(
         response, request, total, pagination.limit, pagination.offset
     )

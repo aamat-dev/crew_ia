@@ -1,7 +1,0 @@
-# Rapports et résultats générés par Playwright
-# Ces dossiers contiennent des fichiers temporaires qui ne doivent pas être lintés
-
-# Rapports HTML générés
-tests-e2e/playwright-report/
-# Résultats bruts des tests
-tests-e2e/test-results/

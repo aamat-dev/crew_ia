@@ -155,16 +155,15 @@ Workflow complet :
 
 ### Tests E2E UI (Playwright)
 
-1. Lancer le front en mode dev ou preview (dashboard/mini – **déprécié**) :
+1. Lancer le cockpit Next.js en mode dev ou preview :
    ```bash
-   (cd dashboard/mini && npm i && npm run dev)
-   # repérez l'URL, par ex. http://localhost:5173
+   (cd frontend/cockpit && npm install && npm run dev)
+   # repérez l'URL, par ex. http://localhost:3000
    ```
 2. Exécuter les tests :
    ```bash
-   PREVIEW_URL=http://localhost:5173 make ui-feedbacks-e2e
+   make ui-feedbacks-e2e
    ```
-   Le test est ignoré si `PREVIEW_URL` n'est pas défini.
 
 ## Scénario E2E (API + UI)
 
@@ -406,7 +405,6 @@ Exemple de sidecar valide :
 
 Un tableau de bord Next.js est disponible dans `frontend/cockpit`.
 
-> **Note :** le projet `dashboard/mini` est désormais **déprécié**.
 Pour le démarrer en développement :
 
 ```bash
@@ -423,4 +421,3 @@ Cela démarre un serveur local accessible sur http://localhost:3000.
 - `backend/migrations` — Alembic (`alembic.ini`, `env.py`, `versions/`).
 - `backend/tests` — tests API, unitaires, intégration, e2e.
 - `frontend/cockpit` — cockpit Next.js (UI principale).
-- `dashboard/mini` — mini-dashboard (Vite) — déprécié, gardé pour la transition.

@@ -50,6 +50,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           <Command.Input
             ref={inputRef}
             placeholder="Rechercher..."
+            role="textbox"
             className="flex-1 bg-transparent py-3 text-sm outline-none"
             suppressHydrationWarning
           />

@@ -1,9 +1,6 @@
 "use client";
 import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Pause, Play, RotateCw, X } from "lucide-react";
-import { useToast } from "@/components/ds/Toast";
-import { Button } from "@/components/ds/Button";
 import { TimelineItem } from "@/components/ui/TimelineItem";
 
 export type Run = {
@@ -16,25 +13,11 @@ export type Run = {
 
 interface RunsTimelineProps {
   runs: Run[];
-  onPause: (id: string) => void;
-  onResume: (id: string) => void;
-  onCancel: (id: string) => void;
-  onRetry: (id: string) => void;
+  onDetails?: (id: string) => void;
+  onRetry?: (id: string) => void;
 }
 
-type PendingAction =
-  | { id: string; action: "pause" | "resume" | "cancel" | "retry" }
-  | null;
-
-// labels gérés par StatusBadge par défaut
-
-export function RunsTimeline({
-  runs,
-  onPause,
-  onResume,
-  onCancel,
-  onRetry,
-}: RunsTimelineProps) {
+export function RunsTimeline({ runs, onDetails, onRetry }: RunsTimelineProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: runs.length,
@@ -42,122 +25,49 @@ export function RunsTimeline({
     estimateSize: () => 96,
     overscan: 5,
   });
-  const toast = useToast();
-  const [confirm, setConfirm] = React.useState<PendingAction>(null);
-
-  const handleConfirm = () => {
-    if (!confirm) return;
-    const { id, action } = confirm;
-    if (action === "pause") onPause(id);
-    if (action === "resume") onResume(id);
-    if (action === "cancel") onCancel(id);
-    if (action === "retry") onRetry(id);
-    toast(`Action ${action} déclenchée pour ${id}`);
-    setConfirm(null);
-  };
-
-  React.useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setConfirm(null);
-    };
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, []);
 
   const formatDate = (iso?: string) =>
     iso ? new Date(iso).toLocaleString() : "N/A";
 
   return (
-    <>
-      <div ref={parentRef} className="h-[60vh] overflow-auto md:h-96" role="list" aria-label="Historique des exécutions">
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            position: "relative",
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const run = runs[virtualRow.index];
-            const actions: Array<{
-              action: NonNullable<PendingAction>["action"];
-              icon: React.ComponentType<{ className?: string }>;
-              label: string;
-            }> = [];
-            if (run.status === "running") {
-              actions.push({ action: "pause", icon: Pause, label: "Mettre en pause" });
-              actions.push({ action: "cancel", icon: X, label: "Annuler" });
-            } else if (run.status === "queued") {
-              actions.push({ action: "cancel", icon: X, label: "Annuler" });
-            } else if (run.status === "paused") {
-              actions.push({ action: "resume", icon: Play, label: "Reprendre" });
-              actions.push({ action: "cancel", icon: X, label: "Annuler" });
-            } else if (run.status === "failed" || run.status === "completed") {
-              actions.push({ action: "retry", icon: RotateCw, label: "Relancer" });
-            }
+    <div ref={parentRef} className="h-[60vh] overflow-auto md:h-96" role="list" aria-label="Historique des exécutions">
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const run = runs[virtualRow.index];
+          const canRetry = (run.status === "failed" || run.status === "completed") && Boolean(onRetry);
 
-            return (
-              <div
-                key={run.id}
-                data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-                className="my-2"
-                role="listitem"
-                tabIndex={0}
-              >
-                <TimelineItem
-                  title={run.title}
-                  date={`Début: ${formatDate(run.startedAt)} – Fin: ${formatDate(run.endedAt)}`}
-                  status={run.status}
-                  onRetry={actions.some((action) => action.action === "retry") ? () => setConfirm({ id: run.id, action: "retry" }) : undefined}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {confirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-title"
-          aria-describedby="confirm-desc"
-          className="fixed inset-0 flex items-center justify-center bg-black/50"
-        >
-          <div className="w-full max-w-sm rounded bg-background p-4 shadow">
-            <h2 id="confirm-title" className="text-lg font-semibold">
-              Confirmer l&apos;action
-            </h2>
-            <p className="mt-2" id="confirm-desc">
-              Voulez-vous
-              {" "}
-              {confirm.action === "pause"
-                ? "mettre en pause"
-                : confirm.action === "resume"
-                ? "reprendre"
-                : confirm.action === "cancel"
-                ? "annuler"
-                : "relancer"}
-              {" "}l&apos;exécution {confirm.id} ?
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button onClick={() => setConfirm(null)}>Annuler</Button>
-              <Button
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleConfirm}
-              >
-                Confirmer
-              </Button>
+          return (
+            <div
+              key={run.id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+              className="my-2"
+              role="listitem"
+              tabIndex={0}
+            >
+              <TimelineItem
+                title={run.title}
+                date={`Début: ${formatDate(run.startedAt)} – Fin: ${formatDate(run.endedAt)}`}
+                status={run.status}
+                onRetry={canRetry ? () => onRetry?.(run.id) : undefined}
+                onDetails={onDetails ? () => onDetails(run.id) : undefined}
+              />
             </div>
-          </div>
-        </div>
-      )}
-    </>
+          );
+        })}
+      </div>
+    </div>
   );
 }

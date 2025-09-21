@@ -1,26 +1,35 @@
 "use client";
 
 import * as React from "react";
-import { AgentRole, AgentStatus } from "@/features/agents/types";
 import { baseFocusRing } from "@/ui/theme";
 import { cn } from "@/lib/utils";
 
+export type AgentStatusFilter = "Tous" | "Actif" | "Inactif";
+
 export interface AgentFiltersProps {
-  role: AgentRole | "Tous";
-  onRoleChange: (role: AgentRole | "Tous") => void;
-  status: AgentStatus | "Tous";
-  onStatusChange: (status: AgentStatus | "Tous") => void;
+  roles: string[];
+  role: string | "Tous";
+  onRoleChange: (role: string | "Tous") => void;
+  status: AgentStatusFilter;
+  onStatusChange: (status: AgentStatusFilter) => void;
 }
 
-const ROLES: Array<AgentRole | "Tous"> = ["Tous", "Superviseur", "Manager", "Exécutant"];
-const STATUSES: Array<AgentStatus | "Tous"> = ["Tous", "Actif", "Inactif"];
+const STATUS_OPTIONS: AgentStatusFilter[] = ["Tous", "Actif", "Inactif"];
 
-export function AgentFilters({ role, onRoleChange, status, onStatusChange }: AgentFiltersProps) {
+function formatLabel(value: string): string {
+  const cleaned = value.replace(/[_-]+/g, " ").trim();
+  if (!cleaned) return "(non défini)";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+export function AgentFilters({ roles, role, onRoleChange, status, onStatusChange }: AgentFiltersProps) {
+  const roleOptions = React.useMemo<(string | "Tous")[]>(() => ["Tous", ...roles], [roles]);
+
   return (
     <div className="surface shadow-card p-4 flex flex-wrap items-center gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs uppercase tracking-wide text-secondary">Rôle</span>
-        {ROLES.map((item) => (
+        {roleOptions.map((item) => (
           <button
             key={item}
             type="button"
@@ -31,13 +40,13 @@ export function AgentFilters({ role, onRoleChange, status, onStatusChange }: Age
               role === item ? "bg-[var(--accent-indigo-500)] text-white shadow-card" : "border border-slate-700 text-secondary"
             )}
           >
-            {item}
+            {item === "Tous" ? "Tous" : formatLabel(item)}
           </button>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs uppercase tracking-wide text-secondary">Statut</span>
-        {STATUSES.map((item) => (
+        {STATUS_OPTIONS.map((item) => (
           <button
             key={item}
             type="button"

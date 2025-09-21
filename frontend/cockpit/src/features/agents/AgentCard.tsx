@@ -1,15 +1,46 @@
-import { Agent } from "@/features/agents/types";
+import type { Agent } from "@/lib/api";
 import { StatusBadge } from "@/ui/StatusBadge";
-import { accentGradient, baseFocusRing } from "@/ui/theme";
+import { accentGradient } from "@/ui/theme";
 import { cn } from "@/lib/utils";
 
 export interface AgentCardProps {
   agent: Agent;
 }
 
+function toAccent(role: string): "indigo" | "cyan" | "emerald" {
+  const normalized = role.toLowerCase();
+  if (normalized.includes("manager")) return "cyan";
+  if (normalized.includes("exec")) return "emerald";
+  if (normalized.includes("executor")) return "emerald";
+  return "indigo";
+}
+
+function formatValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "N/A";
+  if (typeof value === "number") return value.toString();
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : "N/A";
+}
+
+function formatLabel(value: string): string {
+  const cleaned = value.replace(/[_-]+/g, " ").trim();
+  if (!cleaned) return "(non défini)";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return "N/A";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
 export function AgentCard({ agent }: AgentCardProps) {
-  const status = agent.status === "Actif" ? "completed" : "failed";
-  const accent = agent.role === "Superviseur" ? "indigo" : agent.role === "Manager" ? "cyan" : "emerald";
+  const status = agent.is_active ? "completed" : "failed";
+  const accent = toAccent(agent.role || "");
+  const initials = agent.name ? agent.name.charAt(0).toUpperCase() : "?";
 
   return (
     <article className="surface shadow-card p-4 space-y-4">
@@ -18,45 +49,25 @@ export function AgentCard({ agent }: AgentCardProps) {
           <span
             aria-hidden
             className={cn(
-              "grid h-12 w-12 place-content-center rounded-2xl text-2xl",
+              "grid h-12 w-12 place-content-center rounded-2xl text-xl font-semibold text-white",
               "bg-gradient-to-br",
               accentGradient(accent)
             )}
           >
-            {agent.emoji}
+            {initials}
           </span>
           <div>
             <h3 className="text-lg font-semibold text-[color:var(--text)]">{agent.name}</h3>
-            <p className="text-sm text-secondary">{agent.role}</p>
+            <p className="text-sm text-secondary">{formatLabel(agent.role)}</p>
           </div>
         </div>
         <StatusBadge status={status} />
       </div>
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <Metric label="Taux succès" value={`${agent.metrics.successRate}%`} />
-        <Metric label="Latence moyenne" value={`${agent.metrics.averageLatency}s`} />
-        <Metric label="Runs 7j" value={agent.metrics.runs.toString()} />
-        <Metric label="Charge" value={`${agent.metrics.load}%`} />
-      </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          className={cn(
-            "rounded-full border border-slate-700 px-3 py-1 text-xs font-medium uppercase tracking-wide text-secondary",
-            baseFocusRing
-          )}
-        >
-          Profil
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "rounded-full bg-[var(--accent-cyan-500)] px-3 py-1 text-xs font-medium uppercase tracking-wide text-white shadow-card",
-            baseFocusRing
-          )}
-        >
-          Assigner
-        </button>
+        <Metric label="Domaine" value={formatLabel(agent.domain || "")} />
+        <Metric label="Modèle par défaut" value={formatValue(agent.default_model)} />
+        <Metric label="Version" value={formatValue(agent.version)} />
+        <Metric label="Mis à jour" value={formatDate(agent.updated_at)} />
       </div>
     </article>
   );

@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: dashboard/mini/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
 
       - name: Install Postgres client (pg_isready)
         run: |
@@ -85,20 +85,20 @@ jobs:
         run: pytest --cov=. --cov-report=xml --cov-report=html --cov-fail-under=85
 
       - name: Install frontend dependencies
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm ci
 
       - name: Lint frontend
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm run lint
 
       - name: Typecheck frontend
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm run typecheck
 
       - name: Test frontend
-        working-directory: dashboard/mini
-        run: npm test -- --coverage
+        working-directory: frontend/cockpit
+        run: npm run coverage
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
@@ -107,7 +107,7 @@ jobs:
           path: |
             coverage.xml
             htmlcov
-            dashboard/mini/coverage
+            frontend/cockpit/coverage
 
   test-fil8:
     runs-on: ubuntu-latest
@@ -251,12 +251,12 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: dashboard/mini/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - name: Install dependencies
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm ci
       - name: Build
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm run build
       - name: Deploy to Vercel
         id: deploy
@@ -265,7 +265,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: dashboard/mini
+          working-directory: frontend/cockpit
           vercel-args: '--prebuilt --prod'
       - name: Afficher l’URL publique
         run: |
@@ -284,12 +284,12 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: dashboard/mini/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - name: Install dependencies
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm ci
       - name: Build
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm run build
       - name: Deploy to Vercel
         id: deploy
@@ -298,7 +298,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: dashboard/mini
+          working-directory: frontend/cockpit
           vercel-args: '--prebuilt'
       - name: Afficher l’URL publique
         run: |
@@ -368,17 +368,17 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: dashboard/mini/package-lock.json
+          cache-dependency-path: frontend/cockpit/package-lock.json
       - name: Install dependencies
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npm ci
       - name: Cache Playwright
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('dashboard/mini/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/cockpit/package-lock.json') }}
       - name: Install Playwright
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         run: npx playwright install --with-deps
       - name: Echo PREVIEW_URL
         run: |
@@ -388,16 +388,16 @@ jobs:
             echo "Using PREVIEW_URL secret"
           fi
       - name: Run E2E tests (preview)
-        working-directory: dashboard/mini
+        working-directory: frontend/cockpit
         env:
-          PREVIEW_URL: ${{ needs.vercel-deploy.outputs.preview-url || secrets.PREVIEW_URL }}
-        run: npm run e2e:ci
+          PLAYWRIGHT_BASE_URL: ${{ needs.vercel-deploy.outputs.preview-url || secrets.PREVIEW_URL }}
+        run: npx playwright test --reporter=line --reporter=html
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: dashboard/mini/playwright-report
+          path: frontend/cockpit/playwright-report
       - name: Publish job summary
         if: always()
         env:

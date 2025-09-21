@@ -12,8 +12,8 @@
 - `backend/api/fastapi_app`: FastAPI app (routes, services, models, schemas). Examples: `routes/agents.py`, `services/recruit_service.py`.
 - `backend/orchestrator`: Orchestrator runtime, hooks, and client.
 - `backend/core`: Agent registry, recruiter, shared config.
-- `backend/tests`: Pytest suites (API, integration). 
-- `dashboard/mini`, `frontend/cockpit`: UI packages (Vite/Next.js).
+- `backend/tests`: Pytest suites (API, integration).
+- `frontend/cockpit`: UI (Next.js cockpit).
 - `scripts`, `seeds`, `examples`, `.runs`: Utilities, seed data, sample tasks, run artifacts.
 
 ## Build, Test, and Development Commands

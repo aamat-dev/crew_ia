@@ -8,6 +8,7 @@ export function ThemeToggle() {
   return (
     <button
       aria-label="Changer de thème"
+      data-testid="theme-toggle"
       onClick={toggle}
       className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >

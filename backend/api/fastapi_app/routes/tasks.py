@@ -105,6 +105,7 @@ async def schedule_run(
     import os as _os
     if _os.getenv("FAST_TEST_RUN") == "1":
         await _runner()
+        await anyio.sleep(0)
         return run_id
     tg = request.app.state.task_group
     tg.start_soon(_runner)

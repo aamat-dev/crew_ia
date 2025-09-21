@@ -313,6 +313,25 @@ async def seed_sample(db_session: AsyncSession):
         await db_session.commit()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def reset_run_tables():
+    engine = TestingSessionLocal().bind
+    if engine is None:
+        yield
+        return
+    async with engine.begin() as conn:
+        await conn.execute(delete(Event))
+        await conn.execute(delete(Artifact))
+        await conn.execute(delete(Node))
+        await conn.execute(delete(Run))
+    yield
+    async with engine.begin() as conn:
+        await conn.execute(delete(Event))
+        await conn.execute(delete(Artifact))
+        await conn.execute(delete(Node))
+        await conn.execute(delete(Run))
+
+
 # Helper de polling simple/robuste pour les runs
 
 
@@ -347,6 +366,8 @@ async def wait_status(
                     lvl = items[0]["level"] if items else None
                     if lvl in ("RUN_COMPLETED", "RUN_FAILED"):
                         return True
+                    if lvl == "NODE_COMPLETED":
+                        deadline = max(deadline, time.monotonic() + 5.0)
             except Exception:
                 pass
         else:

@@ -1,18 +1,37 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FeedbackPanel, FeedbackItem } from "@/components/FeedbackPanel";
+import { useQuery } from "@tanstack/react-query";
+import { FeedbackPanel, type FeedbackItem, type Criticity } from "@/components/FeedbackPanel";
 import { ClayCard } from "@/components/ds/ClayCard";
 import { ClayButton } from "@/components/ds/ClayButton";
+import { fetchFeedbacks } from "@/lib/api";
 
-type Item = FeedbackItem;
+function classify(score?: number | null): Criticity {
+  if (typeof score !== "number") return "major";
+  if (score <= 40) return "critical";
+  if (score <= 70) return "major";
+  return "minor";
+}
+
+function toFeedbackItem(entry: Awaited<ReturnType<typeof fetchFeedbacks>>["items"][number]): FeedbackItem {
+  return {
+    id: entry.id,
+    criticity: classify(entry.score),
+    createdAt: entry.created_at ?? undefined,
+    runId: entry.run_id,
+    nodeId: entry.node_id ?? undefined,
+    score: entry.score ?? undefined,
+    comment: entry.comment ?? undefined,
+    source: entry.source ?? undefined,
+  };
+}
+
 type FeedbackFilters = { critical: boolean; major: boolean; minor: boolean };
 type FeedbacksQueryKey = ["feedbacks:list", { q: string; filters: FeedbackFilters }];
 
 export default function FeedbacksPage() {
-  const qc = useQueryClient();
-  const [selected, setSelected] = React.useState<Item | null>(null);
+  const [selected, setSelected] = React.useState<FeedbackItem | null>(null);
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
   const [filters, setFilters] = React.useState<FeedbackFilters>({
@@ -21,32 +40,22 @@ export default function FeedbacksPage() {
     minor: true,
   });
 
-  const query = useQuery<Item[], Error, Item[], FeedbacksQueryKey>({
+  const query = useQuery<FeedbackItem[], Error, FeedbackItem[], FeedbacksQueryKey>({
     queryKey: ["feedbacks:list", { q, filters }] as FeedbacksQueryKey,
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       const [, params] = queryKey;
-      const url = new URL("/api/feedbacks-feed", window.location.origin);
-      const active = (Object.keys(params.filters) as Array<keyof typeof filters>)
-        .filter((key) => params.filters[key])
-        .map((key) => key);
-      if (active.length) url.searchParams.set("criticity", active.join(","));
-      if (params.q && params.q.trim()) url.searchParams.set("q", params.q.trim());
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(response.statusText);
-      const payload: { items: Item[] } = await response.json();
-      return payload.items;
-    },
-  });
-
-  const resolve = useMutation({
-    mutationFn: async (id: string) => {
-      const r = await fetch(`/api/feedbacks/${id}/resolve`, { method: "POST" });
-      if (!r.ok) throw new Error(r.statusText);
-      return (await r.json()) as { ok: true };
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["feedbacks:list"] });
-      setOpen(false);
+      const data = await fetchFeedbacks({ limit: 200, orderBy: "created_at", orderDir: "desc" }, { signal });
+      const active = (Object.keys(params.filters) as Array<keyof FeedbackFilters>)
+        .filter((key) => params.filters[key]);
+      const lowerQ = params.q.trim().toLowerCase();
+      return data.items
+        .map(toFeedbackItem)
+        .filter((item) => {
+          if (active.length && !active.includes(item.criticity)) return false;
+          if (!lowerQ) return true;
+          const haystack = `${item.id} ${item.comment ?? ""} ${item.runId ?? ""}`.toLowerCase();
+          return haystack.includes(lowerQ);
+        });
     },
   });
 
@@ -64,9 +73,9 @@ export default function FeedbacksPage() {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === "c") {
         event.preventDefault();
         const data = query.data || [];
-        const critical = data.filter((i) => i.criticity === "critical");
-        if (critical.length > 0) {
-          setSelected(critical[0]);
+        const critical = data.find((i) => i.criticity === "critical");
+        if (critical) {
+          setSelected(critical);
           setOpen(true);
         }
       }
@@ -80,11 +89,13 @@ export default function FeedbacksPage() {
       <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Feedbacks</h1>
 
       <div className="flex flex-wrap items-center gap-2" role="region" aria-label="Filtres des feedbacks">
-        <label htmlFor="feedback-q" className="sr-only">Rechercher un feedback</label>
+        <label htmlFor="feedback-q" className="sr-only">
+          Rechercher un feedback
+        </label>
         <input
           id="feedback-q"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          placeholder="Rechercher (id, titre, résumé)"
+          placeholder="Rechercher (id, commentaire, run)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -99,37 +110,43 @@ export default function FeedbacksPage() {
             {c}
           </button>
         ))}
-        <ClayButton type="button" size="sm" onClick={() => setFilters({ critical: true, major: true, minor: true })}>Tous</ClayButton>
+        <ClayButton type="button" size="sm" onClick={() => setFilters({ critical: true, major: true, minor: true })}>
+          Tous
+        </ClayButton>
       </div>
 
       {query.isLoading ? (
         <div className="h-24 animate-pulse rounded bg-muted" role="status" aria-label="Chargement des feedbacks" />
       ) : query.isError ? (
-        <ClayCard role="alert" className="p-3">Erreur de chargement</ClayCard>
+        <ClayCard role="alert" className="p-3">
+          Erreur de chargement
+        </ClayCard>
       ) : query.data && query.data.length === 0 ? (
-        <ClayCard role="status" aria-live="polite" className="p-3">Aucun feedback</ClayCard>
+        <ClayCard role="status" aria-live="polite" className="p-3">
+          Aucun feedback
+        </ClayCard>
       ) : (
         <ul role="list" className="space-y-2">
           {query.data?.map((f) => (
-            <ClayCard as="li" key={f.id} className="p-3 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{f.title}</p>
-                <p className="text-sm text-muted-foreground">{new Date(f.createdAt).toLocaleString()}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {f.resolved && (
-                  <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs">Résolu</span>
-                )}
-                <ClayButton size="sm"
-                  onClick={() => {
-                    setSelected(f);
-                    setOpen(true);
-                  }}
-                  aria-expanded={open}
-                  aria-controls="feedback-panel"
-                >
-                  Ouvrir
-                </ClayButton>
+            <ClayCard as="li" key={f.id} className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{f.comment || f.id}</p>
+                  <p className="text-sm text-muted-foreground">{f.createdAt ? new Date(f.createdAt).toLocaleString() : "Date inconnue"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClayButton
+                    size="sm"
+                    onClick={() => {
+                      setSelected(f);
+                      setOpen(true);
+                    }}
+                    aria-expanded={open}
+                    aria-controls="feedback-panel"
+                  >
+                    Ouvrir
+                  </ClayButton>
+                </div>
               </div>
             </ClayCard>
           ))}
@@ -137,13 +154,7 @@ export default function FeedbacksPage() {
       )}
 
       <div id="feedback-panel">
-        <FeedbackPanel
-          open={open}
-          onOpenChange={setOpen}
-          item={selected}
-          resolving={resolve.isPending}
-          onResolve={(id) => resolve.mutate(id)}
-        />
+        <FeedbackPanel open={open} onOpenChange={setOpen} item={selected} />
       </div>
     </main>
   );

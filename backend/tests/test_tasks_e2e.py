@@ -5,8 +5,28 @@ from sqlalchemy import delete, select
 from api.database.models import Run, Node, Artifact, Event
 from .conftest import wait_status
 
+
 @pytest.mark.asyncio
-async def test_events_include_llm_metadata(client, db_session):
+async def test_events_include_llm_metadata(client, db_session, monkeypatch, tmp_path):
+    async def fake_run_graph(dag, storage, run_id, override_completed, dry_run, on_node_start, on_node_end, **kwargs):
+        node_key = "n1"
+        node = {"title": "T1"}
+        await on_node_start(node, node_key)
+        node_dir = tmp_path / run_id / "nodes" / node_key
+        node_dir.mkdir(parents=True, exist_ok=True)
+        meta = {
+            "provider": "openai",
+            "model": "gpt4",
+            "latency_ms": 120,
+            "usage": {"prompt_tokens": 10, "completion_tokens": 0},
+        }
+        (node_dir / f"artifact_{node_key}.llm.json").write_text(json.dumps(meta))
+        await on_node_end(node, node_key, "completed")
+        return {"status": "success"}
+
+    monkeypatch.setenv("ARTIFACTS_DIR", str(tmp_path))
+    monkeypatch.setattr("orchestrator.api_runner.run_graph", fake_run_graph)
+
     payload = {
         "title": "LLMMeta",
         "task": {"title": "LLMMeta", "plan": [{"id": "n1", "title": "T1"}]},

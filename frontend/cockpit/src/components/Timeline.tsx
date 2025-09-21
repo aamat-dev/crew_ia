@@ -1,17 +1,16 @@
 "use client";
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ds/Toast";
-import { RunsTimeline, Run } from "@/components/timeline/RunsTimeline";
+import { useQuery } from "@tanstack/react-query";
+import { RunsTimeline, type Run as TimelineRun } from "@/components/timeline/RunsTimeline";
+import { RunDrawer, type RunDrawerFallback } from "@/features/runs/RunDrawer";
+import { fetchRuns, normalizeRunStatus } from "@/lib/api";
+import type { Status } from "@/ui/theme";
 
-type Status = Run["status"];
+const ALL_STATUSES: Status[] = ["queued", "running", "completed", "failed", "paused"];
 
-const ALL: Status[] = ["queued", "running", "completed", "failed", "paused"];
-type TimelineQueryKey = ["runs:timeline", { q: string; status: Status[] }];
+type TimelineQueryKey = ["runs:timeline", { q: string; statuses: Status[] }];
 
 export function Timeline() {
-  const qc = useQueryClient();
-  const toast = useToast();
   const [q, setQ] = React.useState("");
   const [filters, setFilters] = React.useState<Record<Status, boolean>>({
     queued: true,
@@ -20,75 +19,78 @@ export function Timeline() {
     failed: true,
     paused: true,
   });
+  const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
+  const [selectedRunMeta, setSelectedRunMeta] = React.useState<RunDrawerFallback | null>(null);
 
-  const activeStatuses = ALL.filter((s) => filters[s]);
+  const activeStatuses = React.useMemo(() => ALL_STATUSES.filter((status) => filters[status]), [filters]);
 
-  const query = useQuery<Run[], Error, Run[], TimelineQueryKey>({
-    queryKey: ["runs:timeline", { q, status: activeStatuses }] as TimelineQueryKey,
-    queryFn: async ({ queryKey }) => {
-      const [, params] = queryKey;
-      const statusParam = params.status.join(",");
-      const url = new URL(`/api/runs-feed`, window.location.origin);
-      if (q.trim()) url.searchParams.set("q", q.trim());
-      if (statusParam) url.searchParams.set("status", statusParam);
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(response.statusText);
-      const payload: { items: Run[] } = await response.json();
-      return payload.items;
-    },
+  const runsQuery = useQuery({
+    queryKey: ["runs:timeline", { q, statuses: activeStatuses }] as TimelineQueryKey,
+    queryFn: ({ signal }) => fetchRuns({ limit: 200, orderBy: "started_at", orderDir: "desc" }, { signal }),
     refetchInterval: 10_000,
+    staleTime: 10_000,
   });
 
-  const pause = useMutation({
-    mutationFn: async (id: string) => {
-      const r = await fetch(`/api/runs/${id}/pause`, { method: "POST" });
-      if (!r.ok) throw new Error(r.statusText);
-      return (await r.json()) as { ok: true };
-    },
-    onSuccess: () => {
-      toast("Run mis en pause");
-      qc.invalidateQueries({ queryKey: ["runs:timeline"] });
-    },
-    onError: (e) => toast((e as Error).message || "Échec mise en pause", "error"),
-  });
+  const runs = React.useMemo<TimelineRun[]>(() => {
+    const queryString = q.trim().toLowerCase();
+    const items = runsQuery.data?.items ?? [];
+    return items
+      .map((run) => ({
+        id: run.id,
+        title: run.title || run.id,
+        status: normalizeRunStatus(run.status),
+        startedAt: run.started_at ?? undefined,
+        endedAt: run.ended_at ?? undefined,
+      }))
+      .filter((run) => {
+        if (!activeStatuses.includes(run.status)) return false;
+        if (queryString) {
+          const haystack = `${run.title} ${run.id}`.toLowerCase();
+          if (!haystack.includes(queryString)) return false;
+        }
+        return true;
+      });
+  }, [runsQuery.data, activeStatuses, q]);
 
-  const resume = useMutation({
-    mutationFn: async (id: string) => {
-      const r = await fetch(`/api/runs/${id}/resume`, { method: "POST" });
-      if (!r.ok) throw new Error(r.statusText);
-      return (await r.json()) as { ok: true };
-    },
-    onSuccess: () => {
-      toast("Run repris");
-      qc.invalidateQueries({ queryKey: ["runs:timeline"] });
-    },
-    onError: (e) => toast((e as Error).message || "Échec reprise", "error"),
-  });
+  const toggle = (status: Status) => {
+    setFilters((current) => ({ ...current, [status]: !current[status] }));
+  };
 
-  const toggle = (s: Status) => setFilters((f) => ({ ...f, [s]: !f[s] }));
+  const handleDetails = (id: string) => {
+    const run = runs.find((item) => item.id === id);
+    if (!run) return;
+    setSelectedRunId(id);
+    setSelectedRunMeta({
+      id,
+      title: run.title,
+      status: run.status,
+      startedAt: run.startedAt ?? null,
+      endedAt: run.endedAt ?? null,
+    });
+  };
 
   return (
     <section aria-label="Historique des runs" className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Recherche */}
-        <label className="sr-only" htmlFor="timeline-q">Rechercher un run</label>
+        <label className="sr-only" htmlFor="timeline-q">
+          Rechercher un run
+        </label>
         <input
           id="timeline-q"
           className="px-3 py-2 rounded-2xl border border-slate-700 bg-[#2A2D36] shadow-[inset_0_2px_6px_rgba(255,255,255,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] text-slate-100 placeholder:text-slate-400"
           placeholder="Rechercher (id, titre)"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(event) => setQ(event.target.value)}
         />
-        {/* Filtres par état */}
-        {ALL.map((s) => (
+        {ALL_STATUSES.map((status) => (
           <button
-            key={s}
+            key={status}
             type="button"
-            onClick={() => toggle(s)}
-            aria-pressed={filters[s]}
-            className={`px-2 py-1 rounded-2xl border ${filters[s] ? "bg-indigo-600/20 text-slate-100 border-indigo-600/40" : "bg-[#2A2D36] border-slate-700 text-slate-300"}`}
+            onClick={() => toggle(status)}
+            aria-pressed={filters[status]}
+            className={`px-2 py-1 rounded-2xl border ${filters[status] ? "bg-indigo-600/20 text-slate-100 border-indigo-600/40" : "bg-[#2A2D36] border-slate-700 text-slate-300"}`}
           >
-            {s}
+            {status}
           </button>
         ))}
         <button
@@ -100,21 +102,29 @@ export function Timeline() {
         </button>
       </div>
 
-      {query.isLoading ? (
+      {runsQuery.isLoading ? (
         <div className="h-48 animate-pulse rounded bg-muted" role="status" aria-label="Chargement de la timeline" />
-      ) : query.isError ? (
-        <div role="alert" className="clay-card p-3">Erreur de chargement de la timeline</div>
-      ) : query.data && query.data.length === 0 ? (
-        <div role="status" aria-live="polite" className="clay-card p-3">Aucun run</div>
+      ) : runsQuery.isError ? (
+        <div role="alert" className="clay-card p-3">
+          Erreur de chargement de la timeline
+        </div>
+      ) : runs.length === 0 ? (
+        <div role="status" aria-live="polite" className="clay-card p-3">
+          Aucun run
+        </div>
       ) : (
-        <RunsTimeline
-          runs={query.data || []}
-          onPause={(id) => pause.mutate(id)}
-          onResume={(id) => resume.mutate(id)}
-          onCancel={() => {}}
-          onRetry={() => {}}
-        />
+        <RunsTimeline runs={runs} onRetry={undefined} onDetails={handleDetails} />
       )}
+
+      <RunDrawer
+        runId={selectedRunId}
+        fallback={selectedRunMeta}
+        open={Boolean(selectedRunId)}
+        onClose={() => {
+          setSelectedRunId(null);
+          setSelectedRunMeta(null);
+        }}
+      />
     </section>
   );
 }

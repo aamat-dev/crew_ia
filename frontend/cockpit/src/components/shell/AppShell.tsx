@@ -14,6 +14,8 @@ import {
 import { SidebarItem } from "@/ui/SidebarItem";
 import { baseFocusRing } from "@/ui/theme";
 import { cn } from "@/lib/utils";
+import { Header } from "./Header";
+import { ShortcutsCheatsheet } from "@/components/shortcuts/ShortcutsCheatsheet";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -31,6 +33,34 @@ const NAV_ITEMS = [
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
+  const [cheatsheetOpen, setCheatsheetOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if ((event.metaKey || event.ctrlKey) && key === "k") {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+      if (!event.metaKey && !event.ctrlKey) {
+        const isQuestionMark = key === "?" || (event.shiftKey && key === "/");
+        if (isQuestionMark) {
+          event.preventDefault();
+          setCheatsheetOpen(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
@@ -54,6 +84,51 @@ export function AppShell({ children }: AppShellProps) {
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">
+        <Header
+          searchRef={searchRef}
+          onCheatsheetOpen={() => setCheatsheetOpen(true)}
+          commandPaletteOpen={commandPaletteOpen}
+          onCommandPaletteOpenChange={setCommandPaletteOpen}
+          onMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+        />
+        <ShortcutsCheatsheet open={cheatsheetOpen} onOpenChange={setCheatsheetOpen} />
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/60"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <div
+              className="absolute left-4 right-4 top-20 rounded-2xl border border-slate-700 bg-[#1C1E26] p-4 shadow-xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <nav className="flex flex-col gap-2" aria-label="Navigation mobile étendue">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname === item.href;
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        router.push(item.href);
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border border-slate-700 px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-indigo-600/15",
+                        active && "border-indigo-500 bg-indigo-600/10"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        )}
         <a
           href="#main"
           className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded focus-visible:bg-[var(--surface)] focus-visible:px-3 focus-visible:py-2"

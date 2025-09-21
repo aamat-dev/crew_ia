@@ -114,6 +114,7 @@ async def run_task(
     final_status: RunStatus | None = None
     ended: dt.datetime | None = None
 
+
     dag = TaskGraph.from_plan(task_spec)
 
     node_ids: dict[str, UUID] = {}
@@ -126,6 +127,17 @@ async def run_task(
 
     async def on_node_start(node, node_key: str):
         now = dt.datetime.now(dt.timezone.utc)
+        try:
+            await storage.save_run(
+                run=Run(
+                    id=UUID(run_id),
+                    title=title,
+                    status=RunStatus.running,
+                    started_at=started,
+                )
+            )
+        except Exception:
+            pass
         node_db = await storage.save_node(
             node=Node(
                 id=uuid.uuid4(),
@@ -183,7 +195,7 @@ async def run_task(
             meta = {}
 
         if not meta:
-            # micro‑retry: laisse le temps à l’exécuteur d’écrire le sidecar
+            # micro-retry: laisse le temps à l’exécuteur d’écrire le sidecar
             await anyio.sleep(0 if os.getenv("FAST_TEST_RUN") == "1" else 0.35)
             meta = _read_llm_sidecar_fs(run_id, node_key) or {}
         duration_ms = int(
@@ -192,6 +204,11 @@ async def run_task(
         meta_payload: Dict[str, Any] = {"duration_ms": duration_ms}
         if meta:
             meta_payload.update(meta)
+        usage_meta = meta_payload.get("usage")
+        if isinstance(usage_meta, dict):
+            usage_meta.setdefault("completion_tokens", 0)
+        if request_id and meta_payload.get("request_id") is None:
+            meta_payload["request_id"] = request_id
         # Ne pas laisser des clés conflictuelles du sidecar écraser l'identité du run/node
         meta_flat = dict(meta_payload)
         for k in ("run_id", "node_id"):
@@ -342,15 +359,31 @@ async def run_task(
         )
         status_metric = "completed" if final_status == RunStatus.completed else "failed"
         if not final_event_emitted:
-            await storage.finalize_run_status(
-                run_id=run_id,
-                title=title,
-                status=final_status,
-                started_at=started,
-                ended_at=ended,
-                meta={"request_id": request_id},
-                request_id=request_id,
-            )
+            try:
+                await storage.finalize_run_status(
+                    run_id=run_id,
+                    title=title,
+                    status=final_status,
+                    started_at=started,
+                    ended_at=ended,
+                    meta={"request_id": request_id},
+                    request_id=request_id,
+                )
+                await storage.save_run(
+                    run=Run(
+                        id=UUID(run_id),
+                        title=title,
+                        status=final_status,
+                        started_at=started,
+                        ended_at=ended,
+                        meta={"request_id": request_id},
+                    )
+                )
+            except Exception as exc:
+                log.warning(
+                    "finalize_run_status main failed run_id=%s err=%r", run_id, exc
+                )
+                final_status = RunStatus.failed
             # Laisse tout de suite la main pour que le polling voie l’état final
             await anyio.sleep(0)
     except Exception as e:  # pragma: no cover
@@ -365,15 +398,32 @@ async def run_task(
         ended = dt.datetime.now(dt.timezone.utc)
         status_metric = "failed"
         final_status = RunStatus.failed
-        await storage.finalize_run_status(
-            run_id=run_id,
-            title=title,
-            status=RunStatus.failed,
-            started_at=started,
-            ended_at=ended,
-            meta={"request_id": request_id},
-            request_id=request_id,
-        )
+        try:
+            await storage.finalize_run_status(
+                run_id=run_id,
+                title=title,
+                status=RunStatus.failed,
+                started_at=started,
+                ended_at=ended,
+                meta={"request_id": request_id},
+                request_id=request_id,
+            )
+            await storage.save_run(
+                run=Run(
+                    id=UUID(run_id),
+                    title=title,
+                    status=RunStatus.failed,
+                    started_at=started,
+                    ended_at=ended,
+                    meta={"request_id": request_id},
+                )
+            )
+        except Exception as exc:
+            log.warning(
+                "finalize_run_status exception fallback failed run_id=%s err=%r",
+                run_id,
+                exc,
+            )
         await anyio.sleep(0)
     finally:
         # Filet de sécurité idempotent: finalise le run même en cas de course
@@ -388,8 +438,22 @@ async def run_task(
                     meta={"request_id": request_id},
                     request_id=request_id,
                 )
-            except Exception:
-                pass
+                await storage.save_run(
+                    run=Run(
+                        id=UUID(run_id),
+                        title=title,
+                        status=final_status,
+                        started_at=started,
+                        ended_at=ended,
+                        meta={"request_id": request_id},
+                    )
+                )
+            except Exception as exc:
+                log.warning(
+                    "finalize_run_status guard failed run_id=%s err=%r",
+                    run_id,
+                    exc,
+                )
             await anyio.sleep(0)
         if not metrics_recorded:
             if metrics_enabled():

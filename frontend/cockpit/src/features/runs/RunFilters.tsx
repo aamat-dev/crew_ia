@@ -19,7 +19,7 @@ export interface RunFiltersProps {
   onDateRangeChange: (range: DateRange) => void;
 }
 
-const ALL_STATUSES: Status[] = ["running", "completed", "queued", "failed"];
+const ALL_STATUSES: Status[] = ["running", "completed", "queued", "failed", "paused"];
 
 export function RunFilters({ selectedStatuses, onStatusesChange, query, onQueryChange, dateRange, onDateRangeChange }: RunFiltersProps) {
   const toggleStatus = (status: Status) => {

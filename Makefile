@@ -17,6 +17,7 @@ UVICORN := .venv/bin/uvicorn
 RUNS_ROOT           ?= .runs
 DEFAULT_TASK_JSON   ?= examples/task_rapport_80p.json
 RUN_ARGS            ?=
+TEST_ENV           := CONFIG_SKIP_DOTENV=1 FAST_TEST_RUN=1
 
 # Superviseur (CLI)
 SUP_TITLE           ?= "Rapport 80p"
@@ -61,6 +62,7 @@ help:
 	@echo "  cockpit             -> lance le cockpit Next.js en dev"
 	@echo "  cockpit-install     -> installe les deps du cockpit"
 	@echo "  seed                -> seed agents (modèles + templates)"
+	@echo "  seed-demo           -> seed runs/nodes de demonstration"
 	@echo "  ui-run-e2e          -> build + preview + tests e2e UI"
 .PHONY: init-env
 init-env:
@@ -114,23 +116,23 @@ ensure-venv:
 
 .PHONY: test
 test: ensure-venv
-	@$(ACTIVATE) && pytest -q
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q
 
 .PHONY: test-fast
 test-fast: ensure-venv
-	@CONFIG_SKIP_DOTENV=1 FAST_TEST_RUN=1 $(ACTIVATE) && pytest -q
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q
 
 .PHONY: test-extra
 test-extra:
-	PYTHONPATH=$(PYTHONPATH) pytest backend/tests/extra -v
+	@$(ACTIVATE) && PYTHONPATH=$(PYTHONPATH) $(TEST_ENV) pytest backend/tests/extra -v
 
 .PHONY: test-all
 test-all: ensure-venv
-	@$(ACTIVATE) && pytest -q && pytest backend/tests/extra -v
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q && $(TEST_ENV) pytest backend/tests/extra -v
 
 .PHONY: test-recovery
 test-recovery: ensure-venv
-	@$(ACTIVATE) && pytest -q -k "recovery or status_store"
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q -k "recovery or status_store"
 
 .PHONY: migrate-feedbacks
 migrate-feedbacks: ensure-venv
@@ -138,11 +140,11 @@ migrate-feedbacks: ensure-venv
 
 .PHONY: test-feedbacks
 test-feedbacks: ensure-venv
-	@$(ACTIVATE) && pytest api/tests/test_feedbacks_api.py -q
+	@$(ACTIVATE) && $(TEST_ENV) pytest api/tests/test_feedbacks_api.py -q
 
 .PHONY: ui-feedbacks-e2e
 ui-feedbacks-e2e:
-	@cd dashboard/mini && npx playwright test tests-e2e/feedback.spec.ts
+	@cd frontend/cockpit && npx playwright test
 
 # ---- Exécution ------------------------------------------------
 # Mode plan JSON explicite
@@ -241,29 +243,33 @@ seed-agents:
 seed: ensure-venv
 	@$(ACTIVATE) && $(PYTHON) scripts/seed_agents.py
 
+.PHONY: seed-demo
+seed-demo: ensure-venv
+	@$(ACTIVATE) && $(PYTHON) scripts/seed_demo_data.py $(if $(RESET),--reset,)
+
 .PHONY: test-fil8
 test-fil8:
-	PYTHONPATH=$(PYTHONPATH) pytest -q backend/tests -k "agents or recruit or matrix or rbac" --cov=api --cov-report=term --cov-report=xml --cov-report=html
+	@$(ACTIVATE) && PYTHONPATH=$(PYTHONPATH) $(TEST_ENV) pytest -q backend/tests -k "agents or recruit or matrix or rbac" --cov=api --cov-report=term --cov-report=xml --cov-report=html
 
 .PHONY: api-test
 api-test: ensure-venv
 	@if [ -d backend/tests/api/fastapi ]; then \
-	        PYTHONWARNINGS=ignore $(ACTIVATE) && pytest -q backend/tests/api/fastapi; \
+	        PYTHONWARNINGS=ignore $(ACTIVATE) && $(TEST_ENV) pytest -q backend/tests/api/fastapi; \
 	else \
 	        echo "⏭️  Pas de dossier backend/tests/api/fastapi — skip"; \
 	fi
 
 .PHONY: api-e2e
 api-e2e: ensure-venv
-	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q backend/tests/api/fastapi
 
 .PHONY: api-e2e-happy
 api-e2e-happy: ensure-venv
-	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi/test_tasks_happy_e2e.py
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q backend/tests/api/fastapi/test_tasks_happy_e2e.py
 
 .PHONY: api-e2e-meta
 api-e2e-meta: ensure-venv
-	@$(ACTIVATE) && pytest -q backend/tests/api/fastapi/test_tasks_meta_e2e.py
+	@$(ACTIVATE) && $(TEST_ENV) pytest -q backend/tests/api/fastapi/test_tasks_meta_e2e.py
 
 # ---- Scripts divers -----------------------------------------
 .PHONY: task-plan-start
@@ -284,43 +290,14 @@ validate-strict: ensure-venv
 validate-non-uuid: ensure-venv
 	@$(ACTIVATE) && python backend/tools/validate_sidecars.py --non-uuid
 
-# ---- Mini Dashboard ---------------------------
-.PHONY: dash-mini-install dash-mini-run dash-mini-build dash-mini-test dash-mini-e2e dash-mini-e2e-ci dash-mini-ci-local ui-run-e2e
-dash-mini-install:
-	cd dashboard/mini && npm ci
-
-
-dash-mini-run:
-	cd dashboard/mini && npm run dev -- --host 0.0.0.0 --port 5173
-
-
-dash-mini-build:
-	cd dashboard/mini && npm run build && echo "🌐 Preview sur http://localhost:5173" && npm run preview
-
-
-dash-mini-test:
-	cd dashboard/mini && npm test -- --run
-
-
-dash-mini-e2e:
-	cd dashboard/mini && PREVIEW_URL=http://localhost:5173 npm run e2e
-
-
-dash-mini-e2e-ci:
-	cd dashboard/mini && npm run e2e:ci
-
-
-dash-mini-ci-local:
-	        cd dashboard/mini && npm run lint && npm run typecheck && npm test -- --run && npm run build
-
-
 # ---- UI ------------------------------------------------------
 .PHONY: ui-run-e2e
 ui-run-e2e:
-	cd dashboard/mini && npm run build
-	cd dashboard/mini && (npm run preview & pid=$$!; \
-		sleep 2; \
-		PREVIEW_URL=http://localhost:5173 npm run e2e; \
+	cd frontend/cockpit && npm run build
+	cd frontend/cockpit && (npm run start & pid=$$!; \
+		trap 'kill $$pid' EXIT INT TERM; \
+		sleep 5; \
+		npx playwright test; \
 		kill $$pid)
 
 # ---- Docker compose (optionnel) -------------------------------

@@ -115,6 +115,8 @@ async def lifespan(app: FastAPI):
         app.state.task_group = tg
         app.state.storage = storage
         app.state.event_publisher = EventPublisher(storage)
+        app.state.shutting_down = False
+        app.state.event_publisher.disabled = False
         app.state.rate_limits = {}
         # Uptime
         app.state.started_at = dt.datetime.now(dt.timezone.utc)
