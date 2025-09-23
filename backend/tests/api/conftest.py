@@ -166,27 +166,33 @@ def _clear_auth_overrides():
             del app.dependency_overrides[dep]
 
 
-@pytest_asyncio.fixture
-async def client(pg_test_db) -> AsyncClient:
+@pytest_asyncio.fixture(scope="session")
+async def app_lifespan(pg_test_db):
     """
-    Client httpx avec:
-      - schema DB test via override get_db
-      - auth neutralisée (toutes routes accessibles)
-      - gestion correcte du lifespan app (startup/shutdown)
+    Démarre l'application FastAPI une seule fois pour la session de tests.
+    Réutiliser le lifespan évite ~2s de setup par test HTTP.
     """
-    # utilise la base de test pour les deps et l'adaptateur de stockage
     api_deps.settings.api_key = "test-key"
-    # branche get_db/get_session
     app.dependency_overrides[api_deps.get_db] = _override_get_db
     app.dependency_overrides[api_deps.get_session] = _override_get_db
     app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
-    # neutralise l'auth
     _disable_auth_overrides()
 
     async with LifespanManager(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+        yield app
+
+    _clear_auth_overrides()
+    app.dependency_overrides.pop(api_deps.get_db, None)
+    app.dependency_overrides.pop(api_deps.get_session, None)
+    app.dependency_overrides.pop(api_deps.get_sessionmaker, None)
+
+
+@pytest_asyncio.fixture
+async def client(app_lifespan) -> AsyncClient:
+    """Client httpx réutilisant l'application déjà lancée."""
+    transport = ASGITransport(app=app_lifespan)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture
@@ -194,7 +200,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
     return client
 
 @pytest_asyncio.fixture
-async def client_noauth(pg_test_db) -> AsyncClient:
+async def client_noauth(app_lifespan) -> AsyncClient:
     """
     Client httpx avec auth ACTIVE (pas d’override) pour tester les 401.
     Après utilisation, les overrides d'auth sont rétablis pour ne pas
@@ -202,19 +208,26 @@ async def client_noauth(pg_test_db) -> AsyncClient:
     """
     # purges les overrides d'auth avant toute requête
     _clear_auth_overrides()
-    # utilise la base de test pour les deps et l'adaptateur de stockage
-    api_deps.settings.api_key = "test-key"
-    app.dependency_overrides[api_deps.get_db] = _override_get_db
-    app.dependency_overrides[api_deps.get_session] = _override_get_db
-    app.dependency_overrides[api_deps.get_sessionmaker] = lambda: TestingSessionLocal
-
-    async with LifespanManager(app):
-        transport = ASGITransport(app=app)
+    try:
+        transport = ASGITransport(app=app_lifespan)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
+    finally:
+        _disable_auth_overrides()
 
-    # réactive l'override d'auth pour les autres tests
-    _disable_auth_overrides()
+
+@pytest.fixture(autouse=True)
+def reset_app_state(app_lifespan):
+    """Réinitialise les états globaux partagés par l'application entre les tests."""
+    state = app_lifespan.state
+    rate_limits = getattr(state, "rate_limits", None)
+    if isinstance(rate_limits, dict):
+        rate_limits.clear()
+    if hasattr(state, "event_publisher"):
+        state.event_publisher.disabled = False
+    if hasattr(state, "shutting_down"):
+        state.shutting_down = False
+    yield
 
 
 # ---------- Données seed ----------
@@ -350,6 +363,7 @@ async def wait_status(
     except Exception:
         pass
     deadline = time.monotonic() + timeout
+    extend_count = 0
     while time.monotonic() < deadline:
         r = await client.get(f"/runs/{run_id}", headers={"X-API-Key": "test-key"})
         st = (r.json() or {}).get("status")
@@ -359,14 +373,19 @@ async def wait_status(
             # Fallback robuste: vérifie la présence d'un event final RUN_*
             try:
                 ev = await client.get(
-                    "/events", params={"run_id": run_id, "limit": 1}, headers={"X-API-Key": "test-key"}
+                    "/events", params={"run_id": run_id, "limit": 3}, headers={"X-API-Key": "test-key"}
                 )
                 if ev.status_code == 200:
                     items = (ev.json() or {}).get("items") or []
-                    lvl = items[0]["level"] if items else None
-                    if lvl in ("RUN_COMPLETED", "RUN_FAILED"):
+                    # Accepte RUN_* s'il est présent dans les premiers éléments
+                    levels = [e.get("level") for e in items]
+                    if any(l in ("RUN_COMPLETED", "RUN_FAILED") for l in levels):
                         return True
-                    if lvl == "NODE_COMPLETED":
+                    # En présence d'un NODE_COMPLETED récent mais sans RUN_*,
+                    # on étend le délai une seule fois (ou deux maximum) pour laisser
+                    # le temps à la finalisation d'arriver, sans boucle infinie.
+                    if ("NODE_COMPLETED" in levels) and extend_count < 2:
+                        extend_count += 1
                         deadline = max(deadline, time.monotonic() + 5.0)
             except Exception:
                 pass

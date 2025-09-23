@@ -195,15 +195,28 @@ async def get_run(
                 elif lvl == "NODE_FAILED":
                     status = "failed"
 
-    # 3) Fallback fichier run.json (si rien de concluant)
+    # 3) Fallback fichier (si rien de concluant)
     if status in ("queued", "running") and not final_event_level:
         try:
             runs_root = Path(os.getenv("ARTIFACTS_DIR", settings.artifacts_dir))
-            meta = json.loads((runs_root / str(run_id) / "run.json").read_text())
-            if isinstance(meta, dict) and meta.get("ended_at"):
-                s = (meta.get("status") or "completed").lower()
-                if s in ("completed", "failed"):
-                    status = s
+            run_dir = runs_root / str(run_id)
+            # a) run.json explicite
+            try:
+                meta = json.loads((run_dir / "run.json").read_text())
+                if isinstance(meta, dict) and meta.get("ended_at"):
+                    s = (meta.get("status") or "completed").lower()
+                    if s in ("completed", "failed"):
+                        status = s
+            except Exception:
+                pass
+            # b) En l'absence de run.json, présence d'un sidecar LLM sur un nœud unique
+            if status in ("queued", "running") and nodes_total <= 1:
+                nodes_dir = run_dir / "nodes"
+                # Cherche un artifact *.llm.json qui indiquerait la fin d'un nœud
+                if nodes_dir.exists():
+                    has_sidecar = any(p.name.endswith(".llm.json") for p in nodes_dir.rglob("artifact_*.llm.json"))
+                    if has_sidecar:
+                        status = "completed"
         except Exception:
             # tolérant aux erreurs: on reste sur le statut courant
             pass

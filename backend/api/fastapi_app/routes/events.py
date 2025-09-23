@@ -163,10 +163,23 @@ async def list_events(
             )
     # Si aucun RUN_COMPLETED n'est présent mais qu'on a des NODE_COMPLETED,
     # on ajoute un RUN_COMPLETED synthétique pour refléter l'état courant (sans filtres).
-    if pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]) and not any(e.level == "RUN_COMPLETED" for e in items + synthetic_items):
+    # Important: donne un timestamp STRICTEMENT postérieur au dernier NODE_COMPLETED
+    # pour garantir l'ordre de tri (-timestamp) et éviter que la première entrée
+    # soit un NODE_COMPLETED, ce qui peut perturber des clients qui ne regardent
+    # que le premier événement (ex.: helper de polling de tests).
+    if (
+        pagination.offset == 0
+        and not any([level, q, ts_from, ts_to, request_id])
+        and not any(e.level == "RUN_COMPLETED" for e in items + synthetic_items)
+    ):
+        # Cherche d'abord dans les éléments DB, sinon retombe sur les synthétiques (FS)
         last_node_completed = next((e for e in items if e.level == "NODE_COMPLETED"), None)
+        if last_node_completed is None:
+            last_node_completed = next((e for e in synthetic_items if e.level == "NODE_COMPLETED"), None)
         if last_node_completed:
             synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
+            # Assure un timestamp légèrement supérieur au NODE_COMPLETED pour le tri
+            ts = last_node_completed.timestamp + dt.timedelta(microseconds=1)
             synthetic_items.append(
                 EventOut(
                     id=synth_id,
@@ -174,7 +187,7 @@ async def list_events(
                     node_id=None,
                     level="RUN_COMPLETED",
                     message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else {}),
-                    timestamp=last_node_completed.timestamp,
+                    timestamp=ts,
                     request_id=chosen_request_id,
                 )
             )
