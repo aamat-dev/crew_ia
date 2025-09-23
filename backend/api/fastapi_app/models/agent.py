@@ -6,7 +6,7 @@ from typing import Dict, Any
 from enum import Enum
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, Text, Boolean, Integer, Index, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, Text, Boolean, Integer, Index, UniqueConstraint, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlmodel import SQLModel, Field
 
@@ -43,6 +43,14 @@ class Agent(SQLModel, table=True):
         ),
     )
     version: int = Field(default=1, sa_column=Column(Integer, nullable=False, default=1))
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("agents.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -60,7 +68,7 @@ class Agent(SQLModel, table=True):
 
     __table_args__ = (
         Index("ix_agents_role_domain", "role", "domain"),
-        Index("ix_agents_is_active", "is_active"),
+        Index("ix_agents_active", "is_active"),
         UniqueConstraint("name", "role", "domain", name="uq_agents_name_role_domain"),
     )
 

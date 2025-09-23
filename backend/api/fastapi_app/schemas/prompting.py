@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict
+
+from ..schemas_base import AgentCreate, AgentUpdate
 
 
 class SafetyPolicies(BaseModel):
@@ -35,46 +37,6 @@ class CostLimits(BaseModel):
     model_config = ConfigDict(extra='forbid')
     max_tokens_per_call: int = 8192
     max_total_cost_per_run: float = 5.0
-
-
-class AgentConfig(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    prompt_guidelines: PromptGuidelines = Field(default_factory=PromptGuidelines)
-    capabilities: Capabilities = Field(default_factory=Capabilities)
-    provider_strategy: ProviderStrategy = Field(default_factory=ProviderStrategy)
-    cost_limits: CostLimits = Field(default_factory=CostLimits)
-    safety_policies: SafetyPolicies = Field(default_factory=SafetyPolicies)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-
-
-class AgentCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    name: str
-    role: str
-    domain: str
-    prompt_system: Optional[str] = None
-    prompt_user: Optional[str] = None
-    default_model: Optional[str] = None
-    config: AgentConfig = Field(default_factory=AgentConfig)
-
-    @field_validator('role')
-    @classmethod
-    def role_allowed(cls, v: str) -> str:
-        allowed = {"supervisor", "manager", "executor", "reviewer", "other"}
-        if v not in allowed:
-            raise ValueError(f"role must be one of {allowed}")
-        return v
-
-
-class AgentUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    name: Optional[str] = None
-    domain: Optional[str] = None
-    prompt_system: Optional[str] = None
-    prompt_user: Optional[str] = None
-    default_model: Optional[str] = None
-    is_active: Optional[bool] = None
-    config: Optional[AgentConfig] = None
 
 
 class RecruitRequest(BaseModel):

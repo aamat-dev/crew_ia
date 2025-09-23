@@ -210,6 +210,59 @@ class AgentMatrixOut(BaseModel):
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
+
+# --------- Agent Templates & Matrix (CRUD) ------------------------------
+
+
+class AgentTemplateOut(BaseModel):
+    id: UUID
+    name: str
+    role: str
+    domain: str
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Dict[str, Any] = Field(default_factory=dict)
+    version: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AgentTemplateCreate(BaseModel):
+    name: str
+    role: str
+    domain: str
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    domain: Optional[str] = None
+    prompt_system: Optional[str] = None
+    prompt_user: Optional[str] = None
+    default_model: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+
+class AgentMatrixCreate(BaseModel):
+    role: str
+    domain: str
+    models: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentMatrixUpdate(BaseModel):
+    role: Optional[str] = None
+    domain: Optional[str] = None
+    models: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
 __all__ = [
     name
     for name, obj in globals().items()

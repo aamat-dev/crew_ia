@@ -102,12 +102,20 @@ deps-update: ensure-venv
 
 # ---- Qualité -------------------------------------------------
 .PHONY: fmt format
-fmt format:
-	@echo "⏭️  Skip (formatter non configuré)"
+fmt format: ensure-venv
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff format . ; \
+	else \
+		$(ACTIVATE) && python -m pip install ruff >/dev/null && ruff format . ; \
+	fi
 
 .PHONY: lint
-lint:
-	@echo "⏭️  Skip (linter non configuré)"
+lint: ensure-venv
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check . ; \
+	else \
+		$(ACTIVATE) && python -m pip install ruff >/dev/null && ruff check . ; \
+	fi
 
 # ---- Tests ---------------------------------------------------
 .PHONY: ensure-venv
@@ -232,12 +240,12 @@ api-migrate: ensure-venv
 	@$(ACTIVATE) && alembic -c backend/migrations/alembic.ini upgrade head
 
 .PHONY: migrate-fil8
-migrate-fil8:
-	poetry run alembic -c backend/migrations/alembic.ini upgrade head
+migrate-fil8: ensure-venv
+	@$(ACTIVATE) && alembic -c backend/migrations/alembic.ini upgrade head
 
 .PHONY: seed-agents
-seed-agents:
-	PYTHONPATH=$(PYTHONPATH) poetry run python scripts/seed_agents.py
+seed-agents: ensure-venv
+	@PYTHONPATH=$(PYTHONPATH) $(ACTIVATE) && $(PYTHON) scripts/seed_agents.py
 
 .PHONY: seed
 seed: ensure-venv

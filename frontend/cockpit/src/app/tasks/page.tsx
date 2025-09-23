@@ -44,6 +44,41 @@ export default function TasksPage() {
 
   const [lastRunId, setLastRunId] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+  const generatePlan = async (
+    taskId: string,
+    { silent = false }: { silent?: boolean } = {}
+  ): Promise<{ plan_id: string; status: "ready" | "draft" | "invalid" } | null> => {
+    try {
+      setGeneratingId(taskId);
+      const res = await fetch(resolveApiUrl(`/tasks/${taskId}/plan`), {
+        method: "POST",
+        headers: { ...defaultApiHeaders() },
+      });
+      if (!res.ok) {
+        let msg = res.statusText || `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          if (typeof j?.detail === "string") msg = j.detail;
+        } catch {}
+        throw new Error(msg);
+      }
+      const body = (await res.json()) as { plan_id: string; status: "ready" | "draft" | "invalid" };
+      if (!silent) {
+        if (body.status === "ready") toast("Plan généré (prêt)", "default");
+        else if (body.status === "draft") toast("Plan généré (brouillon)", "warning");
+        else toast("Plan invalide", "error");
+      }
+      return body;
+    } catch (err) {
+      if (!silent) toast((err as Error)?.message || "Échec de la génération du plan", "error");
+      return null;
+    } finally {
+      setGeneratingId(null);
+      await qc.invalidateQueries({ queryKey: ["tasks"] });
+    }
+  };
 
   const startTask = async (taskId: string) => {
     try {
@@ -58,6 +93,32 @@ export default function TasksPage() {
           const j = await res.json();
           if (typeof j?.detail === "string") msg = j.detail;
         } catch {}
+        // Si le plan manque, tentons de le générer automatiquement puis relancer
+        if (msg.toLowerCase().includes("plan missing")) {
+          const gen = await generatePlan(taskId, { silent: true });
+          if (gen && gen.status === "ready") {
+            const retry = await fetch(resolveApiUrl(`/tasks/${taskId}/start`), {
+              method: "POST",
+              headers: { ...defaultApiHeaders() },
+            });
+            if (!retry.ok) {
+              let retryMsg = retry.statusText || `HTTP ${retry.status}`;
+              try {
+                const rj = await retry.json();
+                if (typeof rj?.detail === "string") retryMsg = rj.detail;
+              } catch {}
+              throw new Error(retryMsg);
+            }
+            const body = (await retry.json()) as { run_id: string };
+            setLastRunId(body.run_id);
+            toast("Plan généré et run démarré", "default");
+            return;
+          }
+          if (gen && gen.status === "draft") {
+            throw new Error("Plan généré en brouillon — validez le plan");
+          }
+          throw new Error("Plan introuvable ou invalide");
+        }
         throw new Error(msg);
       }
       const body = (await res.json()) as { run_id: string };
@@ -187,8 +248,21 @@ export default function TasksPage() {
                     </div>
                   )}
                 </div>
-                <div>
-                  <ClayButton type="button" onClick={() => startTask(t.id)} disabled={startingId === t.id} aria-busy={startingId === t.id}>
+                <div className="flex items-center gap-2">
+                  <ClayButton
+                    type="button"
+                    onClick={() => generatePlan(t.id)}
+                    disabled={generatingId === t.id}
+                    aria-busy={generatingId === t.id}
+                  >
+                    Générer un plan
+                  </ClayButton>
+                  <ClayButton
+                    type="button"
+                    onClick={() => startTask(t.id)}
+                    disabled={startingId === t.id}
+                    aria-busy={startingId === t.id}
+                  >
                     Démarrer
                   </ClayButton>
                 </div>

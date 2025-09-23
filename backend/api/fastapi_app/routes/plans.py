@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from uuid import UUID
-from typing import Any
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,7 @@ from backend.core.models import PlanReview
 from backend.core.models import Assignment
 from backend.api.schemas.assignment import AssignmentsPayload, AssignmentsResponse
 from backend.api.fastapi_app.deps import get_db, strict_api_key_auth
+from backend.api.schemas.plan import PlanGraph, PlanCreateResponse
 
 router = APIRouter(
     prefix="/plans",
@@ -22,6 +24,52 @@ router = APIRouter(
 def _plan_node_ids(plan: Plan) -> set[str]:
     nodes = plan.graph.get("plan") or []
     return {n.get("id") for n in nodes if isinstance(n, dict) and n.get("id")}
+
+
+class PlanCreatePayload(BaseModel):
+    task_id: UUID
+    graph: PlanGraph
+    status: Optional[PlanStatus] = None
+
+
+@router.post("", response_model=PlanCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_plan(
+    payload: PlanCreatePayload,
+    db: AsyncSession = Depends(get_db),
+) -> PlanCreateResponse:
+    from backend.core.models import Task  # import local pour éviter cycles
+
+    task = await db.get(Task, payload.task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    status_value = payload.status or PlanStatus.draft
+    plan = Plan(task_id=task.id, status=status_value, graph=payload.graph.model_dump())
+    db.add(plan)
+    await db.flush()
+    # Lier à la tâche si le plan est valide ou brouillon (non invalid)
+    if status_value != PlanStatus.invalid:
+        task.plan_id = plan.id
+        db.add(task)
+    await db.commit()
+
+    return PlanCreateResponse(plan_id=plan.id, status=plan.status, graph=payload.graph)
+
+
+@router.get("/{plan_id}")
+async def get_plan(plan_id: UUID, db: AsyncSession = Depends(get_db)) -> Any:
+    plan = await db.get(Plan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    return {
+        "id": str(plan.id),
+        "task_id": str(plan.task_id),
+        "status": plan.status.value if hasattr(plan.status, "value") else str(plan.status),
+        "graph": plan.graph,
+        "version": plan.version,
+        "created_at": getattr(plan, "created_at", None),
+        "updated_at": getattr(plan, "updated_at", None),
+    }
 
 
 @router.post("/{plan_id}/assignments", response_model=AssignmentsResponse, status_code=status.HTTP_200_OK)

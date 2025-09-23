@@ -71,6 +71,13 @@ Notes
 - Après un `git pull`, lancez `make deps-update`.
 - Pour peupler des modèles/agents de démonstration: `make seed`.
 
+### Endpoints Agents (API)
+- `GET /agents/{id}` : lecture détaillée d’un agent.
+- `POST /agents/{id}/reactivate` : réactiver un agent désactivé.
+- `GET /agents/templates` / `POST /agents/templates` : lister et gérer les templates d’agents.
+- `GET /agents/models-matrix` / `POST /agents/models-matrix` : lister et gérer la matrice de modèles.
+- `POST /plans` / `GET /plans/{id}` : créer un plan et le récupérer à partir d’un `task_id`.
+
 Pour lister les événements d'un run spécifique :
 
 ```
