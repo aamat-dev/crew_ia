@@ -14,6 +14,7 @@ import logging
 from uuid import UUID
 from anyio import create_task_group
 import os
+import inspect
 
 # Charger .env le plus tôt possible (sauf si CONFIG_SKIP_DOTENV=1)
 from dotenv import load_dotenv
@@ -128,6 +129,18 @@ async def lifespan(app: FastAPI):
         try:
             app.state.event_publisher.disabled = True
             app.state.shutting_down = True
+        except Exception:
+            pass
+        # Ferme proprement les adaptateurs (ex: engine async PG)
+        try:
+            adapters = getattr(storage, "adapters", [])
+            for ad in adapters:
+                disp = getattr(ad, "dispose", None)
+                if disp:
+                    if inspect.iscoroutinefunction(disp):
+                        await disp()
+                    else:
+                        disp()
         except Exception:
             pass
         # task group exits cancelling background tasks

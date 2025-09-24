@@ -112,6 +112,13 @@ class AgentTemplate(SQLModel, table=True):
 
     __table_args__ = (
         UniqueConstraint("name", name="uq_agent_templates_name"),
+        Index(
+            "ix_agent_templates_role_domain_active_created_at",
+            "role",
+            "domain",
+            "is_active",
+            "created_at",
+        ),
     )
 
 
@@ -150,4 +157,11 @@ class AgentModelsMatrix(SQLModel, table=True):
 
     __table_args__ = (
         UniqueConstraint("role", "domain", name="uq_agent_models_matrix_role_domain"),
+        Index(
+            "ix_agent_models_matrix_role_domain_active_created_at",
+            "role",
+            "domain",
+            "is_active",
+            "created_at",
+        ),
     )

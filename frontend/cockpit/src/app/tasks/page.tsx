@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { resolveApiUrl, defaultApiHeaders } from "@/lib/config";
 import { fetchJson } from "@/lib/fetchJson";
@@ -28,6 +29,7 @@ interface Page<T> {
 
 export default function TasksPage() {
   const toast = useToast();
+  const router = useRouter();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -67,8 +69,12 @@ export default function TasksPage() {
       const body = (await res.json()) as { plan_id: string; status: "ready" | "draft" | "invalid" };
       if (!silent) {
         if (body.status === "ready") toast("Plan généré (prêt)", "default");
-        else if (body.status === "draft") toast("Plan généré (brouillon)", "warning");
+        else if (body.status === "draft") toast("Plan généré (brouillon)", "default");
         else toast("Plan invalide", "error");
+      }
+      // Si le plan n'est pas prêt, rediriger vers la page de validation
+      if (body.status !== "ready") {
+        router.push(`/plans/${body.plan_id}`);
       }
       return body;
     } catch (err) {

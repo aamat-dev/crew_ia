@@ -251,16 +251,26 @@ class AgentTemplateUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class ModelRef(BaseModel):
+    provider: str
+    model: str
+
+
+class AgentModelsSpec(BaseModel):
+    preferred: List[ModelRef] = Field(default_factory=list)
+    fallbacks: List[ModelRef] = Field(default_factory=list)
+
+
 class AgentMatrixCreate(BaseModel):
     role: str
     domain: str
-    models: Dict[str, Any] = Field(default_factory=dict)
+    models: AgentModelsSpec = Field(default_factory=AgentModelsSpec)
 
 
 class AgentMatrixUpdate(BaseModel):
     role: Optional[str] = None
     domain: Optional[str] = None
-    models: Optional[Dict[str, Any]] = None
+    models: Optional[AgentModelsSpec] = None
     is_active: Optional[bool] = None
 
 __all__ = [

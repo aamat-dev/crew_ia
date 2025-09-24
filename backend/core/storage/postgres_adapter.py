@@ -83,6 +83,13 @@ class PostgresAdapter:
         async with self._sessionmaker() as s:
             yield s
 
+    async def dispose(self) -> None:
+        """Ferme proprement l'engine async pour éviter des warnings à l'arrêt."""
+        try:
+            await self._engine.dispose()
+        except Exception:
+            pass
+
     @staticmethod
     def _coalesce_obj(model_cls, obj: Any, kwargs: Dict[str, Any]):
         if obj is not None:

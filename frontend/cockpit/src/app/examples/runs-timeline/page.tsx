@@ -39,10 +39,8 @@ export default function RunsTimelineExample() {
   return (
     <RunsTimeline
       runs={mockRuns}
-      onPause={handler("pause")}
-      onResume={handler("resume")}
-      onCancel={handler("cancel")}
       onRetry={handler("retry")}
+      onDetails={handler("details")}
     />
   );
 }

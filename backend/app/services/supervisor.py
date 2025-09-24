@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import List
 
 from backend.core.models import Task
@@ -20,6 +21,24 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
             {"title": task.title, "description": task.description or ""}
         )
     except Exception:
+        # Fallback dev: optionnellement, proposer un plan minimal en mode draft
+        if str(os.getenv("PLAN_FALLBACK_DRAFT", "")).strip().lower() in {"1", "true", "yes", "on"}:
+            graph = PlanGraph(
+                nodes=[
+                    PlanNode(
+                        id="n1",
+                        title=task.title or "Tâche",
+                        deps=[],
+                        suggested_agent_role="executor",
+                        acceptance=["doit produire un JSON valide"],
+                        risks=[],
+                        assumptions=[],
+                        notes=[],
+                    )
+                ],
+                edges=[],
+            )
+            return PlanGenerationResult(graph=graph, status=PlanStatus.draft)
         return PlanGenerationResult(graph=PlanGraph(), status=PlanStatus.invalid)
 
     nodes: List[PlanNode] = []
@@ -41,5 +60,23 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
             edges.append({"source": dep, "target": n.id})
 
     graph = PlanGraph(nodes=nodes, edges=edges)
-    status = PlanStatus.draft if nodes else PlanStatus.invalid
+    status = PlanStatus.draft if nodes else (
+        PlanStatus.draft if str(os.getenv("PLAN_FALLBACK_DRAFT", "")).strip().lower() in {"1", "true", "yes", "on"} else PlanStatus.invalid
+    )
+    if status is PlanStatus.draft and not nodes:
+        graph = PlanGraph(
+            nodes=[
+                PlanNode(
+                    id="n1",
+                    title=task.title or "Tâche",
+                    deps=[],
+                    suggested_agent_role="executor",
+                    acceptance=["doit produire un JSON valide"],
+                    risks=[],
+                    assumptions=[],
+                    notes=[],
+                )
+            ],
+            edges=[],
+        )
     return PlanGenerationResult(graph=graph, status=status)
