@@ -7,10 +7,11 @@ import { DialogTitle } from "@radix-ui/react-dialog";
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", shortcut: "D" },
-  { label: "Tasks", href: "/tasks", shortcut: "T" },
-  { label: "Plans", href: "/plans", shortcut: "P" },
-  { label: "Runs", href: "/runs", shortcut: "R" },
-  { label: "Settings", href: "/settings", shortcut: "S" },
+  { label: "Nouvelle tâche", href: "/tasks/new", shortcut: "N" },
+];
+
+const quickActions = [
+  { label: "Nouvelle tâche", href: "/tasks/new", shortcut: "↩" },
 ];
 
 interface CommandPaletteProps {
@@ -56,19 +57,37 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           />
         </div>
         <Command.List className="max-h-60 overflow-y-auto p-2">
-          {nav.map((item) => (
-            <Command.Item
-              key={item.href}
-              onSelect={() => {
-                router.push(item.href);
-                onOpenChange(false);
-              }}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm aria-selected:bg-primary/10"
-            >
-              {item.label}
-              <kbd className="ml-auto text-xs text-muted-foreground">⌘{item.shortcut}</kbd>
-            </Command.Item>
-          ))}
+          <Command.Group heading="Navigation">
+            {nav.map((item) => (
+              <Command.Item
+                key={item.href}
+                onSelect={() => {
+                  router.push(item.href);
+                  onOpenChange(false);
+                }}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm aria-selected:bg-primary/10"
+              >
+                {item.label}
+                <kbd className="ml-auto text-xs text-muted-foreground">⌘{item.shortcut}</kbd>
+              </Command.Item>
+            ))}
+          </Command.Group>
+          <Command.Separator className="my-1 border-t border-slate-800/60" />
+          <Command.Group heading="Actions rapides">
+            {quickActions.map((action) => (
+              <Command.Item
+                key={action.label}
+                onSelect={() => {
+                  router.push(action.href);
+                  onOpenChange(false);
+                }}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm aria-selected:bg-primary/10"
+              >
+                {action.label}
+                <kbd className="ml-auto text-xs text-muted-foreground">{action.shortcut}</kbd>
+              </Command.Item>
+            ))}
+          </Command.Group>
         </Command.List>
       </div>
     </Command.Dialog>

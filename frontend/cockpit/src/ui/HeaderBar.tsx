@@ -26,6 +26,7 @@ export interface HeaderBarProps {
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
   actions?: React.ReactNode;
+  showSearch?: boolean;
 }
 
 export function HeaderBar({
@@ -35,6 +36,7 @@ export function HeaderBar({
   onSearchChange,
   searchPlaceholder = "Rechercher...",
   actions,
+  showSearch = false,
 }: HeaderBarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
@@ -64,21 +66,23 @@ export function HeaderBar({
         ) : null}
       </div>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end md:gap-4 flex-1">
-        <label className="flex-1 md:max-w-md" aria-label="Recherche">
-          <div className="surface shadow-card flex items-center gap-2 px-3 py-2 text-sm text-secondary">
-            <Search className="h-4 w-4" aria-hidden />
-            <input
-              type="search"
-              value={internalSearch}
-              onChange={(event) => handleSearch(event.target.value)}
-              placeholder={searchPlaceholder}
-              className={cn(
-                "w-full bg-transparent text-[color:var(--text)] placeholder:text-secondary",
-                "border-0 outline-none focus:ring-0"
-              )}
-            />
-          </div>
-        </label>
+        {showSearch ? (
+          <label className="flex-1 md:max-w-md" aria-label="Recherche">
+            <div className="surface shadow-card flex items-center gap-2 px-3 py-2 text-sm text-secondary">
+              <Search className="h-4 w-4" aria-hidden />
+              <input
+                type="search"
+                value={internalSearch}
+                onChange={(event) => handleSearch(event.target.value)}
+                placeholder={searchPlaceholder}
+                className={cn(
+                  "w-full bg-transparent text-[color:var(--text)] placeholder:text-secondary",
+                  "border-0 outline-none focus:ring-0"
+                )}
+              />
+            </div>
+          </label>
+        ) : null}
         <div className="flex items-center gap-2">
           <button
             type="button"

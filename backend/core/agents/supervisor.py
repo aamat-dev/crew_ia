@@ -30,8 +30,13 @@ async def run(task: Dict[str, Any], storage: Any = None) -> SupervisorPlan:
     for _ in range(3):
         req = LLMRequest(system=system_prompt, prompt=user_msg, model=spec.model, provider=spec.provider)
         resp = await llm_runner.run_llm(req)
+        # Tolérance: supprime les éventuelles fences Markdown (```json ... ```)
+        txt = resp.text.strip() if isinstance(resp.text, str) else str(resp.text)
+        if txt.startswith("```"):
+            # enlève les 1ères et dernières fences
+            txt = txt.strip().lstrip("`").lstrip("json").lstrip().rstrip("`").strip()
         try:
-            plan = parse_supervisor_json(resp.text)
+            plan = parse_supervisor_json(txt)
             return plan
         except ValidationError as err:
             last_err = err

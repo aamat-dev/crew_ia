@@ -47,7 +47,7 @@ try {
   const bp = report.categories['best-practices'].score;
   const msg = `Lighthouse scores — A11y: ${(acc*100).toFixed(0)}, Perf: ${(perf*100).toFixed(0)}, BP: ${(bp*100).toFixed(0)}`;
   console.log(msg);
-  writeFileSync('lh-summary.md', `# Lighthouse (Cockpit)\n\n${msg}\n`);
+  writeFileSync('lh-summary.md', `# Lighthouse (Oria)\n\n${msg}\n`);
   if (acc < MIN || perf < MIN || bp < MIN) {
     console.error('One or more categories below threshold: ', MIN*100);
     process.exit(1);
@@ -56,4 +56,3 @@ try {
   console.error('[lighthouse:ci] Failed:', e?.message || e);
   process.exit(1);
 }
-

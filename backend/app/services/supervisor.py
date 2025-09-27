@@ -24,7 +24,7 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
         # Fallback dev: optionnellement, proposer un plan minimal en mode draft
         if str(os.getenv("PLAN_FALLBACK_DRAFT", "")).strip().lower() in {"1", "true", "yes", "on"}:
             graph = PlanGraph(
-                nodes=[
+                plan=[
                     PlanNode(
                         id="n1",
                         title=task.title or "Tâche",
@@ -37,6 +37,7 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
                     )
                 ],
                 edges=[],
+                via_fallback=True,
             )
             return PlanGenerationResult(graph=graph, status=PlanStatus.draft)
         return PlanGenerationResult(graph=PlanGraph(), status=PlanStatus.invalid)
@@ -59,13 +60,14 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
         for dep in n.deps:
             edges.append({"source": dep, "target": n.id})
 
-    graph = PlanGraph(nodes=nodes, edges=edges)
+    # Standardise sur 'plan' pour la sortie
+    graph = PlanGraph(plan=nodes, edges=edges)
     status = PlanStatus.draft if nodes else (
         PlanStatus.draft if str(os.getenv("PLAN_FALLBACK_DRAFT", "")).strip().lower() in {"1", "true", "yes", "on"} else PlanStatus.invalid
     )
     if status is PlanStatus.draft and not nodes:
         graph = PlanGraph(
-            nodes=[
+            plan=[
                 PlanNode(
                     id="n1",
                     title=task.title or "Tâche",
@@ -78,5 +80,6 @@ async def generate_plan(task: Task) -> PlanGenerationResult:
                 )
             ],
             edges=[],
+            via_fallback=True,
         )
     return PlanGenerationResult(graph=graph, status=status)

@@ -1,5 +1,5 @@
-export type Accent = "indigo" | "cyan" | "emerald" | "amber" | "rose";
-export type Status = "completed" | "running" | "queued" | "failed" | "paused";
+export type Accent = "indigo" | "cyan" | "emerald" | "amber" | "rose" | "brand";
+export type Status = "completed" | "running" | "queued" | "failed" | "paused" | "canceled";
 
 const accentVariable = (accent: Accent, shade: "400" | "500") => `var(--accent-${accent}-${shade})`;
 
@@ -9,6 +9,7 @@ export const ACCENT_COLORS: Record<Accent, { 500: string; 400: string; glow: str
   emerald: { 500: "#34D399", 400: "#6EE7B7", glow: "rgba(52,211,153,0.35)" },
   amber: { 500: "#FBBF24", 400: "#FCD34D", glow: "rgba(251,191,36,0.35)" },
   rose: { 500: "#F87171", 400: "#FDA4AF", glow: "rgba(248,113,113,0.35)" },
+  brand: { 500: "var(--accent-brand-500)", 400: "var(--accent-brand-400)", glow: "rgba(99,102,241,0.35)" },
 };
 
 export const baseFocusRing =
@@ -31,6 +32,7 @@ export const STATUS_ACCENT: Record<Status, Accent | "rose"> = {
   queued: "amber",
   failed: "rose",
   paused: "cyan",
+  canceled: "rose",
 };
 
 export const STATUS_LABEL: Record<Status, string> = {
@@ -39,6 +41,7 @@ export const STATUS_LABEL: Record<Status, string> = {
   queued: "En file",
   failed: "Échec",
   paused: "En pause",
+  canceled: "Annulé",
 };
 
 export const statusGradient = (status: Status) => accentGradient(STATUS_ACCENT[status]);

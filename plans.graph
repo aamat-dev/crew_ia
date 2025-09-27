@@ -4,9 +4,594 @@
     "demo": {
       "title": "Plan de démonstration",
       "plan": [
-        {"id": "n1", "title": "Étape 1", "llm": {"provider": "openai", "model": "test-model"}},
-        {"id": "n2", "title": "Étape 2", "deps": ["n1"], "llm": {"provider": "openai", "model": "test-model"}}
+        {
+          "id": "n1",
+          "title": "Étape 1",
+          "llm": {
+            "provider": "openai",
+            "model": "test-model"
+          }
+        },
+        {
+          "id": "n2",
+          "title": "Étape 2",
+          "deps": [
+            "n1"
+          ],
+          "llm": {
+            "provider": "openai",
+            "model": "test-model"
+          }
+        }
       ]
+    },
+    "39642b91-5833-441f-9619-8f818b3013bd": {
+      "title": "T1",
+      "plan": []
+    },
+    "ad06ed3d-c59d-4a0b-8d49-7b8b4b4dade4": {
+      "title": "T2",
+      "plan": []
+    },
+    "b2cc7187-3215-4fe5-8eb2-472aab239fb6": {
+      "title": "T4",
+      "plan": []
+    },
+    "5dc9e5d1-1bfa-411e-b221-6495aeeb7ecf": {
+      "title": "faire un rapport sur Hermès",
+      "plan": [
+        {
+          "id": "n1",
+          "deps": [],
+          "notes": [],
+          "risks": [
+            "manque de sources fiables",
+            "erreurs dans la recherche"
+          ],
+          "title": "Recherche sur l'histoire d'Hermès",
+          "acceptance": [
+            "rapport complet et précis"
+          ],
+          "assumptions": [
+            "l'existence d'Hermès est bien connue"
+          ],
+          "suggested_agent_role": "researcher"
+        },
+        {
+          "id": "n2",
+          "deps": [
+            "n1"
+          ],
+          "notes": [],
+          "risks": [
+            "manque de connaissances en marketing",
+            "erreurs dans l'analyse"
+          ],
+          "title": "Analyse des produits et services d'Hermès",
+          "acceptance": [
+            "analyse complète et précise"
+          ],
+          "assumptions": [
+            "les produits et services d'Hermès sont bien connus"
+          ],
+          "suggested_agent_role": "analyst"
+        },
+        {
+          "id": "n3",
+          "deps": [
+            "n1",
+            "n2"
+          ],
+          "notes": [],
+          "risks": [
+            "manque de compétences en écriture",
+            "erreurs dans la rédaction"
+          ],
+          "title": "Rédaction du rapport final",
+          "acceptance": [
+            "rapport complet et précis"
+          ],
+          "assumptions": [
+            "la rédaction du rapport est une tâche facile"
+          ],
+          "suggested_agent_role": "writer"
+        }
+      ]
+    },
+    "eea142a1-3249-4355-b8f5-10def558559f": {
+      "title": "T1",
+      "plan": []
+    },
+    "089f14be-99a6-4e6f-85d8-81e1ef7d3f5e": {
+      "title": "T2",
+      "plan": []
+    },
+    "e1efc692-cc2c-4d61-a565-7ec6929a4575": {
+      "title": "T4",
+      "plan": []
+    },
+    "0096505a-1fd7-438e-bc1f-9fc02b82ad0e": {
+      "title": "T1",
+      "plan": []
+    },
+    "8f05be18-1483-4f10-8b3a-4f6f42c21e75": {
+      "title": "T2",
+      "plan": []
+    },
+    "2bd08a3b-a303-4b7d-a476-b1d013e2bbf5": {
+      "title": "T4",
+      "plan": []
+    },
+    "270b4e05-6a59-4cc5-8c1a-bf49242f1f73": {
+      "title": "T1",
+      "plan": []
+    },
+    "b29eb3df-f580-4be2-bb93-f5eaaba38f8c": {
+      "title": "T2",
+      "plan": []
+    },
+    "1e6a5bde-d32a-47d6-802f-316312fb44d9": {
+      "title": "T4",
+      "plan": []
+    },
+    "aa9be889-015c-4707-8b3c-c91971a3441c": {
+      "title": "T1",
+      "plan": []
+    },
+    "a6208d06-7f0c-4e56-abfe-65d7d0d50e29": {
+      "title": "T2",
+      "plan": []
+    },
+    "f806aab7-ea65-4578-95d1-71ba9c8fe95c": {
+      "title": "T4",
+      "plan": []
+    },
+    "e4770118-3f3f-4e3b-9d2e-f75895909dc5": {
+      "title": "T1",
+      "plan": []
+    },
+    "ce2a3c6d-0dde-4fd5-9b98-ef85b84e56e9": {
+      "title": "T2",
+      "plan": []
+    },
+    "c4b8d24a-26af-49c2-a232-47c09dac0fcf": {
+      "title": "T4",
+      "plan": []
+    },
+    "326fbedd-b9a6-4946-8710-d5d410677ed8": {
+      "title": "T1",
+      "plan": []
+    },
+    "3cbeaf56-a7a4-482b-b33b-8a95f32d5b6b": {
+      "title": "T2",
+      "plan": []
+    },
+    "97697bf4-e90f-498b-bc5f-0be0872426f3": {
+      "title": "T4",
+      "plan": []
+    },
+    "91754e0d-64ba-40ce-8c92-c7d3011d86aa": {
+      "title": "T1",
+      "plan": []
+    },
+    "f405e66b-63f7-4813-92f3-2b9cd09ff640": {
+      "title": "T2",
+      "plan": []
+    },
+    "53c23799-8a64-4796-a4e7-cffda709a267": {
+      "title": "T4",
+      "plan": []
+    },
+    "2eb6e85c-5c34-4eca-97fe-4d7d336d41b1": {
+      "title": "T1",
+      "plan": []
+    },
+    "4d978dc8-82ed-4a99-8200-993ae54d08f0": {
+      "title": "T2",
+      "plan": []
+    },
+    "78ca5915-78f2-43da-a2da-285943928185": {
+      "title": "T4",
+      "plan": []
+    },
+    "af4aa447-83ab-41ea-8550-ded83c7a5d9a": {
+      "title": "T1",
+      "plan": []
+    },
+    "e504d997-29d4-46c7-b497-87e962635d1b": {
+      "title": "T2",
+      "plan": []
+    },
+    "0c2f4b60-796a-48ed-99b2-b81be6c5ba72": {
+      "title": "T4",
+      "plan": []
+    },
+    "f591e1f9-7ada-4073-8ace-aa0199360503": {
+      "title": "T1",
+      "plan": []
+    },
+    "31eaec09-4102-4dbb-8d15-ce2b9f45cf3c": {
+      "title": "T2",
+      "plan": []
+    },
+    "19179b75-ceb7-4f9d-a77d-89bca0d7f2c2": {
+      "title": "T4",
+      "plan": []
+    },
+    "7b80df17-d23c-4e5f-9c60-f287b8ca8fc1": {
+      "title": "T1",
+      "plan": []
+    },
+    "96337a6f-b0d1-4601-89ac-aaf8410d6cc6": {
+      "title": "T2",
+      "plan": []
+    },
+    "39175741-00b7-4971-8905-9a0def787779": {
+      "title": "T4",
+      "plan": []
+    },
+    "2918df76-f7ff-4877-9224-b9ebafb17f37": {
+      "title": "T1",
+      "plan": []
+    },
+    "8f9646bc-3c67-4a97-ab77-4dc6ee927b03": {
+      "title": "T2",
+      "plan": []
+    },
+    "95f97c77-d399-4fd4-bfb4-3e526c799cf6": {
+      "title": "T4",
+      "plan": []
+    },
+    "d42be360-948e-4266-ad09-c6bff495f58d": {
+      "title": "T1",
+      "plan": []
+    },
+    "bac7bb5c-30af-467b-b01f-b66188c00b4c": {
+      "title": "T2",
+      "plan": []
+    },
+    "49ff19a7-29c2-4a88-af37-c08e1979fa32": {
+      "title": "T4",
+      "plan": []
+    },
+    "b4dc5407-f9ed-4615-b9e0-85e1c0f75939": {
+      "title": "T1",
+      "plan": []
+    },
+    "6174f871-7196-4681-90d6-73e76eb8a956": {
+      "title": "T2",
+      "plan": []
+    },
+    "2bdfd8c4-17c3-4aa9-89fc-ab9454d702b4": {
+      "title": "T4",
+      "plan": []
+    },
+    "53b3c406-f70d-43f4-a195-93e9638edd4e": {
+      "title": "T1",
+      "plan": []
+    },
+    "7b2425e7-95f7-4baf-a1ba-059e954b852a": {
+      "title": "T2",
+      "plan": []
+    },
+    "a0af2fa5-40c1-4bdf-8754-e798e0ac1253": {
+      "title": "T4",
+      "plan": []
+    },
+    "b4c9041d-d9fa-4365-aa8a-3be5046d5ed2": {
+      "title": "T1",
+      "plan": []
+    },
+    "a8791e72-b08f-4e09-ba60-afd52a772e8d": {
+      "title": "T2",
+      "plan": []
+    },
+    "a3208f1e-81c7-4498-b716-cec0f0477ac1": {
+      "title": "T4",
+      "plan": []
+    },
+    "3ff372db-97b6-438e-8d03-6f418e1b9153": {
+      "title": "T1",
+      "plan": []
+    },
+    "e5c6b699-6a19-43d2-ba43-8a125b02a859": {
+      "title": "T2",
+      "plan": []
+    },
+    "503f063c-0287-4aab-ac98-ce5a2b99646d": {
+      "title": "T4",
+      "plan": []
+    },
+    "b4ed1acc-db5d-4d15-9f9e-3e1b4e428355": {
+      "title": "T1",
+      "plan": []
+    },
+    "c2cca32c-a5ee-4466-826c-57e50c8ac288": {
+      "title": "T2",
+      "plan": []
+    },
+    "4c448778-a6e2-4f1b-8cd3-bae4e3241c85": {
+      "title": "T4",
+      "plan": []
+    },
+    "fc25f55b-34bb-4b7b-8fe4-07446fb697eb": {
+      "title": "T1",
+      "plan": []
+    },
+    "aeaef158-0233-47b7-91f6-fea99ba9cf23": {
+      "title": "T2",
+      "plan": []
+    },
+    "00daa594-a741-49b3-b912-9017a951ee5e": {
+      "title": "T4",
+      "plan": []
+    },
+    "c5063268-8167-455a-b5b4-93c0a00aeb12": {
+      "title": "T1",
+      "plan": []
+    },
+    "706761a4-8821-4cdc-b275-1a46fd9ffcec": {
+      "title": "T2",
+      "plan": []
+    },
+    "edd6133d-7d1a-43b8-b6bc-bcc16df21f46": {
+      "title": "T4",
+      "plan": []
+    },
+    "50501f6c-a7fd-4e5f-ae99-dda8a7a17597": {
+      "title": "T1",
+      "plan": []
+    },
+    "57b662f8-eec7-486b-b623-846e8d59dd32": {
+      "title": "T2",
+      "plan": []
+    },
+    "748068ae-99db-4126-a70f-682d4b7cf0f3": {
+      "title": "T4",
+      "plan": []
+    },
+    "15d8f511-9624-41a6-a6a7-8a1b2eb12274": {
+      "title": "T1",
+      "plan": []
+    },
+    "519f5ebf-fc9d-4fe1-b254-104f455972f4": {
+      "title": "T2",
+      "plan": []
+    },
+    "10bcb5eb-120d-4514-97bf-146cbfdeedb2": {
+      "title": "T4",
+      "plan": []
+    },
+    "c1c96b53-c1fc-4c2a-855e-a0713441cd43": {
+      "title": "faire une analyse de UCH",
+      "plan": [
+        {
+          "id": "n1",
+          "deps": [],
+          "notes": [],
+          "risks": [],
+          "title": "Faire une analyse de UCH",
+          "acceptance": [],
+          "assumptions": [],
+          "suggested_agent_role": "executor"
+        },
+        {
+          "id": "n2",
+          "deps": [
+            "n1"
+          ],
+          "notes": [],
+          "risks": [],
+          "title": "Récupérer les données de UCH",
+          "acceptance": [],
+          "assumptions": [],
+          "suggested_agent_role": "executor"
+        },
+        {
+          "id": "n3",
+          "deps": [
+            "n2"
+          ],
+          "notes": [],
+          "risks": [],
+          "title": "Analyser les données de UCH",
+          "acceptance": [],
+          "assumptions": [],
+          "suggested_agent_role": "executor"
+        },
+        {
+          "id": "n4",
+          "deps": [
+            "n3"
+          ],
+          "notes": [],
+          "risks": [],
+          "title": "Préparer le rapport d'analyse de UCH",
+          "acceptance": [],
+          "assumptions": [],
+          "suggested_agent_role": "executor"
+        }
+      ]
+    },
+    "53554bff-e271-4c92-acf2-2fcfd99f1f2c": {
+      "title": "T1",
+      "plan": []
+    },
+    "e234b2f5-6b0c-406d-b8db-06d04769aaa7": {
+      "title": "T2",
+      "plan": []
+    },
+    "cae9760d-fea6-45cd-b205-5ec3b04d35b0": {
+      "title": "T4",
+      "plan": []
+    },
+    "9225bc0c-4f05-433b-bab2-453564120625": {
+      "title": "T1",
+      "plan": []
+    },
+    "99e96d7c-ba67-4c00-a28d-f22fb661680c": {
+      "title": "T2",
+      "plan": []
+    },
+    "b11dc385-1dcc-410d-8b38-7e0fd0302d0f": {
+      "title": "T4",
+      "plan": []
+    },
+    "5e51602b-d0d5-4e36-8f4c-2ec95fbf8107": {
+      "title": "T1",
+      "plan": []
+    },
+    "c3b91290-084e-4d2c-861d-218971575658": {
+      "title": "T2",
+      "plan": []
+    },
+    "4651f9ce-b544-4415-b409-f3724ec09dc3": {
+      "title": "T4",
+      "plan": []
+    },
+    "f5d8b6be-72b5-4460-bb80-7f67199dc82b": {
+      "title": "T1",
+      "plan": []
+    },
+    "1289ad1c-6b35-4b8e-a743-340ae9f1ffad": {
+      "title": "T2",
+      "plan": []
+    },
+    "47937769-1826-4f1c-bc1c-4e3a9bdedf6f": {
+      "title": "T4",
+      "plan": []
+    },
+    "ec6b89cf-2c0f-4f3b-a817-53a80bdd6c6d": {
+      "title": "T1",
+      "plan": []
+    },
+    "51bcc18b-eef9-406a-accb-ef0eddd8eb1c": {
+      "title": "T2",
+      "plan": []
+    },
+    "c20ea56c-277b-40ab-b086-e770709cd960": {
+      "title": "T4",
+      "plan": []
+    },
+    "7d2488dc-39fc-467f-ad66-e8da59d0f8bf": {
+      "title": "T1",
+      "plan": []
+    },
+    "6c798ab0-f081-4421-9126-79df8bf8b476": {
+      "title": "T2",
+      "plan": []
+    },
+    "4f459dab-38ba-4bc9-a509-ca3a2188c446": {
+      "title": "T4",
+      "plan": []
+    },
+    "de5bcf8b-6ae5-4969-8ce3-0cda7011c18e": {
+      "title": "T1",
+      "plan": []
+    },
+    "226d5567-d66a-4531-b53e-4e5f2d0e130c": {
+      "title": "T2",
+      "plan": []
+    },
+    "a188a149-337d-48c7-b578-3f4de626a3f6": {
+      "title": "T4",
+      "plan": []
+    },
+    "451497db-5e52-4322-a33a-9dae13804d97": {
+      "title": "T1",
+      "plan": []
+    },
+    "9cd5623a-b712-43d1-b4d6-32e9bfc29896": {
+      "title": "T2",
+      "plan": []
+    },
+    "4bed9e33-76c7-45d9-8c58-d734ab45a124": {
+      "title": "T4",
+      "plan": []
+    },
+    "2e895e59-cc13-4b96-a7fe-3c725d792937": {
+      "title": "T1",
+      "plan": []
+    },
+    "2f3dc628-ecf2-43d3-bb57-063537696826": {
+      "title": "T2",
+      "plan": []
+    },
+    "5560a0f7-0c35-4d58-9d48-426ed7b23151": {
+      "title": "T4",
+      "plan": []
+    },
+    "5c2ac012-3da4-433f-9106-fe61bcc75768": {
+      "title": "T1",
+      "plan": []
+    },
+    "d3f06adc-8fc0-4112-91ec-468247c13dc9": {
+      "title": "T2",
+      "plan": []
+    },
+    "166fed08-4c91-4d47-895d-4172f2e6cc0e": {
+      "title": "T4",
+      "plan": []
+    },
+    "afbac3c3-bfe3-4a0b-bca3-e397fab881bb": {
+      "title": "T1",
+      "plan": []
+    },
+    "a3a01e0e-2de8-4ede-86f9-3b7dcf814433": {
+      "title": "T2",
+      "plan": []
+    },
+    "ae080f30-c093-4da2-9e9b-e5a8db4c80bf": {
+      "title": "T4",
+      "plan": []
+    },
+    "41218358-54d6-4dcc-a9d6-ca8972f558bb": {
+      "title": "T1",
+      "plan": []
+    },
+    "7f31cb9d-b2c6-4bf7-99d6-373324d912f6": {
+      "title": "T2",
+      "plan": []
+    },
+    "a15da11d-e337-43ae-af75-40aabb9c435e": {
+      "title": "T4",
+      "plan": []
+    },
+    "9e194ce6-2455-4e4f-8337-82354d6e9aa4": {
+      "title": "T1",
+      "plan": []
+    },
+    "6559794c-c69b-4eaa-ae56-f3b70a194742": {
+      "title": "T2",
+      "plan": []
+    },
+    "17fcea30-dc65-45c6-b391-90ea221f0c38": {
+      "title": "T4",
+      "plan": []
+    },
+    "79727325-aea1-4fdd-9e1a-3fc427d3a014": {
+      "title": "T1",
+      "plan": []
+    },
+    "a95310a9-0d1d-43b1-90a8-d9e48e9cb670": {
+      "title": "T2",
+      "plan": []
+    },
+    "676f71ab-47e3-45f1-831d-ac3d9291c795": {
+      "title": "T4",
+      "plan": []
+    },
+    "e8f99ea7-8b71-4559-93c9-3af4884cd926": {
+      "title": "T1",
+      "plan": []
+    },
+    "1cb5b230-075c-44b1-93f7-15eb11b3726c": {
+      "title": "T2",
+      "plan": []
+    },
+    "5102323e-7f0b-4112-8d50-758610e05dc3": {
+      "title": "T4",
+      "plan": []
     }
   }
 }

@@ -2,19 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Play,
-  Users,
-  Map,
-  ListCheck,
-  Settings as SettingsIcon,
-} from "lucide-react";
-import { SidebarItem } from "@/ui/SidebarItem";
-import { baseFocusRing } from "@/ui/theme";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, ListCheck } from "lucide-react";
+import { baseFocusRing, accentGradient } from "@/ui/theme";
 import { cn } from "@/lib/utils";
-import { Header } from "./Header";
 import { ShortcutsCheatsheet } from "@/components/shortcuts/ShortcutsCheatsheet";
 
 interface AppShellProps {
@@ -22,30 +13,26 @@ interface AppShellProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Aperçu", icon: LayoutDashboard, accent: "indigo" as const },
-  { href: "/runs", label: "Runs", icon: Play, accent: "indigo" as const },
-  { href: "/agents", label: "Agents", icon: Users, accent: "emerald" as const },
-  { href: "/plans", label: "Plans", icon: Map, accent: "cyan" as const },
-  { href: "/tasks", label: "Tâches", icon: ListCheck, accent: "cyan" as const },
-  { href: "/settings", label: "Réglages", icon: SettingsIcon, accent: "amber" as const },
-];
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, accent: "brand" as const },
+  { href: "/tasks/new", label: "Nouvelle tâche", icon: ListCheck, accent: "cyan" as const },
+] as const;
 
 export function AppShell({ children }: AppShellProps) {
-  const router = useRouter();
   const pathname = usePathname();
-  const searchRef = React.useRef<HTMLInputElement>(null);
-  const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
   const [cheatsheetOpen, setCheatsheetOpen] = React.useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
+    const isEditable = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Désactive les raccourcis globaux sur la page de création (focus prioritaire)
+      if (typeof pathname === 'string' && pathname.startsWith('/tasks/new')) return;
+      if (isEditable(event.target)) return;
       const key = event.key.toLowerCase();
-      if ((event.metaKey || event.ctrlKey) && key === "k") {
-        event.preventDefault();
-        setCommandPaletteOpen(true);
-        return;
-      }
       if (!event.metaKey && !event.ctrlKey) {
         const isQuestionMark = key === "?" || (event.shiftKey && key === "/");
         if (isQuestionMark) {
@@ -56,79 +43,12 @@ export function AppShell({ children }: AppShellProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  React.useEffect(() => {
-    setMobileMenuOpen(false);
   }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <aside className="hidden h-screen w-64 flex-col gap-3 border-r border-slate-800 bg-[#1C1E26] p-4 md:flex">
-        <div className="text-lg font-semibold">Cockpit</div>
-        <nav aria-label="Navigation principale" className="flex flex-col gap-2">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.href;
-            return (
-              <SidebarItem
-                key={item.href}
-                label={item.label}
-                accent={item.accent}
-                icon={<Icon className="h-5 w-5" />}
-                active={active}
-                onClick={() => router.push(item.href)}
-              />
-            );
-          })}
-        </nav>
-      </aside>
       <div className="flex flex-1 flex-col">
-        <Header
-          searchRef={searchRef}
-          onCheatsheetOpen={() => setCheatsheetOpen(true)}
-          commandPaletteOpen={commandPaletteOpen}
-          onCommandPaletteOpenChange={setCommandPaletteOpen}
-          onMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
-        />
         <ShortcutsCheatsheet open={cheatsheetOpen} onOpenChange={setCheatsheetOpen} />
-        {mobileMenuOpen && (
-          <div
-            className="md:hidden fixed inset-0 z-40 bg-black/60"
-            role="dialog"
-            aria-modal="true"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            <div
-              className="absolute left-4 right-4 top-20 rounded-2xl border border-slate-700 bg-[#1C1E26] p-4 shadow-xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <nav className="flex flex-col gap-2" aria-label="Navigation mobile étendue">
-                {NAV_ITEMS.map((item) => {
-                  const Icon = item.icon;
-                  const active = pathname === item.href;
-                  return (
-                    <button
-                      key={item.href}
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        router.push(item.href);
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl border border-slate-700 px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-indigo-600/15",
-                        active && "border-indigo-500 bg-indigo-600/10"
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </div>
-        )}
         <a
           href="#main"
           className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded focus-visible:bg-[var(--surface)] focus-visible:px-3 focus-visible:py-2"
@@ -154,7 +74,7 @@ export function AppShell({ children }: AppShellProps) {
                 className={cn(
                   "flex h-12 w-12 items-center justify-center rounded-full text-sm transition",
                   baseFocusRing,
-                  active ? "bg-slate-800 text-[color:var(--text)]" : "text-secondary"
+                  active ? cn("text-white bg-gradient-to-br", accentGradient(item.accent)) : "text-secondary bg-transparent"
                 )}
               >
                 <Icon className="h-5 w-5" />

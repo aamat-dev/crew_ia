@@ -60,13 +60,8 @@ export function KpiCard({
         className
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
-          accentGradient(accent)
-        )}
-      />
+      <span aria-hidden className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accentGradient(accent))} />
+      <span aria-hidden className={cn("pointer-events-none absolute inset-0 opacity-20 bg-gradient-to-br", accentGradient(accent))} />
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-secondary">{displayLabel}</p>

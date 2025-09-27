@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import delete
 
 from api.database.models import Run, Event
+from core.events.types import EventType
 
 
 @pytest.mark.asyncio
@@ -79,3 +80,36 @@ async def test_get_run_reflects_failed_from_events(client, db_session):
     await db_session.execute(delete(Run).where(Run.id == run_id))
     await db_session.commit()
 
+
+@pytest.mark.asyncio
+async def test_get_run_reflects_canceled_from_events(client, db_session):
+    now = dt.datetime.now(dt.timezone.utc)
+    run_id = uuid.uuid4()
+    await db_session.execute(
+        insert(Run).values(
+            id=run_id,
+            title="R3",
+            status="queued",
+            started_at=now,
+        )
+    )
+    await db_session.execute(
+        insert(Event).values(
+            id=uuid.uuid4(),
+            run_id=run_id,
+            node_id=None,
+            timestamp=now,
+            level=EventType.RUN_CANCELED.value,
+            message="{}",
+            request_id=None,
+        )
+    )
+    await db_session.commit()
+
+    r = await client.get(f"/runs/{run_id}")
+    assert r.status_code == 200
+    assert r.json()["status"] == "canceled"
+
+    await db_session.execute(delete(Event).where(Event.run_id == run_id))
+    await db_session.execute(delete(Run).where(Run.id == run_id))
+    await db_session.commit()

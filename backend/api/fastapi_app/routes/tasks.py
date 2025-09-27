@@ -12,6 +12,7 @@ import asyncio
 import anyio
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, Query
+from pydantic import BaseModel
 from fastapi import Header
 from pydantic import ValidationError
 
@@ -158,6 +159,7 @@ async def list_tasks(
     pagination: PaginationParams = Depends(pagination_params),
     status: str | None = Query(None, description="Filtre par status"),
     title_contains: str | None = Query(None, description="Filtre par sous-chaîne du titre"),
+    include_archived: bool = Query(False, description="Inclure les tâches archivées"),
 ):
     where = []
     if status:
@@ -165,6 +167,12 @@ async def list_tasks(
     if title_contains:
         like = f"%{title_contains}%"
         where.append(Task.title.ilike(like))
+    if not include_archived:
+        try:
+            # filtre les archivées si la colonne existe
+            where.append(Task.__table__.c.archived.is_(False))  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     base = select(Task)
     if where:
@@ -212,6 +220,63 @@ async def list_tasks(
         links=links or None,
     )
 
+
+class TaskUpdatePayload(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    archived: bool | None = None
+
+
+@router.patch("/{task_id}", response_model=TaskOut)
+async def update_task(
+    task_id: UUID,
+    payload: TaskUpdatePayload,
+    session: AsyncSession = Depends(get_session),
+):
+    task = await session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="not found")
+    data = payload.model_dump(exclude_unset=True)
+    # Titre/description
+    if "title" in data and data["title"] is not None:
+        if not data["title"].strip():
+            raise HTTPException(status_code=422, detail="title must not be empty")
+        task.title = data["title"].strip()
+    if "description" in data:
+        task.description = (data["description"] or None)
+    # Archive
+    if data.get("archived") is True:
+        if task.status == TaskStatus.running:
+            raise HTTPException(status_code=409, detail="cannot archive a running task")
+        try:
+            setattr(task, "archived", True)
+        except Exception:
+            pass
+    if data.get("archived") is False:
+        try:
+            setattr(task, "archived", False)
+        except Exception:
+            pass
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return TaskOut.model_validate(task)
+
+
+@router.delete("/{task_id}", status_code=204)
+async def delete_task(
+    task_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    task = await session.get(Task, task_id)
+    if not task:
+        return Response(status_code=204)
+    if task.status == TaskStatus.running:
+        raise HTTPException(status_code=409, detail="cannot delete a running task")
+    await session.delete(task)
+    await session.commit()
+    return Response(status_code=204)
+
 @router.post(
     "",
     response_model=TaskOut | TaskAcceptedResponse,
@@ -238,8 +303,9 @@ async def create_task(
     rid = x_request_id or str(uuid4())
     response.headers["X-Request-ID"] = rid
 
-    # Branche simple: création d'une tâche brouillon
-    allowed_keys = {"title", "description"}
+    # Branche simple: création d'une tâche brouillon (+ options rapides)
+    # Ajout: auto_plan/auto_start pour un démarrage en 1 clic
+    allowed_keys = {"title", "description", "auto_plan", "auto_start"}
     if set(payload.keys()) <= allowed_keys:
         try:
             data = TaskCreate.model_validate(payload)
@@ -269,6 +335,107 @@ async def create_task(
         await session.commit()
         await session.refresh(task)
 
+        # Gestion 1‑clic: auto_plan / auto_start
+        auto_plan = bool(payload.get("auto_plan", False))
+        auto_start = bool(payload.get("auto_start", False))
+
+        if not auto_plan and not auto_start:
+            response.headers["Location"] = f"/tasks/{task.id}"
+            return TaskOut.model_validate(task)
+
+        # 1) Génération du plan (si demandée)
+        plan = None
+        if auto_plan:
+            try:
+                result = await generate_plan(task)
+            except Exception as e:
+                # Considère l'opération comme une création de tâche réussie, mais plan KO
+                log.warning("auto_plan failed for task_id=%s err=%r", task.id, e)
+                response.headers["Location"] = f"/tasks/{task.id}"
+                return TaskOut.model_validate(task)
+
+            if task.plan_id:
+                plan = await session.get(Plan, task.plan_id)
+            if plan:
+                plan.graph = result.graph.model_dump()
+                plan.status = result.status
+                plan.version += 1
+            else:
+                plan = Plan(task_id=task.id, status=result.status, graph=result.graph.model_dump())
+                session.add(plan)
+                await session.flush()
+                if result.status != PlanStatus.invalid:
+                    task.plan_id = plan.id
+
+            # Versioning optionnel
+            try:
+                from backend.app.models.plan_version import PlanVersion  # type: ignore
+                session.add(
+                    PlanVersion(
+                        plan_id=plan.id,
+                        numero_version=plan.version,
+                        graph=plan.graph,
+                    )
+                )
+            except Exception:
+                pass
+            await session.commit()
+
+            # Si le plan n'est pas prêt et qu'on veut auto_start, on renvoie 409
+            if auto_start and (not plan or plan.status != PlanStatus.ready):
+                raise HTTPException(status_code=409, detail="Plan not ready")
+
+        # 2) Démarrage (si demandé)
+        if auto_start:
+            _check_rate_limit(request)
+
+            # Si aucun plan n'a été généré, on vérifie qu'il existe
+            if task.plan_id is None:
+                raise HTTPException(status_code=409, detail="Plan missing")
+            plan_row = await session.get(Plan, task.plan_id)
+            if not plan_row or plan_row.status != PlanStatus.ready:
+                raise HTTPException(status_code=409, detail="Plan not ready")
+
+            # Persiste spec dans plans.graph (pour l'orchestrateur)
+            try:
+                import json as _json
+                from pathlib import Path as _Path
+                graph = plan_row.graph or {}
+                nodes = graph.get("plan") or graph.get("nodes") or []
+                spec = {"title": task.title or str(task.id), "plan": nodes}
+                path = _Path("plans.graph")
+                if path.exists():
+                    root = _json.loads(path.read_text(encoding="utf-8"))
+                else:
+                    root = {"version": "1.0", "plans": {}}
+                if root.get("version") != "1.0":
+                    root["version"] = "1.0"
+                root.setdefault("plans", {})[str(plan_row.id)] = spec
+                path.write_text(_json.dumps(root, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to persist plan spec: {e}")
+
+            try:
+                from backend.orchestrator import orchestrator_adapter as _orch
+                run_uuid = await _orch.start(plan_row.id, dry_run=False)
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Orchestrator start failed: {e}")
+
+            try:
+                task.run_id = run_uuid
+                task.status = TaskStatus.running
+                session.add(task)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+
+            response.status_code = status.HTTP_201_CREATED
+            response.headers["Location"] = f"/runs/{run_uuid}"
+            return TaskAcceptedResponse(run_id=run_uuid, location=f"/runs/{run_uuid}")
+
+        # Retour défaut si auto_plan seul
         response.headers["Location"] = f"/tasks/{task.id}"
         return TaskOut.model_validate(task)
 
@@ -386,6 +553,20 @@ async def generate_task_plan(
         if result.status != PlanStatus.invalid:
             task.plan_id = plan.id
 
+    # Enregistre un snapshot de version (PlanVersion)
+    try:
+        from backend.app.models.plan_version import PlanVersion  # import local pour éviter cycles
+        session.add(
+            PlanVersion(
+                plan_id=plan.id,
+                numero_version=plan.version,
+                graph=plan.graph,
+            )
+        )
+    except Exception:
+        # Tolère l’absence de table en environnements anciens
+        pass
+
     await session.commit()
 
     req_id = x_request_id or getattr(request.state, "request_id", None)
@@ -417,21 +598,91 @@ async def start_task_run(
     if plan is None or plan.status != PlanStatus.ready:
         raise HTTPException(status_code=409, detail="Plan not ready")
 
+    # Chemin exécution réelle via orchestrateur (activable par env)
+    import os as _os
+    if (_os.getenv("PLAN_EXECUTE_ON_START", "true").strip().lower() in {"1", "true", "yes", "on"}):
+        # 1) écrire/mettre à jour plans.graph (best-effort)
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            plan_row = await session.get(Plan, task.plan_id)
+            if not plan_row:
+                raise HTTPException(status_code=409, detail="Plan not found")
+            graph = plan_row.graph or {}
+            nodes = graph.get("plan") or graph.get("nodes") or []
+            spec = {"title": task.title or str(task_id), "plan": nodes}
+            path = _Path("plans.graph")
+            if path.exists():
+                root = _json.loads(path.read_text(encoding="utf-8"))
+            else:
+                root = {"version": "1.0", "plans": {}}
+            if root.get("version") != "1.0":
+                root["version"] = "1.0"
+            root.setdefault("plans", {})[str(plan_row.id)] = spec
+            path.write_text(_json.dumps(root, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            # Plutôt que 500, on log et on passera en fallback DB-only
+            logging.getLogger("api.tasks").warning("persist plans.graph failed: %s", e, exc_info=True)
+            plan_row = None  # force fallback orchestrateur
+
+        # 2) lancer orchestrateur
+        try:
+            from backend.orchestrator import orchestrator_adapter as _orch
+            if plan_row is not None:
+                run_uuid = await _orch.start(plan_row.id, dry_run=dry_run)
+            else:
+                raise RuntimeError("plans.graph not persisted")
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Fallback robuste: crée un run DB-only plutôt que 500
+            logging.getLogger("api.tasks").warning("orchestrator start failed: %s -- falling back to DB-only run", e, exc_info=True)
+            request_id = getattr(request.state, "request_id", None)
+            run = Run(title=task.title, status=RunStatus.running, started_at=utcnow(), meta={"request_id": request_id})
+            session.add(run)
+            await session.commit()
+            await session.refresh(run)
+            if not dry_run:
+                try:
+                    task.run_id = run.id
+                    task.status = TaskStatus.running
+                    session.add(task)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+            session.add(
+                Event(
+                    run_id=run.id,
+                    level="RUN_STARTED",
+                    message=json.dumps({"request_id": request_id} if request_id else {}),
+                    request_id=request_id,
+                )
+            )
+            await session.commit()
+            return {"run_id": str(run.id), "dry_run": dry_run}
+
+        # 3) Mettre à jour la tâche (liaison run)
+        if not dry_run:
+            try:
+                task.run_id = run_uuid
+                task.status = TaskStatus.running
+                session.add(task)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+        return {"run_id": str(run_uuid), "dry_run": dry_run}
+
+    # Chemin historique (tests) : ne lance pas l'exécution, crée un run "running" minimal
     request_id = getattr(request.state, "request_id", None)
     run = Run(title=task.title, status=RunStatus.running, started_at=utcnow(), meta={"request_id": request_id})
     session.add(run)
     await session.commit()
     await session.refresh(run)
-
     if not dry_run:
         task.run_id = run.id
         task.status = TaskStatus.running
         session.add(task)
         await session.commit()
-
-    # ⚠️ Pour les tests, on ne lance pas l’exécution ici.
-    # Ils ne vérifient que que l’état est 'running' juste après la réponse.
-    # L’orchestrateur réel démarrera le run ailleurs.
     session.add(
         Event(
             run_id=run.id,
@@ -441,5 +692,4 @@ async def start_task_run(
         )
     )
     await session.commit()
-
     return {"run_id": str(run.id), "dry_run": dry_run}

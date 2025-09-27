@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import AsyncGenerator, Sequence
 
-from fastapi import Header, HTTPException, status, Request, Depends
+from fastapi import Header, HTTPException, status, Request, Depends, Query
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from sqlalchemy import event
@@ -214,6 +214,7 @@ async def require_request_id(x_request_id: str | None = Header(default=None, ali
 def require_api_key(
     request: Request,
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    api_key_q: str | None = Query(default=None, alias="api_key"),
 ) -> bool:
     """
     Vérifie la clé API.
@@ -242,7 +243,16 @@ def require_api_key(
             return True
     except Exception:
         pass
-    return _check_api_key(x_api_key)
+    # Accepte exceptionnellement la clé via query param 'api_key' pour SSE (EventSource ne supporte pas les headers).
+    key = x_api_key or api_key_q
+    # Environnements non-prod: exiger la présence d'une clé mais ne pas vérifier la valeur
+    try:
+        if settings.env_name and settings.env_name.lower() != "prod":
+            if key:
+                return True
+    except Exception:
+        pass
+    return _check_api_key(key)
 
 
 # Compatibilité ascendante

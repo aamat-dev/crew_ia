@@ -35,6 +35,8 @@ from .routes import (
     feedbacks,
     node_actions,
     plans,
+    config as cfg,
+    audit,
 )
 from .routes.qa_report import router as qa_router
 from .middleware.request_id import RequestIdMiddleware
@@ -64,6 +66,7 @@ TAGS_METADATA = [
         "name": "feedbacks",
         "description": "Gestion des feedbacks auto ou humains: création et listing par nœud ou run.",
     },
+    {"name": "audit", "description": "Journal des actions opérateur et système."},
 ]
 
 def _build_storage():
@@ -173,10 +176,15 @@ if metrics_enabled():
         )
 
 # CORS
-# Origines autorisées via variable d'env ALLOWED_ORIGINS (CSV)
+# En non-prod: autorise toutes origines pour faciliter le dev multi-hosts.
+try:
+    env_name = (settings.env_name or "").lower()
+except Exception:
+    env_name = "test"
+allow_all = env_name == "dev"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"] if allow_all else settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -192,12 +200,14 @@ app.include_router(nodes.router, dependencies=protected)
 app.include_router(artifacts.router_nodes, dependencies=protected)
 app.include_router(artifacts.router_artifacts, dependencies=protected)
 app.include_router(events.router, dependencies=protected)
+app.include_router(audit.router, dependencies=protected)
 app.include_router(tasks.router, dependencies=protected)
 app.include_router(node_actions.router, dependencies=protected)
 app.include_router(plans.router, dependencies=protected)
 app.include_router(agents.router, dependencies=protected)
 app.include_router(feedbacks.router, dependencies=protected)
 app.include_router(qa_router, dependencies=protected)
+app.include_router(cfg.router, dependencies=protected)
 
 # Redirection vers Swagger
 @app.get("/", include_in_schema=False)

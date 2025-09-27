@@ -10,6 +10,7 @@ from typing import Optional
 
 import logging
 from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +23,8 @@ from backend.api.utils.pagination import (
 )
 from ..ordering import apply_order
 from core.storage.db_models import Event, Run  # type: ignore
+from core.events.types import EventType
+import anyio
 
 router = APIRouter(prefix="", tags=["events"], dependencies=[Depends(strict_api_key_auth)])
 _deprecated_warned = False
@@ -93,6 +96,7 @@ async def list_events(
     run_request_id = None
     fs_request_id = None
     run_row = await session.get(Run, run_id)
+    want_level: str | None = None
     if run_row and run_row.meta:
         meta_dict = run_row.meta
         if isinstance(meta_dict, str):
@@ -141,15 +145,19 @@ async def list_events(
     # Si l'événement de fin de run est manquant, le synthétiser à partir de l'état du run
     # uniquement si aucun filtre restrictif n'est actif (level/q/ts_from/ts_to/request_id)
     if run_row and pagination.offset == 0 and not any([level, q, ts_from, ts_to, request_id]):
-        want_level = None
+        want_level: str | None = None
         status_str = str(run_row.status) if getattr(run_row, "status", None) is not None else ""
         if status_str.endswith("completed"):
-            want_level = "RUN_COMPLETED"
+            want_level = EventType.RUN_COMPLETED.value
         elif status_str.endswith("failed"):
-            want_level = "RUN_FAILED"
+            want_level = EventType.RUN_FAILED.value
+        elif status_str.endswith("canceled"):
+            want_level = EventType.RUN_CANCELED.value
+        elif status_str.endswith("paused"):
+            want_level = EventType.RUN_PAUSED.value
         if want_level and not any(e.level == want_level for e in items):
             # ID déterministe pour stabilité entre routes
-            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
+            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:{want_level}")
             synthetic_items.append(
                 EventOut(
                     id=synth_id,
@@ -170,14 +178,15 @@ async def list_events(
     if (
         pagination.offset == 0
         and not any([level, q, ts_from, ts_to, request_id])
-        and not any(e.level == "RUN_COMPLETED" for e in items + synthetic_items)
+        and any(e.level == EventType.RUN_COMPLETED.value for e in items + synthetic_items) is False
+        and want_level == EventType.RUN_COMPLETED.value
     ):
         # Cherche d'abord dans les éléments DB, sinon retombe sur les synthétiques (FS)
         last_node_completed = next((e for e in items if e.level == "NODE_COMPLETED"), None)
         if last_node_completed is None:
             last_node_completed = next((e for e in synthetic_items if e.level == "NODE_COMPLETED"), None)
         if last_node_completed:
-            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:RUN_COMPLETED")
+            synth_id = uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic:run:{run_id}:{EventType.RUN_COMPLETED.value}")
             # Assure un timestamp légèrement supérieur au NODE_COMPLETED pour le tri
             ts = last_node_completed.timestamp + dt.timedelta(microseconds=1)
             synthetic_items.append(
@@ -185,7 +194,7 @@ async def list_events(
                     id=synth_id,
                     run_id=run_id,
                     node_id=None,
-                    level="RUN_COMPLETED",
+                    level=EventType.RUN_COMPLETED.value,
                     message=json.dumps({"request_id": chosen_request_id} if chosen_request_id else {}),
                     timestamp=ts,
                     request_id=chosen_request_id,
@@ -248,3 +257,66 @@ async def list_events(
         offset=pagination.offset,
         links=links or None,
     )
+
+
+@router.get("/events/stream")
+async def stream_events(
+    request: Request,
+    run_id: UUID = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """SSE simple qui pousse les nouveaux événements pour un run donné.
+
+    Implémentation par polling DB tolérante (sans broker). Compatible EventSource.
+    Auth: accepte X-API-Key en header ou ?api_key=...
+    """
+
+    async def event_generator():
+        # Position initiale: dernier timestamp connu
+        last_ts: Optional[datetime] = None
+        # Heartbeat périodique pour garder la connexion ouverte
+        hb = 0
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                where = [Event.run_id == run_id]
+                if last_ts is not None:
+                    where.append(Event.timestamp > last_ts)
+                q = (
+                    select(Event)
+                    .where(and_(*where))
+                    .order_by(Event.timestamp.asc())
+                    .limit(100)
+                )
+                rows = (await session.execute(q)).scalars().all()
+                for e in rows:
+                    last_ts = e.timestamp
+                    # data payload: JSON
+                    payload = {
+                        "id": str(e.id),
+                        "run_id": str(e.run_id) if e.run_id else None,
+                        "node_id": str(e.node_id) if e.node_id else None,
+                        "level": e.level,
+                        "message": e.message,
+                        "timestamp": e.timestamp.isoformat(),
+                        "request_id": getattr(e, "request_id", None),
+                    }
+                    txt = json.dumps(payload)
+                    yield f"event: message\n"
+                    yield f"data: {txt}\n\n"
+                # heartbeat toutes ~5 itérations (~2.5s)
+                hb += 1
+                if hb % 5 == 0:
+                    yield f": ping\n\n"
+                # Petite pause pour éviter de surcharger la DB
+                await anyio.sleep(0.5)
+        except Exception:
+            # ferme proprement en cas d'erreur
+            return
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)

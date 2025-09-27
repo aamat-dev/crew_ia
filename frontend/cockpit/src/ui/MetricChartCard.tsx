@@ -45,7 +45,8 @@ export function MetricChartCard<T extends Record<string, unknown>>({
   const accentColors = ACCENT_COLORS[accent];
 
   return (
-    <section className={cn("surface shadow-card p-4 space-y-4", className)}>
+    <section className={cn("relative surface shadow-card p-4 space-y-4 overflow-hidden", className)}>
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${accentColors[500]}, ${accentColors[400]})` }} />
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[color:var(--text)]">{title}</h2>
       </div>

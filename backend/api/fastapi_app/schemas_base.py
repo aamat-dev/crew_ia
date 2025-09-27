@@ -99,6 +99,12 @@ class RunSummaryOut(BaseModel):
     artifacts_total: int
     events_total: int
     duration_ms: Optional[int] = None
+    llm_prompt_tokens: Optional[int] = None
+    llm_completion_tokens: Optional[int] = None
+    llm_total_tokens: Optional[int] = None
+    llm_request_count: Optional[int] = None
+    llm_avg_latency_ms: Optional[float] = None
+    llm_p95_latency_ms: Optional[float] = None
 
 class RunListItemOut(BaseModel):
     id: UUID
@@ -116,6 +122,9 @@ class RunOut(BaseModel):
     meta: Optional[Dict[str, Any]] = None
     summary: Optional[RunSummaryOut] = None
     dag: Optional['DagOut'] = None
+    # Optionnel: derniers événements intégrés (piloté par include_events côté API)
+    events: Optional[List['EventOut']] = None
+    artifacts: Optional[List['ArtifactOut']] = None
 
 class NodeOut(BaseModel):
     id: UUID
@@ -138,7 +147,7 @@ class DagOut(BaseModel):
     nodes: List[NodeOut]
     edges: List[DagEdge] = Field(default_factory=list)
 
-RunOut.model_rebuild()
+# model_rebuild sera appelé après la définition de EventOut (voir plus bas)
 
 class ArtifactOut(BaseModel):
     id: UUID
@@ -158,6 +167,58 @@ class EventOut(BaseModel):
     message: str
     timestamp: datetime
     request_id: Optional[str] = None
+
+# Reconstruit les références avant utilisation (RunOut.events -> EventOut)
+RunOut.model_rebuild()
+
+
+class IncidentEventOut(BaseModel):
+    id: UUID
+    level: str
+    message: str
+    timestamp: datetime
+    node_id: Optional[UUID] = None
+
+
+class IncidentNodeOut(BaseModel):
+    id: UUID
+    key: Optional[str] = None
+    title: str
+    status: str
+    role: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    events: List[IncidentEventOut] = Field(default_factory=list)
+    artifacts: List[ArtifactOut] = Field(default_factory=list)
+
+
+class RunIncidentRunOut(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+    summary: Optional[RunSummaryOut] = None
+
+
+class RunIncidentOut(BaseModel):
+    run: RunIncidentRunOut
+    failed_nodes: List[IncidentNodeOut]
+    recent_events: List[IncidentEventOut]
+    signals: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class AuditLogOut(BaseModel):
+    id: UUID
+    run_id: Optional[UUID] = None
+    node_id: Optional[UUID] = None
+    source: str
+    action: str
+    actor_role: Optional[str] = None
+    actor: Optional[str] = None
+    request_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime
 
 
 # ---------- Agents ---------------------------------------------------------

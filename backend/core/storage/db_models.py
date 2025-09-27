@@ -25,6 +25,7 @@ class RunStatus(str, Enum):
     # Alignement avec l'ENUM PostgreSQL (migrations):
     queued = "queued"
     running = "running"
+    paused = "paused"
     completed = "completed"
     failed = "failed"
     canceled = "canceled"
@@ -39,6 +40,12 @@ class NodeStatus(str, Enum):
     completed = "completed"
     failed = "failed"
     canceled = "canceled"
+    skipped = "skipped"
+
+
+class AuditSource(str, Enum):
+    system = "system"
+    human = "human"
 
 
 # ---------------- Tables ----------------
@@ -168,6 +175,46 @@ class Event(SQLModel, table=True):
     )
     extra: Optional[Dict] = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
+    )
+
+
+class AuditLog(SQLModel, table=True):
+    __tablename__ = "audit_logs"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True, nullable=False),
+    )
+    run_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True),
+    )
+    node_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PGUUID(as_uuid=True), nullable=True, index=True),
+    )
+    source: AuditSource = Field(
+        default=AuditSource.human,
+        sa_column=Column(SAEnum(AuditSource, name="auditsource"), nullable=False),
+    )
+    action: str = Field(sa_column=Column(String, nullable=False, index=True))
+    actor_role: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
+    actor: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
+    request_id: Optional[str] = Field(
+        default=None, sa_column=Column(String, nullable=True, index=True)
+    )
+    payload: Optional[Dict[str, Any]] = Field(
+        default=None, sa_column=Column("metadata", JSONB, nullable=True)
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(
+            DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+        ),
     )
 
 

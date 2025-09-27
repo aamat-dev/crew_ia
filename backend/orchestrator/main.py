@@ -140,6 +140,14 @@ def main() -> None:
         file_adapter = FileAdapter(runs_root)
         storage = CompositeAdapter([file_adapter])
 
+        # Forcer Ollama par défaut si non configuré explicitement
+        if not os.getenv("SUPERVISOR_PROVIDER"):
+            os.environ.setdefault("SUPERVISOR_PROVIDER", "ollama")
+        if not os.getenv("SUPERVISOR_MODEL"):
+            os.environ.setdefault("SUPERVISOR_MODEL", os.getenv("OLLAMA_MODEL") or "llama3.1:8b")
+        # Fallback plan brouillon si superviseur indisponible
+        os.environ.setdefault("PLAN_FALLBACK_DRAFT", os.getenv("PLAN_FALLBACK_DRAFT") or "true")
+
         # 1) appelle le superviseur (avec storage file-only pour poser les fichiers si besoin)
         import asyncio
         task = {"title": args.title, "description": args.description, "acceptance": args.acceptance}

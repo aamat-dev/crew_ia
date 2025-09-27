@@ -7,6 +7,7 @@ const STATUS_STYLES: Record<Status, string> = {
   queued: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
   failed: "bg-rose-500/15 text-rose-300 border border-rose-500/30",
   paused: "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30",
+  canceled: "bg-slate-500/15 text-slate-200 border border-slate-500/30",
 };
 
 export interface StatusBadgeProps {

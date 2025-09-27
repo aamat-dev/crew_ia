@@ -1,8 +1,8 @@
-# Cockpit
+# Oria
 
 ## AppShell
 
-Le layout global fournit une sidebar de navigation et un header avec recherche, notifications, palette de commandes (Cmd/Ctrl+K) et bascule de thème. Il est intégré dans `src/app/layout.tsx` via le composant `AppShell`.
+Le frontend Oria (Next.js) fournit une navigation et un header avec recherche, palette de commandes (Cmd/Ctrl+K) et bascule de thème. Il est intégré dans `src/app/layout.tsx` via le composant `AppShell`.
 
 ## Design System
 
@@ -29,12 +29,12 @@ Le mode clair/sombre respecte `prefers-color-scheme` et peut être changé depui
 
 ## Données (API Backend)
 
-Le cockpit consomme l'API FastAPI réelle via `NEXT_PUBLIC_API_URL` et gère les états `loading`/`error`/`empty` grâce à TanStack Query.
+Oria consomme l'API FastAPI réelle via `NEXT_PUBLIC_API_URL` et gère les états `loading`/`error`/`empty` grâce à TanStack Query.
+Un sélecteur d’environnement dans le header permet de surcharger la base API à la volée (localStorage `cockpit-api-url`) sans rebuild.
 
 - Pages branchées :
   - `/dashboard` : extrait (5 derniers runs) avec CTA.
-  - `/runs` : `GET ${API_URL}/runs?limit=20`.
-  - `/tasks` : `GET ${API_URL}/tasks?limit=20`, création et démarrage d’une tâche.
+  - `/tasks/new` : création et lancement guidés d’une tâche.
 
 Variables d’environnement côté client :
 
@@ -42,6 +42,8 @@ Variables d’environnement côté client :
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 # Doit correspondre à API_KEY côté backend pour autoriser les requêtes
 NEXT_PUBLIC_API_KEY=test-key
+# Rôle par défaut (RBAC) côté UI, peut être modifié via le sélecteur dédié
+NEXT_PUBLIC_ROLE=viewer # viewer|editor|admin
 ```
 
 Sans `NEXT_PUBLIC_API_KEY`, les endpoints protégés renverront 401 et l’UI affichera un état d’erreur.
@@ -49,6 +51,17 @@ Sans `NEXT_PUBLIC_API_KEY`, les endpoints protégés renverront 401 et l’UI af
 ## Tests d'accessibilité
 
 Lancer `npm test` pour exécuter les tests `jest-axe` sur l'AppShell et le Dashboard et vérifier qu'aucune violation n'est détectée.
+
+## RBAC & CTA
+
+- L’UI ajoute les en‑têtes `X-API-Key` (si défini) et `X-Role` à chaque requête.
+- Un sélecteur de rôle (viewer/editor/admin) dans le header ajuste dynamiquement l’état des CTA (activés/désactivés avec tooltip “Rôle insuffisant”).
+- Les actions sensibles (annuler/pause/reprendre/ignorer échecs, override nœud) ouvrent une modale de confirmation.
+
+## SSE & Fallback
+
+- Le Drawer Run consomme `GET /runs/{id}` avec bundling (include_events/nodes/artifacts) et s’abonne à `/events/stream?run_id=…`.
+- En cas d’échec SSE, un polling léger reprend automatiquement (toutes les 5s) pour rafraîchir événements et métriques LLM.
 
 ## Documentation
 

@@ -132,7 +132,44 @@ async def arecruit(role: str) -> AgentSpec:
             if isinstance(raw_tools, list):
                 tools = [str(x) for x in raw_tools]
 
-        spec = AgentSpec(role=role, system_prompt=system_prompt, provider=provider or "other", model=model or "other", tools=tools)
+        # Surcharge via variables d'environnement de haut niveau (priorité absolue)
+        env_override = None
+        rlow = (role or "").strip().lower()
+        if rlow.startswith("supervisor"):
+            p = os.getenv("SUPERVISOR_PROVIDER")
+            m = os.getenv("SUPERVISOR_MODEL")
+            if p or m:
+                env_override = (p or provider or "other", m or model or "other")
+        elif rlow.startswith("manager"):
+            p = os.getenv("MANAGER_PROVIDER")
+            m = os.getenv("MANAGER_MODEL")
+            if p or m:
+                env_override = (p or provider or "other", m or model or "other")
+        elif rlow.startswith("review"):
+            p = os.getenv("REVIEWER_PROVIDER")
+            m = os.getenv("REVIEWER_MODEL")
+            if p or m:
+                env_override = (p or provider or "other", m or model or "other")
+        else:
+            p = os.getenv("EXECUTOR_PROVIDER")
+            m = os.getenv("EXECUTOR_MODEL")
+            if p or m:
+                env_override = (p or provider or "other", m or model or "other")
+
+        final_provider = (env_override[0] if env_override else provider) or "other"
+        final_model = (env_override[1] if env_override else model) or "other"
+
+        # Prompt par défaut (fort) si manquant pour Supervisor
+        if system_prompt is None and rlow.startswith("supervisor"):
+            system_prompt = (
+                "Tu es un Superviseur. Réponds UNIQUEMENT avec un JSON valide, sans prose ni balises. "
+                "Schéma attendu: {\"decompose\": false, \"plan\": [ {\"id\": \"n1\", \"title\": \"...\", "
+                "\"type\": \"task\", \"deps\": [], \"suggested_agent_role\": \"executor\", \"acceptance\": [], "
+                "\"risks\": [], \"assumptions\": [], \"notes\": [] } ] }. Pas d'autres champs à la racine. "
+                "Assure-toi que \"plan\" contient au moins 3 nœuds pertinents."
+            )
+
+        spec = AgentSpec(role=role, system_prompt=system_prompt, provider=final_provider, model=final_model, tools=tools)
 
         # Mémorise dans le registre dynamique
         register_agent(spec)

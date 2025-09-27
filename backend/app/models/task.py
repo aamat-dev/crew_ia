@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Text, func, Index
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlmodel import SQLModel, Field
 
@@ -46,6 +47,10 @@ class Task(SQLModel, table=True):
             ForeignKey("runs.id", ondelete="SET NULL"),
             nullable=True,
         ),
+    )
+    archived: bool = Field(
+        default=False,
+        sa_column=Column(sa.Boolean(), nullable=False, server_default=sa.text("FALSE")),
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

@@ -1,11 +1,11 @@
-# Crew Orchestrator — API + Cockpit
+# Oria — Orchestrateur multi‑agents (API + Front)
 
 Petit orchestrateur d’agents avec API FastAPI, stockage Postgres/FS et cockpit Next.js. Objectif: onboarding rapide, runs observables et mini‑dashboard prêt pour la démo.
 
 Architecture (vue simplifiée)
 
 ```
- [Cockpit Next.js]  ───────── HTTP ─────────▶  [FastAPI]
+ [Oria (Next.js)]  ───────── HTTP ─────────▶  [FastAPI]
      (frontend)                            (backend/api)
                                                │
                                        ┌───────┴────────┐
@@ -43,12 +43,12 @@ make install
 make api-migrate
 ```
 
-4) Démarrer l’API et le Cockpit
+4) Démarrer l’API et Oria
 ```bash
 # Terminal A — API (FastAPI + reload)
 make api
 
-# Terminal B — Cockpit (Next.js, dossier frontend/cockpit)
+# Terminal B — Oria (Next.js, dossier frontend/cockpit)
 make cockpit-install
 make cockpit
 ```
@@ -408,7 +408,7 @@ Exemple de sidecar valide :
 }
 ```
 
-## Cockpit front-end
+## Oria (front-end)
 
 Un tableau de bord Next.js est disponible dans `frontend/cockpit`.
 

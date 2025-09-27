@@ -2,8 +2,10 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 
 from backend.orchestrator import orchestrator_adapter
+from core.storage.db_models import AuditLog
 
 
 @pytest.mark.asyncio
@@ -117,3 +119,26 @@ async def test_patch_node_pause_twice_conflict(client):
     assert r1.status_code == 200
     r2 = await client.patch(f"/nodes/{node_id}", json={"action": "pause"})
     assert r2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_node_action_creates_audit_log(client, monkeypatch, db_session):
+    node_id = uuid.uuid4()
+    run_id = uuid.uuid4()
+
+    async def fake_action(node_id_arg, action, payload):
+        assert action == "pause"
+        return {"status_after": "paused", "run_id": str(run_id)}
+
+    monkeypatch.setattr(orchestrator_adapter, "node_action", fake_action)
+
+    resp = await client.patch(f"/nodes/{node_id}", json={"action": "pause"}, headers={"X-Role": "editor"})
+    assert resp.status_code == 200
+
+    rows = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.node_id == node_id, AuditLog.action == "node.pause")
+        )
+    ).scalars().all()
+    assert rows, "Audit log should be persisted"
+    assert rows[0].actor_role == "editor"

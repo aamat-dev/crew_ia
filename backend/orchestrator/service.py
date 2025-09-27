@@ -90,7 +90,8 @@ class OrchestratorService:
                     run_id=run_uuid,
                     key=n.id,
                     title=n.title,
-                    status=NodeStatus.pending,
+                    # Aligne l'état initial avec l'ENUM DB (pas de 'pending')
+                    status=NodeStatus.queued,
                 )
             )
             # Yield explicite après écriture DB du nœud pour éviter les courses
@@ -161,6 +162,7 @@ class OrchestratorService:
 
         async def _runner():
             final_status = RunStatus.failed
+            signals: list[dict[str, Any]] = []
             try:
                 res = await run_graph(
                     dag,
@@ -173,13 +175,21 @@ class OrchestratorService:
                     skip_nodes=self._skip,
                     overrides=self._overrides,
                 )
+                signals = res.get("signals") or []
                 if res.get("status") == "succeeded":
                     final_status = RunStatus.completed
+            except asyncio.CancelledError:
+                # Annulation explicite
+                final_status = RunStatus.canceled
+                raise
             except Exception:
                 final_status = RunStatus.failed
                 raise
             finally:
                 ended = datetime.now(timezone.utc)
+                meta_payload: dict[str, Any] = {}
+                if signals:
+                    meta_payload["signals"] = signals
                 await self.storage.save_run(
                     Run(
                         id=run_uuid,
@@ -187,6 +197,7 @@ class OrchestratorService:
                         status=final_status,
                         started_at=now,
                         ended_at=ended,
+                        meta=meta_payload or None,
                     )
                 )
                 # micro‑yield post-finalisation du run
@@ -198,3 +209,26 @@ class OrchestratorService:
     async def wait(self) -> None:
         if self._task:
             await self._task
+
+    async def cancel(self) -> None:
+        """Annule l'exécution en cours (best effort) et marque le run en 'canceled'."""
+        if self._task and not self._task.done():
+            self._task.cancel()
+            # Demande d'annulation; laisse un tick à l'event loop
+            try:
+                await anyio.sleep(0)
+            except Exception:
+                pass
+        # Marque le run à canceled en base (au cas où le finally n'est pas passé)
+        if self.run_id:
+            try:
+                await self.storage.save_run(
+                    Run(
+                        id=uuid.UUID(self.run_id),
+                        title="",
+                        status=RunStatus.canceled,
+                        ended_at=datetime.now(timezone.utc),
+                    )
+                )
+            except Exception:
+                pass

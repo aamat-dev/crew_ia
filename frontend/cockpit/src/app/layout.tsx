@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/config";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/shell/AppShell";
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cockpit",
-  description: "Cockpit",
+  title: APP_NAME,
+  description: APP_NAME,
 };
 
 export default function RootLayout({

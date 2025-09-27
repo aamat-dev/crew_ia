@@ -2,7 +2,7 @@
 
 from sqlmodel import SQLModel
 
-from core.storage.db_models import Artifact, Event, Node, Run, Feedback
+from core.storage.db_models import Artifact, Event, Node, Run, Feedback, AuditLog, AuditSource
 from backend.core.models import Task, Plan, PlanReview, Assignment
 from backend.api.fastapi_app.models.agent import Agent, AgentTemplate, AgentModelsMatrix
 
@@ -16,6 +16,8 @@ __all__ = [
     "Artifact",
     "Event",
     "Feedback",
+    "AuditLog",
+    "AuditSource",
     "Task",
     "Plan",
     "Assignment",

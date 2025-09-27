@@ -143,7 +143,7 @@ async def test_run_detail_includes_feedbacks(monkeypatch, async_client, seed_sam
         },
         headers=headers,
     )
-    r = await async_client.get(f"/runs/{run_id}")
+    r = await async_client.get(f"/runs/{run_id}?include_nodes=true")
     assert r.status_code == 200
     dag_nodes = r.json()["dag"]["nodes"]
     target = [n for n in dag_nodes if n["id"] == str(node_id)][0]

@@ -1,4 +1,4 @@
-# Cockpit — Thème "Claymorphic Anthracite"
+# Oria — Thème "Claymorphic Anthracite"
 
 Nouvelle fondation UI pour l'ensemble des pages cockpit. Objectifs : palette anthracite contrastée, pastilles dégradées, composants factorisés et accessibilité clavier.
 
@@ -41,7 +41,7 @@ Ces utilitaires sont consommés dans les composants via `@/ui/theme`.
 | Page | Points clés |
 | --- | --- |
 | `dashboard/DashboardPage` | Header + 4 KPIs, 2 graphiques (débit agents & feedbacks), progress bars dégradées, notices, timeline 6 runs, RunDrawer partagé. |
-| `runs/RunsPage` | Barre filtres (status multi-select, dates, recherche), skeletons, liste `TimelineItem`, pagination progressive, `RunDrawer`. |
+| `runs/RunsPage` | Barre filtres (status multi-select, dates, recherche), sélection multiple + actions groupées (pause/reprendre/annuler, gated par rôle), timeline virtualisée pour grandes listes, `RunDrawer`. |
 | `agents/AgentsPage` | Filtres rôle/statut, graphique charge, grille `AgentCard` (emoji gradient, metrics). |
 | `settings/SettingsPage` | Sections thème, clés API (afficher/regénérer), notifications (switch + slider). |
 
